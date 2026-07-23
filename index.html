@@ -721,7 +721,7 @@ select:focus{border-color:var(--lm);outline:none}
             </div>
             <span onclick="doLogout()" style="color:var(--t3);font-size:10px;cursor:pointer;padding-left:4px;border-left:1px solid var(--b2)">로그아웃</span>
           </div>
-          <button onclick="showView('settings',this)" id="btn-settings" style="padding:4px 8px;border:1px solid var(--b2);border-radius:var(--rs);background:transparent;color:var(--t2);font-size:13px;cursor:pointer" title="설정">⚙️</button>
+          <button onclick="showView('settings',this);setTimeout(renderSettings,100)" id="btn-settings" style="padding:4px 8px;border:1px solid var(--b2);border-radius:var(--rs);background:transparent;color:var(--t2);font-size:13px;cursor:pointer" title="설정">⚙️</button>
         </div>
       </div>
 
@@ -1771,7 +1771,7 @@ function showView(v,btn){
   document.getElementById('view-'+v).classList.add('active');
   if(btn)btn.classList.add('active');
   if(v==='home'){renderDashboard();}if(v==='revenue'){renderRevenue();}if(v==='utm'){renderUtmView();}if(v==='calendar'){renderFullCal();renderFullDayTasks(S.selDate);}
-  if(v==='plan'){const p=getCurProj();if(p?.plan)renderPlanResult(p.plan);}if(v==='settings')renderSettings();if(v==='plan'){const p=getCurProj();if(p?.plan)renderPlanResult(p.plan);}if(v==='settings')renderSettings();if(v==='ads')renderAds();
+  if(v==='plan'){const p=getCurProj();if(p?.plan)renderPlanResult(p.plan);}if(v==='settings')setTimeout(renderSettings, 50);if(v==='plan'){const p=getCurProj();if(p?.plan)renderPlanResult(p.plan);}if(v==='settings')setTimeout(renderSettings, 50);if(v==='ads')renderAds();
   if(v==='progress')renderProgress();
   if(v==='meeting')renderMtgList();
   if(v==='experiment')loadExpIframe();
@@ -3359,8 +3359,9 @@ function setRevPeriod(btn,period){
 function renderSettings(){
   const list = document.getElementById('settings-proj-list');
   if(!list) return;
+  console.log('renderSettings: projects=', S.projects.length);
 
-  if(!S.projects.length){
+  if(!S.projects||!S.projects.length){
     list.innerHTML = '<div style="text-align:center;padding:24px;color:var(--t3);font-size:12px">아직 프로젝트가 없어요<br>위 + 새 프로젝트 버튼으로 추가해봐요</div>';
     return;
   }
@@ -3806,6 +3807,7 @@ setInterval(async ()=>{
       if(view === 'home') renderDashboard();
       else if(view === 'calendar') { renderFullCal(); renderFullDayTasks(S.selDate); }
       else if(view === 'progress') renderProgress();
+      else if(view === 'settings') renderSettings();
     }
     refreshProjSelects();
   }

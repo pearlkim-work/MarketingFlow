@@ -1688,7 +1688,12 @@ let S={
 };
 
 // ── STORAGE ──
-async function save(){try{if(window.storage){await window.storage.set('nnb-v8',JSON.stringify(S));}else{localStorage.setItem('nnb-v8',JSON.stringify(S));}}catch(e){try{localStorage.setItem('nnb-v8',JSON.stringify(S));}catch(e2){}}}
+
+// Supabase 디바운스 동기화
+function scheduleSupa(){
+  if(typeof supaSync==='function'){clearTimeout(_syncTimer);_syncTimer=setTimeout(supaSync,1500);}
+}
+async function save(){try{if(window.storage){await window.storage.set('nnb-v8',JSON.stringify(S));}else{localStorage.setItem('nnb-v8',JSON.stringify(S));}}catch(e){try{localStorage.setItem('nnb-v8',JSON.stringify(S));}catch(e2){}}scheduleSupa();}
 async function load(){try{let data=null;if(window.storage){const r=await window.storage.get('nnb-v8');if(r&&r.value)data=JSON.parse(r.value);}if(!data){const ls=localStorage.getItem('nnb-v8');if(ls)data=JSON.parse(ls);}if(data)Object.assign(S,{projects:data.projects||[],curProjId:data.curProjId||null,meetings:data.meetings||[],products:data.products||[],influencers:data.influencers||[]});}catch(e){}}
 
 // ── VIEWS ──
@@ -3649,13 +3654,6 @@ async function supaSync(){
 }
 
 // save 함수에 Supabase 동기화 추가
-const _origSave = save;
-async function save(){
-  _origSave();  // 로컬 먼저
-  // 디바운스: 1.5초 후 동기화
-  clearTimeout(_syncTimer);
-  _syncTimer = setTimeout(supaSync, 1500);
-}
 
 // 30초마다 자동 동기화 (다른 팀원 변경사항 반영)
 setInterval(async ()=>{

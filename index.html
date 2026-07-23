@@ -1863,15 +1863,19 @@ function syncPlanGroups(){
     }
   });
 
-  // 해제된 채널 그룹 제거 (빈 그룹만 — 할 일 있으면 유지)
+  // 해제된 채널 그룹 제거
+  const selectedNames=selectedChs.map(ch=>TN[ch]||ch);
   p.plan.groups=p.plan.groups.filter(g=>{
     if(g.name==='공통')return true; // 공통은 항상 유지
-    const ch=g._ch||Object.keys(TN).find(k=>TN[k]===g.name);
-    if(!ch)return true; // 직접 만든 그룹은 유지
-    const isSelected=selectedChs.includes(ch);
+    // 선택된 채널 이름과 매칭
+    const isSelected=selectedNames.includes(g.name)||(g._ch&&selectedChs.includes(g._ch));
     if(isSelected)return true;
+    // 채널 그룹인지 확인 (TN 값에 포함된 이름이면 채널 그룹)
+    const isChannelGroup=Object.values(TN).includes(g.name)||g._ch;
+    if(!isChannelGroup)return true; // 직접 만든 커스텀 그룹은 유지
+    // 채널 그룹인데 선택 안됨 → 빈 그룹이면 제거, 할 일 있으면 유지
     const hasTasks=(g.tasks||[]).some(t=>t.text.trim());
-    return hasTasks; // 할 일 있으면 유지, 없으면 제거
+    return hasTasks;
   });
 
   save();

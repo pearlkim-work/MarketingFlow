@@ -820,13 +820,13 @@ select:focus{border-color:var(--lm);outline:none}
       <div class="field-g"><label class="field-label">특이사항</label><textarea id="p-notes" rows="2" placeholder="예) 기존 고객 DB 보유, ROAS 2.5x" oninput="autosavePlanInput()"></textarea></div>
       <div class="divider"></div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div class="sec-label" style="margin-bottom:0">채널</div></div>
-      <div class="chips" id="ch-chips" onclick="if(event.target.classList.contains('chip')){event.target.classList.toggle('on');syncPlanGroups();}">
-        <span class="chip on" data-ch="Meta 광고">Meta</span>
-        <span class="chip" data-ch="네이버 검색">네이버</span>
-        <span class="chip on" data-ch="인플루언서/블로그">인플루언서</span>
-        <span class="chip on" data-ch="카카오 CRM">CRM</span>
-        <span class="chip" data-ch="유튜브">유튜브</span>
-        <span class="chip" data-ch="당근마켓">당근</span>
+      <div class="chips" id="ch-chips">
+        <span class="chip on" data-ch="Meta 광고" onclick="this.classList.toggle('on');syncPlanGroups()">Meta</span>
+        <span class="chip" data-ch="네이버 검색" onclick="this.classList.toggle('on');syncPlanGroups()">네이버</span>
+        <span class="chip on" data-ch="인플루언서/블로그" onclick="this.classList.toggle('on');syncPlanGroups()">인플루언서</span>
+        <span class="chip on" data-ch="카카오 CRM" onclick="this.classList.toggle('on');syncPlanGroups()">CRM</span>
+        <span class="chip" data-ch="유튜브" onclick="this.classList.toggle('on');syncPlanGroups()">유튜브</span>
+        <span class="chip" data-ch="당근마켓" onclick="this.classList.toggle('on');syncPlanGroups()">당근</span>
       </div>
       <div class="ch-add-row">
         <input type="text" id="ch-custom-inp" class="ch-custom-inp" placeholder="채널 직접 추가..." onkeydown="if(event.key==='Enter')addCustomChannel()">
@@ -1822,7 +1822,7 @@ function addCustomChannel(){
   const inp=document.getElementById('ch-custom-inp');const val=inp.value.trim();if(!val)return;
   const exists=[...document.querySelectorAll('#ch-chips .chip')].some(c=>c.dataset.ch===val);if(exists){inp.value='';return;}
   const chip=document.createElement('span');chip.className='chip on';chip.dataset.ch=val;chip.innerHTML=`${val}<span style="font-size:9px;opacity:.6;cursor:pointer;margin-left:4px" onclick="this.parentElement.remove();syncPlanGroups();">✕</span>`;
-  chip.addEventListener('click',function(e){if(e.target.tagName==='SPAN')return;this.classList.toggle('on');syncPlanGroups();});
+  chip.onclick=function(){this.classList.toggle('on');syncPlanGroups();};
   document.getElementById('ch-chips').appendChild(chip);inp.value='';inp.focus();syncPlanGroups();
 }
 

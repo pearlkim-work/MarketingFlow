@@ -53,7 +53,7 @@ input:focus,textarea:focus{border-color:var(--lm);background:var(--surf);box-sha
 input::placeholder,textarea::placeholder{color:var(--t3)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{padding:5px 11px;border-radius:20px;border:1px solid var(--b2);background:var(--surf2);color:var(--t2);font-size:11px;cursor:pointer;transition:all .15s}
-.chip.on{background:var(--lmbg);border-color:rgba(124,75,194,.35);color:var(--lm)}
+.chip.on{background:rgba(200,240,100,.15);border-color:#C8F064;color:#5a9e00;font-weight:700}
 .divider{height:1px;background:var(--b);flex-shrink:0}
 .btn-gen{width:100%;padding:12px;background:#C8F064;color:#1a1917;border:none;border-radius:var(--r-sm);font-size:13px;font-weight:700;cursor:pointer;transition:background .15s}
 .btn-gen:hover{background:var(--lm2)}
@@ -1820,6 +1820,17 @@ function loadPlanInputFromProj(proj){
   document.getElementById('p-target').value=proj.target||'';
   document.getElementById('p-memo').value=proj.planMemo||'';
   document.getElementById('p-notes').value=proj.notes||proj.memo||'';
+
+  // 저장된 plan.groups 기반으로 채널 chip 상태 복원
+  if(proj.plan?.groups){
+    const TN_REV={'Meta':'Meta 광고','CRM':'카카오 CRM','인플루언서':'인플루언서/블로그','네이버':'네이버 검색','유튜브':'유튜브','당근':'당근마켓'};
+    const activeGroups=proj.plan.groups.map(g=>g._ch||(TN_REV[g.name])||null).filter(Boolean);
+    document.querySelectorAll('#ch-chips .chip').forEach(chip=>{
+      const ch=chip.dataset.ch;
+      if(activeGroups.includes(ch)) chip.classList.add('on');
+      else chip.classList.remove('on');
+    });
+  }
 }
 document.querySelectorAll('#ch-chips .chip').forEach(c=>c.addEventListener('click',()=>{c.classList.toggle('on');renderProjSummary();}));
 function getChs(){return[...document.querySelectorAll('#ch-chips .chip.on')].map(c=>c.dataset.ch)}

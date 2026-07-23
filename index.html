@@ -820,11 +820,11 @@ select:focus{border-color:var(--lm);outline:none}
       <div class="field-g"><label class="field-label">특이사항</label><textarea id="p-notes" rows="2" placeholder="예) 기존 고객 DB 보유, ROAS 2.5x" oninput="autosavePlanInput()"></textarea></div>
       <div class="divider"></div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div class="sec-label" style="margin-bottom:0">채널</div></div>
-      <div class="chips" id="ch-chips" onclick="if(event.target.classList.contains('chip')){event.target.classList.toggle('on');}">
-        <span class="chip" data-ch="Meta 광고">Meta</span>
+      <div class="chips" id="ch-chips" onclick="if(event.target.classList.contains('chip')){event.target.classList.toggle('on');syncPlanGroups();}">
+        <span class="chip on" data-ch="Meta 광고">Meta</span>
         <span class="chip" data-ch="네이버 검색">네이버</span>
-        <span class="chip" data-ch="인플루언서/블로그">인플루언서</span>
-        <span class="chip" data-ch="카카오 CRM">CRM</span>
+        <span class="chip on" data-ch="인플루언서/블로그">인플루언서</span>
+        <span class="chip on" data-ch="카카오 CRM">CRM</span>
         <span class="chip" data-ch="유튜브">유튜브</span>
         <span class="chip" data-ch="당근마켓">당근</span>
       </div>
@@ -1821,9 +1821,9 @@ function getChs(){return[...document.querySelectorAll('#ch-chips .chip.on')].map
 function addCustomChannel(){
   const inp=document.getElementById('ch-custom-inp');const val=inp.value.trim();if(!val)return;
   const exists=[...document.querySelectorAll('#ch-chips .chip')].some(c=>c.dataset.ch===val);if(exists){inp.value='';return;}
-  const chip=document.createElement('span');chip.className='chip on';chip.dataset.ch=val;chip.innerHTML=`${val}<span style="font-size:9px;opacity:.6;cursor:pointer;margin-left:4px" onclick="this.parentElement.remove()">✕</span>`;
-  chip.addEventListener('click',function(e){if(e.target.tagName==='SPAN')return;this.classList.toggle('on');});
-  document.getElementById('ch-chips').appendChild(chip);inp.value='';inp.focus();
+  const chip=document.createElement('span');chip.className='chip on';chip.dataset.ch=val;chip.innerHTML=`${val}<span style="font-size:9px;opacity:.6;cursor:pointer;margin-left:4px" onclick="this.parentElement.remove();syncPlanGroups();">✕</span>`;
+  chip.addEventListener('click',function(e){if(e.target.tagName==='SPAN')return;this.classList.toggle('on');syncPlanGroups();});
+  document.getElementById('ch-chips').appendChild(chip);inp.value='';inp.focus();syncPlanGroups();
 }
 
 // ── PLAN GEN ──
@@ -1842,6 +1842,42 @@ function genPlan(){
   const plan={name:document.getElementById('p-name')?.value.trim()||p.name||'',budget:document.getElementById('p-budget')?.value.trim()||'',period:document.getElementById('p-period')?.value.trim()||'',target:document.getElementById('p-target')?.value.trim()||'',memo:document.getElementById('p-memo')?.value.trim()||'',channels:chs,groups,createdAt:Date.now()};
   p.plan=plan;save();renderPlanResult(plan);toast('플랜 틀 생성! 할 일을 직접 입력해봐요 ✏️',3000);
 }
+
+// 채널 선택 변경 시 플랜 그룹 실시간 동기화
+function syncPlanGroups(){
+  const p=getCurProj();
+  if(!p||!p.plan)return; // 플랜 없으면 스킵
+
+  const TC={'Meta 광고':'#1877f2','카카오 CRM':'var(--or)','인플루언서/블로그':'var(--bl)','네이버 검색':'#03c75a','유튜브':'#ff0000','당근마켓':'#ff6f0f'};
+  const TN={'Meta 광고':'Meta','카카오 CRM':'CRM','인플루언서/블로그':'인플루언서','네이버 검색':'네이버','유튜브':'유튜브','당근마켓':'당근'};
+
+  const selectedChs=[...document.querySelectorAll('#ch-chips .chip.on')].map(el=>el.dataset.ch);
+  if(!p.plan.groups)p.plan.groups=[];
+
+  // 선택된 채널 중 그룹 없는 것 추가
+  selectedChs.forEach(ch=>{
+    const name=TN[ch]||ch;
+    const exists=p.plan.groups.find(g=>g.name===name||g._ch===ch);
+    if(!exists){
+      p.plan.groups.push({id:'g-'+ch.replace(/[^a-zA-Z0-9]/g,'')+Date.now(),name:name,color:TC[ch]||'var(--lm)',_ch:ch,tasks:[{text:'',done:false,date:'',assignee:''}]});
+    }
+  });
+
+  // 해제된 채널 그룹 제거 (빈 그룹만 — 할 일 있으면 유지)
+  p.plan.groups=p.plan.groups.filter(g=>{
+    if(g.name==='공통')return true; // 공통은 항상 유지
+    const ch=g._ch||Object.keys(TN).find(k=>TN[k]===g.name);
+    if(!ch)return true; // 직접 만든 그룹은 유지
+    const isSelected=selectedChs.includes(ch);
+    if(isSelected)return true;
+    const hasTasks=(g.tasks||[]).some(t=>t.text.trim());
+    return hasTasks; // 할 일 있으면 유지, 없으면 제거
+  });
+
+  save();
+  renderPlanResult(p.plan);
+}
+
 function getAssigneeOpts(cur){
   return ['<option value="">👤 담당자</option>',
     '<option value="전체"'+(cur==='전체'?' selected':'')+'>👥 전체</option>',

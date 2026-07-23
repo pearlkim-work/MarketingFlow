@@ -835,7 +835,7 @@ select:focus{border-color:var(--lm);outline:none}
       <div class="divider"></div>
       <button class="btn-gen" id="btn-gen" onclick="genPlan()">플랜 생성 →</button>
     </aside>
-    <main class="plan-output" id="plan-output">
+    <main class="plan-output" id="plan-output" style="overflow-y:auto"><div id="plan-task-view" style="padding:16px;display:flex;flex-direction:column;gap:10px">
       <div class="empty-plan" id="plan-empty-state">
         <div class="ei">📋</div>
         <p style="font-size:13px;font-weight:700;color:var(--t);margin-bottom:5px">마케팅 플랜을 만들어봐요 🚀</p>
@@ -1828,128 +1828,92 @@ function addCustomChannel(){
 
 // ── PLAN GEN ──
 function genPlan(){
-  const proj=getCurProj();
-  if(!proj){toast('프로젝트를 먼저 선택해주세요 👆');return;}
-
-  const name=document.getElementById('p-name')?.value.trim()||proj.name||'';
-  const products=document.getElementById('p-products')?.value.trim()||'';
-  const budget=document.getElementById('p-budget')?.value.trim()||proj.budget?.[0]?.planTotal||'';
-  const period=document.getElementById('p-period')?.value.trim()||`${proj.start||''}~${proj.end||''}`;
-  const target=document.getElementById('p-target')?.value.trim()||'';
-  const memo=document.getElementById('p-memo')?.value.trim()||proj.memo||'';
-  const channels=[...document.querySelectorAll('.ch-chip.on')].map(el=>el.dataset.ch)||[];
-
-  // 입력 기반으로 플랜 자동 구성
-  const channelList=channels.length?channels:['Meta','CRM','인플루언서'];
-  const now=new Date();
-  const weekTasks=[];
-
-  // 채널별 기본 플랜 태스크 자동 생성
-  const channelDefaults={
-    'Meta':['Meta 캠페인 세팅','소재 제작 (피드/릴스)','타겟 설정 및 오디언스 구성','성과 모니터링','소재 최적화'],
-    'CRM':['CRM 발송 리스트 추출','메시지 카피 작성','A/B 테스트 발송','오픈율/클릭률 분석'],
-    '네이버':['네이버 검색광고 키워드 세팅','입찰가 설정','성과 리포트 작성'],
-    '인플루언서':['인플루언서 리스트업','DM 컨택','브리핑 문서 발송','포스팅 확인 및 피드백'],
-    '카카오':['카카오 비즈보드 소재 제작','타겟팅 설정','성과 분석'],
-    '유튜브':['유튜브 광고 소재 제작','캠페인 세팅','성과 분석'],
-    '당근':['당근마켓 지역 광고 세팅','소재 제작'],
-    '카카오톡':['카카오톡 채널 메시지 작성','발송 및 반응 확인'],
-  };
-
-  const planTasks=[];
-  channelList.forEach(ch=>{
-    const defaults=channelDefaults[ch]||[ch+' 운영'];
-    defaults.forEach(task=>planTasks.push({channel:ch,task,done:false}));
-  });
-
-  // 공통 태스크
-  const commonTasks=[
-    {channel:'공통',task:'기획 및 랜딩 페이지 준비',done:false},
-    {channel:'공통',task:'성과 목표 설정 (ROAS/전환)',done:false},
-    {channel:'공통',task:'중간 성과 점검',done:false},
-    {channel:'공통',task:'최종 성과 리포트 작성',done:false},
-  ];
-
-  const plan={
-    name,products,budget,period,target,memo,
-    channels:channelList,
-    tasks:[...commonTasks,...planTasks],
-    createdAt:Date.now()
-  };
-
-  proj.plan=plan;
-  S._pendingPlan=plan;
-  save();
-  renderPlanResult(plan,false);
-  toast('플랜이 생성됐어요 ✓');
+  const p=getCurProj();if(!p){toast('프로젝트를 먼저 선택해봐요 👆');return;}
+  const chs=[...document.querySelectorAll('.ch-chip.on')].map(el=>el.dataset.ch);
+  const TC={'Meta':'#1877f2','CRM':'var(--or)','인플루언서':'var(--bl)','네이버':'#03c75a','카카오':'#f9e000','유튜브':'#ff0000','콘텐츠':'var(--gn)','공통':'#aaa'};
+  const groups=[{id:'g-common',name:'공통',color:'#aaa',tasks:[{text:'기획 및 랜딩 페이지 준비',done:false,date:''},{text:'성과 목표 설정',done:false,date:''},{text:'중간 성과 점검',done:false,date:''},{text:'최종 성과 리포트',done:false,date:''}]}];
+  chs.forEach(ch=>{groups.push({id:'g-'+Date.now()+Math.random(),name:ch,color:TC[ch]||'var(--lm)',tasks:[{text:'',done:false,date:''}]});});
+  const plan={name:document.getElementById('p-name')?.value.trim()||p.name||'',budget:document.getElementById('p-budget')?.value.trim()||'',period:document.getElementById('p-period')?.value.trim()||'',target:document.getElementById('p-target')?.value.trim()||'',memo:document.getElementById('p-memo')?.value.trim()||'',channels:chs,groups,createdAt:Date.now()};
+  p.plan=plan;save();renderPlanResult(plan);toast('플랜 틀 생성! 할 일을 직접 입력해봐요 ✏️',3000);
 }
-function renderPlanResult(plan, editMode=false){
-  if(!plan){document.getElementById('plan-output').innerHTML='';return;}
-
-  const CH_COLORS={'Meta':'var(--lm)','CRM':'var(--or)','인플루언서':'var(--bl)','네이버':'#03c75a','카카오':'#fee500','유튜브':'#ff0000','당근':'#ff6f0f','공통':'var(--t3)'};
-  const CH_BG={'Meta':'var(--lmbg)','CRM':'var(--orbg)','인플루언서':'var(--blbg)','네이버':'rgba(3,199,90,.1)','카카오':'rgba(254,229,0,.15)','유튜브':'rgba(255,0,0,.08)','당근':'rgba(255,111,15,.1)','공통':'var(--surf3)'};
-
-  // 채널별 태스크 그루핑
-  const grouped={};
-  (plan.tasks||[]).forEach(t=>{
-    const ch=t.channel||'공통';
-    if(!grouped[ch])grouped[ch]=[];
-    grouped[ch].push(t);
-  });
-
-  const channelBlocks=Object.entries(grouped).map(([ch,tasks])=>{
-    const color=CH_COLORS[ch]||'var(--t2)';
-    const bg=CH_BG[ch]||'var(--surf3)';
-    const taskRows=tasks.map((t,ti)=>`
-      <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--surf);border-radius:5px;border:1px solid var(--b)">
-        <div onclick="togglePlanTask('${ch}',${ti})" style="width:14px;height:14px;border-radius:3px;border:1.5px solid ${t.done?color:'var(--b3)'};background:${t.done?color:'transparent'};flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center">
-          ${t.done?'<span style="font-size:8px;color:#fff;font-weight:700">✓</span>':''}
-        </div>
-        <div style="flex:1;font-size:11px;${t.done?'text-decoration:line-through;color:var(--t3)':'color:var(--t)'}">${t.task}</div>
-      </div>`).join('');
-
-    const doneCnt=tasks.filter(t=>t.done).length;
+function renderPlanResult(plan,editMode=false){
+  const container=document.getElementById('plan-task-view')||document.getElementById('plan-output');
+  if(!container)return;
+  if(!plan){container.innerHTML='<div class="empty-plan"><div class="ei">📋</div><p style="font-size:13px;font-weight:700;color:var(--t)">프로젝트를 선택해봐요</p></div>';return;}
+  if(!plan.groups)plan.groups=[{id:'g-common',name:'공통',color:'#aaa',tasks:[]}];
+  const totalTasks=plan.groups.reduce((s,g)=>s+(g.tasks||[]).length,0);
+  const doneTasks=plan.groups.reduce((s,g)=>s+(g.tasks||[]).filter(t=>t.done).length,0);
+  const pct=totalTasks?Math.round(doneTasks/totalTasks*100):0;
+  const TC={'Meta':'#1877f2','CRM':'var(--or)','인플루언서':'var(--bl)','네이버':'#03c75a','카카오':'#f9e000','유튜브':'#ff0000','콘텐츠':'var(--gn)','공통':'#aaa'};
+  const groupsHtml=plan.groups.map((g,gi)=>{
+    const gc=TC[g.name]||g.color||'var(--lm)';
+    const gd=(g.tasks||[]).filter(t=>t.done).length;
+    const th=(g.tasks||[]).map((t,ti)=>`<div style="display:flex;align-items:center;gap:7px;padding:7px 10px;background:var(--surf);border:1px solid var(--b);border-radius:var(--rs);margin-bottom:4px">
+      <div onclick="togglePT(${gi},${ti})" style="width:15px;height:15px;border-radius:3px;border:1.5px solid ${t.done?gc:'var(--b3)'};background:${t.done?gc:'transparent'};flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center">${t.done?'<span style="font-size:8px;color:#fff;font-weight:700">✓</span>':''}</div>
+      <input value="${(t.text||'').replace(/"/g,'&quot;')}" onchange="updatePT(${gi},${ti},'text',this.value)" style="flex:1;background:transparent;border:none;font-size:11px;color:${t.done?'var(--t3)':'var(--t)'};${t.done?'text-decoration:line-through;':''}font-family:inherit;outline:none;padding:0" placeholder="할 일 입력...">
+      <input type="date" value="${t.date||''}" onchange="updatePTDate(${gi},${ti},this.value)" style="font-size:10px;padding:2px 5px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:var(--t2);width:112px;cursor:pointer" title="날짜 선택하면 캘린더에 자동 반영">
+      <button onclick="deletePT(${gi},${ti})" style="width:16px;height:16px;border:none;background:transparent;color:var(--t3);font-size:10px;cursor:pointer;flex-shrink:0" onmouseover="this.style.color='var(--rd)'" onmouseout="this.style.color='var(--t3)'">✕</button>
+    </div>`).join('');
     return`<div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--r);overflow:hidden">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:${bg};border-bottom:1px solid var(--b)">
-        <div style="display:flex;align-items:center;gap:6px">
-          <div style="width:8px;height:8px;border-radius:50%;background:${color}"></div>
-          <span style="font-size:12px;font-weight:700;color:${color}">${ch}</span>
-        </div>
-        <span style="font-size:10px;color:var(--t3)">${doneCnt}/${tasks.length} 완료</span>
+      <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--b);background:var(--surf2)">
+        <div style="width:8px;height:8px;border-radius:50%;background:${gc};flex-shrink:0"></div>
+        <input value="${g.name}" onchange="updatePT(${gi},-1,'gname',this.value)" style="flex:1;font-size:12px;font-weight:700;color:${gc};background:transparent;border:none;outline:none;font-family:inherit">
+        <span style="font-size:10px;color:var(--t3)">${gd}/${(g.tasks||[]).length}</span>
+        <button onclick="deleteGroup(${gi})" style="padding:2px 7px;border:1px solid transparent;border-radius:4px;background:transparent;color:var(--t3);font-size:10px;cursor:pointer" onmouseover="this.style.borderColor='var(--rd)';this.style.color='var(--rd)'" onmouseout="this.style.borderColor='transparent';this.style.color='var(--t3)'">삭제</button>
       </div>
-      <div style="padding:8px;display:flex;flex-direction:column;gap:4px">${taskRows}</div>
+      <div style="padding:8px 10px">${th}<button onclick="addPT(${gi})" style="width:100%;padding:6px;border:1px dashed var(--b2);border-radius:var(--rs);background:transparent;color:var(--t3);font-size:11px;cursor:pointer;margin-top:2px" onmouseover="this.style.borderColor='var(--lm)';this.style.color='var(--lm)'" onmouseout="this.style.borderColor='var(--b2)';this.style.color='var(--t3)'">+ 할 일 추가</button></div>
     </div>`;
   }).join('');
-
-  const totalTasks=(plan.tasks||[]).length;
-  const doneTasks=(plan.tasks||[]).filter(t=>t.done).length;
-  const pct=totalTasks?Math.round(doneTasks/totalTasks*100):0;
-
-  document.getElementById('plan-output').innerHTML=`
-    <div style="display:flex;flex-direction:column;gap:12px">
-      <!-- 플랜 헤더 -->
-      <div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:14px 16px">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px">
-          <div>
-            <div style="font-size:14px;font-weight:700">${plan.name||'마케팅 플랜'}</div>
-            ${plan.period?`<div style="font-size:11px;color:var(--t3);margin-top:2px">📅 ${plan.period}</div>`:''}
-            ${plan.target?`<div style="font-size:11px;color:var(--t3);margin-top:1px">👥 ${plan.target}</div>`:''}
-            ${plan.budget?`<div style="font-size:11px;color:var(--t3);margin-top:1px">💰 ${plan.budget}</div>`:''}
-          </div>
-          <div style="text-align:right">
-            <div style="font-size:20px;font-weight:800;color:var(--lm)">${pct}%</div>
-            <div style="font-size:10px;color:var(--t3)">${doneTasks}/${totalTasks} 완료</div>
-          </div>
-        </div>
-        <div style="height:6px;background:var(--surf3);border-radius:3px;overflow:hidden">
-          <div style="height:100%;width:${pct}%;background:var(--lm);border-radius:3px;transition:width .6s"></div>
-        </div>
-        ${plan.memo?`<div style="margin-top:10px;font-size:11px;color:var(--t2);line-height:1.7;padding:8px 10px;background:var(--surf2);border-radius:var(--rs)">${plan.memo}</div>`:''}
+  container.innerHTML=`<div style="display:flex;flex-direction:column;gap:10px">
+    <div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:13px 15px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
+        <div style="font-size:13px;font-weight:700">${plan.name||'마케팅 플랜'}</div>
+        <div style="font-size:18px;font-weight:800;color:#5a9e00">${pct}<span style="font-size:11px">%</span></div>
       </div>
-      <!-- 채널별 태스크 -->
-      ${channelBlocks||'<div style="text-align:center;padding:30px;color:var(--t3)">채널을 선택하고 플랜을 생성해봐요</div>'}
-    </div>`;
+      <div style="height:6px;background:var(--surf3);border-radius:3px;overflow:hidden"><div style="height:100%;width:${pct}%;background:#C8F064;border-radius:3px;transition:width .6s"></div></div>
+      <div style="font-size:10px;color:var(--t3);margin-top:3px">${doneTasks}/${totalTasks} 완료</div>
+    </div>
+    ${groupsHtml}
+    <button onclick="addGroup()" style="width:100%;padding:10px;border:2px dashed var(--b2);border-radius:var(--r);background:transparent;color:var(--t3);font-size:12px;cursor:pointer" onmouseover="this.style.borderColor='#C8F064';this.style.color='#5a9e00'" onmouseout="this.style.borderColor='var(--b2)';this.style.color='var(--t3)'">+ 그룹 추가</button>
+  </div>`;
 }
+
+function getPG(){const p=getCurProj();if(!p||!p.plan)return null;if(!p.plan.groups)p.plan.groups=[{id:'g-c',name:'공통',color:'#aaa',tasks:[]}];return p.plan.groups;}
+
+function togglePT(gi,ti){const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(!t)return;t.done=!t.done;
+  // 캘린더 동기화
+  const p=getCurProj();if(t.date&&p.tasks[t.date]){const ct=p.tasks[t.date].find(c=>c._planRef===gi+'-'+ti);if(ct)ct.done=t.done;}
+  save();renderPlanResult(getCurProj().plan);if(S.selDate)renderFullDayTasks(S.selDate);}
+
+function updatePT(gi,ti,field,val){const g=getPG();if(!g)return;
+  if(ti===-1){if(g[gi])g[gi].name=val;}
+  else{if(g[gi]?.tasks?.[ti])g[gi].tasks[ti][field]=val;}
+  save();}
+
+function updatePTDate(gi,ti,date){const p=getCurProj();if(!p||!p.plan)return;const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(!t)return;
+  // 기존 날짜 캘린더 항목 제거
+  if(t.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}
+  t.date=date;
+  // 새 날짜에 추가
+  if(date){if(!p.tasks[date])p.tasks[date]=[];const ex=p.tasks[date].find(c=>c._planRef===gi+'-'+ti);
+    if(ex){ex.text=t.text;ex.done=t.done;}else{p.tasks[date].push({text:t.text||'(제목 없음)',type:'ops',done:t.done,_planRef:gi+'-'+ti,_fromPlan:true});}}
+  save();renderPlanResult(p.plan);renderFullCal();if(S.selDate===date)renderFullDayTasks(date);toast('캘린더에 반영됐어요 📅',1800);}
+
+function addPT(gi){const g=getPG();if(!g)return;if(!g[gi].tasks)g[gi].tasks=[];g[gi].tasks.push({text:'',done:false,date:''});save();renderPlanResult(getCurProj().plan);}
+
+function deletePT(gi,ti){const p=getCurProj();if(!p||!p.plan)return;const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];
+  if(t?.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}
+  g[gi].tasks.splice(ti,1);save();renderPlanResult(p.plan);renderFullCal();}
+
+function addGroup(){const p=getCurProj();if(!p||!p.plan)return;if(!p.plan.groups)p.plan.groups=[];
+  const TC={'Meta':'#1877f2','CRM':'var(--or)','인플루언서':'var(--bl)','네이버':'#03c75a','카카오':'#f9e000','유튜브':'#ff0000','콘텐츠':'var(--gn)','공통':'#aaa'};
+  const names=Object.keys(TC);const ex=p.plan.groups.map(g=>g.name);const next=names.find(n=>!ex.includes(n))||'새 그룹';
+  p.plan.groups.push({id:'g-'+Date.now(),name:next,color:TC[next]||'var(--lm)',tasks:[]});
+  save();renderPlanResult(p.plan);}
+
+function deleteGroup(gi){const p=getCurProj();if(!p||!p.plan?.groups)return;
+  (p.plan.groups[gi]?.tasks||[]).forEach((t,ti)=>{if(t.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}});
+  p.plan.groups.splice(gi,1);save();renderPlanResult(p.plan);renderFullCal();}
 
 function togglePlanTask(ch, taskIdx){
   const proj=getCurProj();

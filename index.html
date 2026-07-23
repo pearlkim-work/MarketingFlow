@@ -730,8 +730,7 @@ select:focus{border-color:var(--lm);outline:none}
             </div>
             <span onclick="doLogout()" style="color:var(--t3);font-size:10px;cursor:pointer;padding-left:4px;border-left:1px solid var(--b2)">로그아웃</span>
           </div>
-          <button onclick="showView('settings',this);setTimeout(function(){if(typeof renderSettings==='function')(typeof renderSettings==='function'&&renderSettings());},100)" id="btn-settings" style="padding:4px 8px;border:1px solid var(--b2);border-radius:var(--rs);background:transparent;color:var(--t2);font-size:13px;cursor:pointer" title="설정">⚙️</button>
-        </div>
+          </div>
       </div>
 
       <!-- ── KPI 카드 4개 ── -->
@@ -3292,10 +3291,10 @@ function toggleNavMore(btn){
   dd.style.display=isOpen?'none':'block';
   if(!isOpen){
     setTimeout(()=>document.addEventListener('click',function h(e){
-      if(!btn.closest('[style*="position:relative"]').contains(e.target)){
+      if(!dd.contains(e.target)&&e.target!==btn){
         dd.style.display='none';document.removeEventListener('click',h);
       }
-    }),0);
+    }),50);
   }
 }
 function closeNavMore(){

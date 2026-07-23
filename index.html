@@ -1698,7 +1698,7 @@ function showView(v,btn){
   document.getElementById('view-'+v).classList.add('active');
   if(btn)btn.classList.add('active');
   if(v==='home'){renderDashboard();}if(v==='revenue'){renderRevenue();}if(v==='utm'){renderUtmView();}if(v==='calendar'){renderFullCal();renderFullDayTasks(S.selDate);}
-  if(v==='ads')renderAds();
+  if(v==='plan'){const p=getCurProj();if(p?.plan)renderPlanResult(p.plan);}if(v==='ads')renderAds();
   if(v==='progress')renderProgress();
   if(v==='meeting')renderMtgList();
   if(v==='experiment')loadExpIframe();
@@ -1840,7 +1840,10 @@ function renderPlanResult(plan,editMode=false){
   const container=document.getElementById('plan-task-view')||document.getElementById('plan-output');
   if(!container)return;
   if(!plan){container.innerHTML='<div class="empty-plan"><div class="ei">📋</div><p style="font-size:13px;font-weight:700;color:var(--t)">프로젝트를 선택해봐요</p></div>';return;}
-  if(!plan.groups)plan.groups=[{id:'g-common',name:'공통',color:'#aaa',tasks:[]}];
+  // 구버전 plan(tasks[]) → 신버전(groups[]) 마이그레이션
+  if(!plan.groups){
+    plan.groups=[{id:'g-common',name:'공통',color:'#aaa',tasks:(plan.tasks||[]).map(t=>({text:t.text||t,done:t.done||false,date:''}))}];
+  }
   const totalTasks=plan.groups.reduce((s,g)=>s+(g.tasks||[]).length,0);
   const doneTasks=plan.groups.reduce((s,g)=>s+(g.tasks||[]).filter(t=>t.done).length,0);
   const pct=totalTasks?Math.round(doneTasks/totalTasks*100):0;

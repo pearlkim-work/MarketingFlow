@@ -53,7 +53,7 @@ input:focus,textarea:focus{border-color:var(--lm);background:var(--surf);box-sha
 input::placeholder,textarea::placeholder{color:var(--t3)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{padding:5px 11px;border-radius:20px;border:1px solid var(--b2);background:var(--surf2);color:var(--t2);font-size:11px;cursor:pointer;transition:all .15s}
-.chip.on{background:rgba(200,240,100,.2) !important;border-color:#C8F064 !important;color:#5a9e00 !important;font-weight:700 !important}
+.chip.sel{background:rgba(200,240,100,.25);border-color:#8bc34a;color:#4a7a00;font-weight:700}
 .divider{height:1px;background:var(--b);flex-shrink:0}
 .btn-gen{width:100%;padding:12px;background:#C8F064;color:#1a1917;border:none;border-radius:var(--r-sm);font-size:13px;font-weight:700;cursor:pointer;transition:background .15s}
 .btn-gen:hover{background:var(--lm2)}
@@ -831,12 +831,12 @@ select:focus{border-color:var(--lm);outline:none}
       <div class="divider"></div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div class="sec-label" style="margin-bottom:0">채널</div></div>
       <div class="chips" id="ch-chips">
-        <span class="chip on" data-ch="Meta 광고" style="background:rgba(200,240,100,.2);border-color:#C8F064;color:#5a9e00;font-weight:700" onclick="this.classList.toggle('on');this.style.background=this.classList.contains('on')?'rgba(200,240,100,.2)':'';this.style.borderColor=this.classList.contains('on')?'#C8F064':'';this.style.color=this.classList.contains('on')?'#5a9e00':'';syncPlanGroups()">Meta</span>
-        <span class="chip" data-ch="네이버 검색" onclick="this.classList.toggle('on');var o=this.classList.contains('on');this.style.background=o?'rgba(200,240,100,.2)':'';this.style.borderColor=o?'#C8F064':'';this.style.color=o?'#5a9e00':'';this.style.fontWeight=o?'700':'';syncPlanGroups()">네이버</span>
-        <span class="chip on" data-ch="인플루언서/블로그" style="background:rgba(200,240,100,.2);border-color:#C8F064;color:#5a9e00;font-weight:700" onclick="this.classList.toggle('on');var o=this.classList.contains('on');this.style.background=o?'rgba(200,240,100,.2)':'';this.style.borderColor=o?'#C8F064':'';this.style.color=o?'#5a9e00':'';this.style.fontWeight=o?'700':'';syncPlanGroups()">인플루언서</span>
-        <span class="chip on" data-ch="카카오 CRM" style="background:rgba(200,240,100,.2);border-color:#C8F064;color:#5a9e00;font-weight:700" onclick="this.classList.toggle('on');var o=this.classList.contains('on');this.style.background=o?'rgba(200,240,100,.2)':'';this.style.borderColor=o?'#C8F064':'';this.style.color=o?'#5a9e00':'';this.style.fontWeight=o?'700':'';syncPlanGroups()">CRM</span>
-        <span class="chip" data-ch="유튜브" onclick="this.classList.toggle('on');var o=this.classList.contains('on');this.style.background=o?'rgba(200,240,100,.2)':'';this.style.borderColor=o?'#C8F064':'';this.style.color=o?'#5a9e00':'';this.style.fontWeight=o?'700':'';syncPlanGroups()">유튜브</span>
-        <span class="chip" data-ch="당근마켓" onclick="this.classList.toggle('on');var o=this.classList.contains('on');this.style.background=o?'rgba(200,240,100,.2)':'';this.style.borderColor=o?'#C8F064':'';this.style.color=o?'#5a9e00':'';this.style.fontWeight=o?'700':'';syncPlanGroups()">당근</span>
+        <span class="chip" data-ch="Meta 광고" onclick="var o=!this.classList.contains('sel');this.classList.toggle('sel');this.style.cssText=o?'background:rgba(200,240,100,.25);border-color:#8bc34a;color:#4a7a00;font-weight:700':'';syncPlanGroups()" >Meta</span>
+        <span class="chip" data-ch="네이버 검색" onclick="var o=!this.classList.contains('sel');this.classList.toggle('sel');this.style.cssText=o?'background:rgba(200,240,100,.25);border-color:#8bc34a;color:#4a7a00;font-weight:700':'';syncPlanGroups()" >네이버</span>
+        <span class="chip" data-ch="인플루언서/블로그" onclick="var o=!this.classList.contains('sel');this.classList.toggle('sel');this.style.cssText=o?'background:rgba(200,240,100,.25);border-color:#8bc34a;color:#4a7a00;font-weight:700':'';syncPlanGroups()" >인플루언서</span>
+        <span class="chip" data-ch="카카오 CRM" onclick="var o=!this.classList.contains('sel');this.classList.toggle('sel');this.style.cssText=o?'background:rgba(200,240,100,.25);border-color:#8bc34a;color:#4a7a00;font-weight:700':'';syncPlanGroups()" >CRM</span>
+        <span class="chip" data-ch="유튜브" onclick="var o=!this.classList.contains('sel');this.classList.toggle('sel');this.style.cssText=o?'background:rgba(200,240,100,.25);border-color:#8bc34a;color:#4a7a00;font-weight:700':'';syncPlanGroups()" >유튜브</span>
+        <span class="chip" data-ch="당근마켓" onclick="var o=!this.classList.contains('sel');this.classList.toggle('sel');this.style.cssText=o?'background:rgba(200,240,100,.25);border-color:#8bc34a;color:#4a7a00;font-weight:700':'';syncPlanGroups()" >당근</span>
       </div>
       <div class="ch-add-row">
         <input type="text" id="ch-custom-inp" class="ch-custom-inp" placeholder="채널 직접 추가..." onkeydown="if(event.key==='Enter')addCustomChannel()">
@@ -1791,7 +1791,7 @@ function showView(v,btn){
   if(v==='budget'){btRefreshProjSel();btLoadProject();}
   if(v==='influencer')renderInfluencers();
   if(v==='report')rpRefreshProjSel();
-  if(v==='settings'){supaLoad().then(()=>{refreshProjSelects();_drawSettingsProjList();});}
+  if(v==='settings'){supaLoad().then(()=>{refreshProjSelects();_drawSettingsProjList();}).catch(()=>_drawSettingsProjList());}
 }
 
 
@@ -1833,23 +1833,21 @@ function switchProj(){
   const proj=getCurProj();
   loadPlanInputFromProj(proj);renderProjSummary();
 
-  // chip 상태 복원 (저장된 plan.groups 기반)
-  const TN_REV={'Meta':'Meta 광고','CRM':'카카오 CRM','인플루언서':'인플루언서/블로그','네이버':'네이버 검색','유튜브':'유튜브','당근':'당근마켓'};
-  document.querySelectorAll('#ch-chips .chip').forEach(chip=>{chip.classList.remove('on');chip.style.background='';chip.style.borderColor='';chip.style.color='';chip.style.fontWeight='';});
+  // chip 상태 복원
+  document.querySelectorAll('#ch-chips .chip').forEach(chip=>{chip.classList.remove('sel');chip.style.cssText='';});
   if(proj?.plan?.groups){
+    const TN_R={'Meta':'Meta 광고','CRM':'카카오 CRM','인플루언서':'인플루언서/블로그','네이버':'네이버 검색','유튜브':'유튜브','당근':'당근마켓'};
     proj.plan.groups.forEach(g=>{
-      const ch=g._ch||(TN_REV[g.name])||null;
-      if(ch){const el=document.querySelector('#ch-chips .chip[data-ch="'+ch+'"]');if(el){el.classList.add('on');el.style.background='rgba(200,240,100,.2)';el.style.borderColor='#C8F064';el.style.color='#5a9e00';el.style.fontWeight='700';}}
+      const ch=g._ch||(TN_R[g.name])||null;
+      if(ch){const el=document.querySelector('#ch-chips .chip[data-ch="'+ch+'"]');if(el){el.classList.add('sel');el.style.cssText='background:rgba(200,240,100,.25);border-color:#8bc34a;color:#4a7a00;font-weight:700';}}
     });
   } else {
-    // 플랜 없으면 기본값 (Meta, CRM, 인플루언서) 선택
     ['Meta 광고','카카오 CRM','인플루언서/블로그'].forEach(ch=>{
       const el=document.querySelector('#ch-chips .chip[data-ch="'+ch+'"]');
-      if(el)el.classList.add('on');
+      if(el){el.classList.add('sel');el.style.cssText='background:rgba(200,240,100,.25);border-color:#8bc34a;color:#4a7a00;font-weight:700';}
     });
   }
-
-  if(proj&&proj.plan){S._pendingPlan=JSON.parse(JSON.stringify(proj.plan));renderPlanResult(proj.plan,false);}
+if(proj&&proj.plan){S._pendingPlan=JSON.parse(JSON.stringify(proj.plan));renderPlanResult(proj.plan,false);}
   else{S._pendingPlan=null;resetPlanOutput();}
   updatePlanCalHint();renderMiniCal();
   if(_curPanelTab==='memo'){updateMemoHint();renderMemos();}
@@ -1935,19 +1933,19 @@ function loadPlanInputFromProj(proj){
   }
 }
 document.querySelectorAll('#ch-chips .chip').forEach(c=>c.addEventListener('click',()=>{c.classList.toggle('on');renderProjSummary();}));
-function getChs(){return[...document.querySelectorAll('#ch-chips .chip.on')].map(c=>c.dataset.ch)}
+function getChs(){return[...document.querySelectorAll('#ch-chips .chip.sel')].map(c=>c.dataset.ch)}
 function addCustomChannel(){
   const inp=document.getElementById('ch-custom-inp');const val=inp.value.trim();if(!val)return;
   const exists=[...document.querySelectorAll('#ch-chips .chip')].some(c=>c.dataset.ch===val);if(exists){inp.value='';return;}
-  const chip=document.createElement('span');chip.className='chip on';chip.style.background='rgba(200,240,100,.2)';chip.style.borderColor='#C8F064';chip.style.color='#5a9e00';chip.style.fontWeight='700';chip.dataset.ch=val;chip.innerHTML=`${val}<span style="font-size:9px;opacity:.6;cursor:pointer;margin-left:4px" onclick="this.parentElement.remove();syncPlanGroups();">✕</span>`;
-  chip.onclick=function(){this.classList.toggle('on');syncPlanGroups();};
+  const chip=document.createElement('span');chip.className='chip sel';chip.style.cssText='background:rgba(200,240,100,.25);border-color:#8bc34a;color:#4a7a00;font-weight:700';chip.dataset.ch=val;chip.innerHTML=`${val}<span style="font-size:9px;opacity:.6;cursor:pointer;margin-left:4px" onclick="this.parentElement.remove();syncPlanGroups();">✕</span>`;
+  chip.onclick=function(){var o=!this.classList.contains('sel');this.classList.toggle('sel');this.style.cssText=o?'background:rgba(200,240,100,.25);border-color:#8bc34a;color:#4a7a00;font-weight:700':'';syncPlanGroups();};
   document.getElementById('ch-chips').appendChild(chip);inp.value='';inp.focus();syncPlanGroups();
 }
 
 // ── PLAN GEN ──
 function genPlan(){
   const p=getCurProj();if(!p){toast('프로젝트를 먼저 선택해봐요 👆');return;}
-  const chs=[...document.querySelectorAll('#ch-chips .chip.on')].map(el=>el.dataset.ch);
+  const chs=[...document.querySelectorAll('#ch-chips .chip.sel')].map(el=>el.dataset.ch);
   const TC={'Meta 광고':'#1877f2','카카오 CRM':'var(--or)','인플루언서/블로그':'var(--bl)','네이버 검색':'#03c75a','유튜브':'#ff0000','당근마켓':'#ff6f0f'};
   const TN={'Meta 광고':'Meta','카카오 CRM':'CRM','인플루언서/블로그':'인플루언서','네이버 검색':'네이버','유튜브':'유튜브','당근마켓':'당근'};
   const groups=[{id:'g-common',name:'공통',color:'#aaa',tasks:[
@@ -1964,121 +1962,30 @@ function genPlan(){
 // 채널 선택 변경 시 플랜 그룹 실시간 동기화
 function syncPlanGroups(){
   const p=getCurProj();
-  if(!p||!p.plan||!p.plan.groups)return; // 플랜 없으면 스킵 (chip 상태만 바뀜)
-
-  const TC={'Meta 광고':'#1877f2','카카오 CRM':'var(--or)','인플루언서/블로그':'var(--bl)','네이버 검색':'#03c75a','유튜브':'#ff0000','당근마켓':'#ff6f0f'};
+  if(!p||!p.plan||!p.plan.groups)return;
+  const TC={'Meta 광고':'#1877f2','카카오 CRM':'#f0a064','인플루언서/블로그':'#64b8f0','네이버 검색':'#03c75a','유튜브':'#ff0000','당근마켓':'#ff6f0f'};
   const TN={'Meta 광고':'Meta','카카오 CRM':'CRM','인플루언서/블로그':'인플루언서','네이버 검색':'네이버','유튜브':'유튜브','당근마켓':'당근'};
-
-  const selectedChs=[...document.querySelectorAll('#ch-chips .chip.on')].map(el=>el.dataset.ch);
-  if(!p.plan.groups)p.plan.groups=[];
-
-  // 선택된 채널 중 그룹 없는 것 추가
+  const selectedChs=[...document.querySelectorAll('#ch-chips .chip.sel')].map(el=>el.dataset.ch);
+  const selectedNames=selectedChs.map(ch=>TN[ch]||ch);
+  // 선택된 채널 그룹 추가
   selectedChs.forEach(ch=>{
     const name=TN[ch]||ch;
-    const exists=p.plan.groups.find(g=>g.name===name||g._ch===ch);
-    if(!exists){
-      p.plan.groups.push({id:'g-'+ch.replace(/[^a-zA-Z0-9]/g,'')+Date.now(),name:name,color:TC[ch]||'var(--lm)',_ch:ch,tasks:[{text:'',done:false,date:'',assignee:''}]});
+    if(!p.plan.groups.find(g=>g.name===name||g._ch===ch)){
+      p.plan.groups.push({id:'g-'+Date.now()+Math.random().toString(36).slice(2),name,color:TC[ch]||'var(--lm)',_ch:ch,tasks:[{text:'',done:false,date:'',assignee:''}]});
     }
   });
-
-  // 해제된 채널 그룹 제거
-  const selectedNames=selectedChs.map(ch=>TN[ch]||ch);
+  // 해제된 채널 그룹 제거 (빈 것만)
   p.plan.groups=p.plan.groups.filter(g=>{
-    if(g.name==='공통')return true; // 공통은 항상 유지
-    // 선택된 채널 이름과 매칭
+    if(g.name==='공통')return true;
     const isSelected=selectedNames.includes(g.name)||(g._ch&&selectedChs.includes(g._ch));
     if(isSelected)return true;
-    // 채널 그룹인지 확인 (TN 값에 포함된 이름이면 채널 그룹)
-    const isChannelGroup=Object.values(TN).includes(g.name)||g._ch;
-    if(!isChannelGroup)return true; // 직접 만든 커스텀 그룹은 유지
-    // 채널 그룹인데 선택 안됨 → 빈 그룹이면 제거, 할 일 있으면 유지
-    const hasTasks=(g.tasks||[]).some(t=>t.text.trim());
-    return hasTasks;
+    const isChannel=Object.values(TN).includes(g.name)||!!g._ch;
+    if(!isChannel)return true;
+    return (g.tasks||[]).some(t=>t.text.trim());
   });
-
-  save();
-  renderPlanResult(p.plan);
+  save();renderPlanResult(p.plan);
 }
 
-function getAssigneeOpts(cur){
-  return ['<option value="">👤 담당자</option>',
-    '<option value="전체"'+(cur==='전체'?' selected':'')+'>👥 전체</option>',
-    ...MF_USERS.map(u=>'<option value="'+u.name+'"'+(cur===u.name?' selected':'')+'>'+u.name+'</option>')
-  ].join('');
-}
-
-function renderPlanResult(plan,editMode=false){
-  const container=document.getElementById('plan-task-view')||document.getElementById('plan-output');
-  if(!container)return;
-  if(!plan){container.innerHTML='<div class="empty-plan"><div class="ei">📋</div><p style="font-size:13px;font-weight:700;color:var(--t)">프로젝트를 선택해봐요</p></div>';return;}
-  // 구버전 마이그레이션
-  if(!plan.groups){
-    plan.groups=[{id:'g-common',name:'공통',color:'#aaa',tasks:(plan.tasks||[]).map(t=>({text:typeof t==='string'?t:t.text||'',done:t.done||false,date:'',assignee:''}))}];
-  }
-  const totalTasks=plan.groups.reduce((s,g)=>s+(g.tasks||[]).length,0);
-  const doneTasks=plan.groups.reduce((s,g)=>s+(g.tasks||[]).filter(t=>t.done).length,0);
-  const pct=totalTasks?Math.round(doneTasks/totalTasks*100):0;
-  const TC={'Meta':'#1877f2','CRM':'var(--or)','인플루언서':'var(--bl)','네이버':'#03c75a','카카오':'#f9e000','유튜브':'#ff0000','당근':'#ff6f0f','공통':'#aaa'};
-
-  const groupsHtml=plan.groups.map((g,gi)=>{
-    const gc=TC[g.name]||g.color||'var(--lm)';
-    const gd=(g.tasks||[]).filter(t=>t.done).length;
-    let th='';
-    (g.tasks||[]).forEach((t,ti)=>{
-      th+=`<div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--rs);margin-bottom:5px;padding:8px 10px">
-        <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
-          <div onclick="togglePT(${gi},${ti})" style="width:15px;height:15px;border-radius:3px;border:1.5px solid ${t.done?gc:'var(--b3)'};background:${t.done?gc:'transparent'};flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center">${t.done?'<span style="font-size:8px;color:#fff;font-weight:700">✓</span>':''}</div>
-          <input value="${(t.text||'').replace(/"/g,'&quot;')}" onchange="updatePT(${gi},${ti},'text',this.value)" style="flex:1;min-width:0;background:transparent;border:none;font-size:11px;color:${t.done?'var(--t3)':'var(--t)'};${t.done?'text-decoration:line-through;':''}font-family:inherit;outline:none;padding:0" placeholder="할 일 입력...">
-          <button onclick="deletePT(${gi},${ti})" style="width:16px;height:16px;border:none;background:transparent;color:var(--t3);font-size:11px;cursor:pointer;flex-shrink:0" onmouseover="this.style.color='var(--rd)'" onmouseout="this.style.color='var(--t3)'">✕</button>
-        </div>
-        <div style="display:flex;gap:6px;padding-left:22px">
-          <select onchange="updatePT(${gi},${ti},'assignee',this.value)" style="font-size:10px;padding:3px 6px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:${t.assignee?'var(--lm)':'var(--t3)'};cursor:pointer;flex:1;max-width:110px;font-family:inherit">${getAssigneeOpts(t.assignee||'')}</select>
-          <input type="date" value="${t.date||''}" onchange="updatePTDate(${gi},${ti},this.value)" style="font-size:10px;padding:3px 6px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:${t.date?'var(--lm)':'var(--t3)'};flex:1;cursor:pointer" title="날짜 선택 → 캘린더 자동반영">
-        </div>
-      </div>`;
-    });
-    return `<div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--r);overflow:hidden">
-      <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--b);background:var(--surf2)">
-        <div style="width:8px;height:8px;border-radius:50%;background:${gc};flex-shrink:0"></div>
-        <input value="${g.name}" onchange="updatePT(${gi},-1,'gname',this.value)" style="flex:1;font-size:12px;font-weight:700;color:${gc};background:transparent;border:none;outline:none;font-family:inherit">
-        <span style="font-size:10px;color:var(--t3)">${gd}/${(g.tasks||[]).length}</span>
-        <button onclick="deleteGroup(${gi})" style="padding:2px 7px;border:1px solid transparent;border-radius:4px;background:transparent;color:var(--t3);font-size:10px;cursor:pointer" onmouseover="this.style.borderColor='var(--rd)';this.style.color='var(--rd)'" onmouseout="this.style.borderColor='transparent';this.style.color='var(--t3)'">삭제</button>
-      </div>
-      <div style="padding:8px 10px">${th}<button onclick="addPT(${gi})" style="width:100%;padding:6px;border:1px dashed var(--b2);border-radius:var(--rs);background:transparent;color:var(--t3);font-size:11px;cursor:pointer;margin-top:2px" onmouseover="this.style.borderColor='var(--lm)';this.style.color='var(--lm)'" onmouseout="this.style.borderColor='var(--b2)';this.style.color='var(--t3)'">+ 할 일 추가</button></div>
-    </div>`;
-  }).join('');
-
-  container.innerHTML=`<div style="display:flex;flex-direction:column;gap:10px">
-    <div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:13px 15px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
-        <div style="font-size:13px;font-weight:700">${plan.name||'마케팅 플랜'}</div>
-        <div style="font-size:18px;font-weight:800;color:#5a9e00">${pct}<span style="font-size:11px">%</span></div>
-      </div>
-      <div style="height:6px;background:var(--surf3);border-radius:3px;overflow:hidden"><div style="height:100%;width:${pct}%;background:#C8F064;border-radius:3px;transition:width .6s"></div></div>
-      <div style="font-size:10px;color:var(--t3);margin-top:3px">${doneTasks}/${totalTasks} 완료</div>
-    </div>
-    ${groupsHtml}
-    <button onclick="addGroup()" style="width:100%;padding:10px;border:2px dashed var(--b2);border-radius:var(--r);background:transparent;color:var(--t3);font-size:12px;cursor:pointer" onmouseover="this.style.borderColor='#C8F064';this.style.color='#5a9e00'" onmouseout="this.style.borderColor='var(--b2)';this.style.color='var(--t3)'">+ 그룹 추가</button>
-  </div>`;
-}
-
-
-function toggleTask(el,ds,projId,taskIdx){
-  const proj=getProj(projId);if(!proj)return;
-  const tasks=proj.tasks[ds];if(!tasks||!tasks[taskIdx])return;
-  tasks[taskIdx].done=!tasks[taskIdx].done;
-  el.classList.toggle('done');
-  // 플랜 동기화
-  const t=tasks[taskIdx];
-  if(t._fromPlan&&t._planRef&&proj.plan?.groups){
-    const parts=t._planRef.split('-');
-    const gi=parseInt(parts[0]);const ti=parseInt(parts[1]);
-    if(proj.plan.groups[gi]?.tasks?.[ti])proj.plan.groups[gi].tasks[ti].done=t.done;
-  }
-  save();renderFullDayTasks(ds);
-}
-
-function getPG(){const p=getCurProj();if(!p||!p.plan)return null;if(!p.plan.groups)p.plan.groups=[{id:'g-c',name:'공통',color:'#aaa',tasks:[]}];return p.plan.groups;}
 function togglePT(gi,ti){const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(!t)return;t.done=!t.done;const p=getCurProj();if(t.date&&p.tasks[t.date]){const ct=p.tasks[t.date].find(c=>c._planRef===gi+'-'+ti);if(ct)ct.done=t.done;}save();renderPlanResult(p.plan);if(S.selDate)renderFullDayTasks(S.selDate);}
 function updatePT(gi,ti,field,val){const g=getPG();if(!g)return;if(ti===-1){if(g[gi])g[gi].name=val;}else{if(g[gi]?.tasks?.[ti])g[gi].tasks[ti][field]=val;}save();}
 function updatePTDate(gi,ti,date){const p=getCurProj();if(!p||!p.plan)return;const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(!t)return;if(t.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}t.date=date;if(date){if(!p.tasks[date])p.tasks[date]=[];const ex=p.tasks[date].find(c=>c._planRef===gi+'-'+ti);if(ex){ex.text=t.text;ex.done=t.done;}else{p.tasks[date].push({text:t.text||'(제목 없음)',type:'ops',done:t.done,assignee:t.assignee||'',_planRef:gi+'-'+ti,_fromPlan:true});}}save();renderPlanResult(p.plan);renderFullCal();if(S.selDate===date)renderFullDayTasks(date);toast('캘린더에 반영됐어요 📅',1800);}
@@ -3396,29 +3303,27 @@ function renderSettings(){
 function _drawSettingsProjList(){
   const list=document.getElementById('settings-proj-list');
   if(!list)return;
-  const projs=S.projects||[];
-  if(!projs.length){
-    list.innerHTML='<div style="text-align:center;padding:24px;color:var(--t3);font-size:12px">프로젝트가 없어요<br>+ 새 프로젝트 버튼으로 추가해봐요</div>';
+  if(!S.projects||!S.projects.length){
+    list.innerHTML='<div style="text-align:center;padding:24px;color:var(--t3);font-size:12px">프로젝트가 없어요<br>+ 새 프로젝트로 추가해봐요</div>';
     return;
   }
-  list.innerHTML=projs.map((p,i)=>{
+  list.innerHTML=S.projects.map((p)=>{
     const tc=Object.values(p.tasks||{}).reduce((s,ts)=>s+ts.length,0);
     const dc=Object.values(p.tasks||{}).reduce((s,ts)=>s+ts.filter(t=>t.done).length,0);
     const pct=tc?Math.round(dc/tc*100):0;
     const isCur=p.id===S.curProjId;
-    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${isCur?'rgba(200,240,100,.1)':'var(--surf2)'};border-radius:var(--rs);margin-bottom:6px;border:1px solid ${isCur?'#C8F064':'var(--b)'}">
-      <div style="width:8px;height:8px;border-radius:50%;background:#C8F064;flex-shrink:0"></div>
+    return`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${isCur?'rgba(200,240,100,.1)':'var(--surf2)'};border-radius:var(--rs);margin-bottom:6px;border:1px solid ${isCur?'#8bc34a':'var(--b)'}">
+      <div style="width:8px;height:8px;border-radius:50%;background:#8bc34a;flex-shrink:0"></div>
       <input value="${p.name.replace(/"/g,'&quot;')}" onchange="renameProj('${p.id}',this.value)"
         style="flex:1;background:transparent;border:none;font-size:12px;font-weight:${isCur?700:500};color:var(--t);font-family:inherit;outline:none;padding:2px 0"
-        onfocus="this.style.cssText='flex:1;background:var(--surf);border:1px solid var(--lm);border-radius:4px;font-size:12px;font-weight:${isCur?700:500};color:var(--t);font-family:inherit;outline:none;padding:2px 6px'"
-        onblur="this.style.cssText='flex:1;background:transparent;border:none;font-size:12px;font-weight:${isCur?700:500};color:var(--t);font-family:inherit;outline:none;padding:2px 0'">
+        onfocus="this.style.background='var(--surf)';this.style.border='1px solid #8bc34a';this.style.borderRadius='4px';this.style.padding='2px 6px'"
+        onblur="this.style.background='transparent';this.style.border='none';this.style.padding='2px 0'">
       <span style="font-size:10px;color:var(--t3)">${dc}/${tc} (${pct}%)</span>
       <button onclick="selectAndGoProj('${p.id}')" style="padding:3px 10px;border:1px solid var(--b2);border-radius:var(--rs);background:transparent;color:var(--t2);font-size:11px;cursor:pointer">선택</button>
       <button onclick="confirmDeleteProj('${p.id}','${p.name.replace(/'/g,"\\'")}')" style="padding:3px 10px;border:1px solid rgba(194,32,32,.3);border-radius:var(--rs);background:transparent;color:var(--rd);font-size:11px;cursor:pointer">삭제</button>
     </div>`;
   }).join('');
 }
-
 function renameProj(id, name){
   const p = S.projects.find(p=>p.id===id);
   if(!p||!name.trim()) return;

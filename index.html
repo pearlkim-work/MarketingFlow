@@ -670,7 +670,7 @@ select:focus{border-color:var(--lm);outline:none}
     <div style="position:relative">
       <button onclick="toggleNavMore(this)" style="padding:4px 9px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);color:var(--t2);font-size:11px;cursor:pointer;font-weight:700" title="더보기">···</button>
       <div id="nav-more-dropdown" style="display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--surf);border:1px solid var(--b2);border-radius:var(--r);box-shadow:0 4px 16px rgba(0,0,0,.1);z-index:200;min-width:140px;overflow:hidden">
-        <button onclick="showView('settings',this);setTimeout(renderSettings,100);closeNavMore()" style="width:100%;padding:9px 14px;border:none;background:transparent;color:var(--t2);font-size:12px;text-align:left;cursor:pointer;font-family:inherit" onmouseover="this.style.background='var(--surf2)'" onmouseout="this.style.background='transparent'">⚙️ 설정</button>
+        <button onclick="showView('settings',this);setTimeout(function(){typeof renderSettings==="function"&&renderSettings();},100);closeNavMore()" style="width:100%;padding:9px 14px;border:none;background:transparent;color:var(--t2);font-size:12px;text-align:left;cursor:pointer;font-family:inherit" onmouseover="this.style.background='var(--surf2)'" onmouseout="this.style.background='transparent'">⚙️ 설정</button>
         <div style="height:1px;background:var(--b)"></div>
         <button onclick="doLogout();closeNavMore()" style="width:100%;padding:9px 14px;border:none;background:transparent;color:var(--rd);font-size:12px;text-align:left;cursor:pointer;font-family:inherit" onmouseover="this.style.background='var(--rdbg)'" onmouseout="this.style.background='transparent'">🚪 로그아웃</button>
       </div>
@@ -730,7 +730,7 @@ select:focus{border-color:var(--lm);outline:none}
             </div>
             <span onclick="doLogout()" style="color:var(--t3);font-size:10px;cursor:pointer;padding-left:4px;border-left:1px solid var(--b2)">로그아웃</span>
           </div>
-          <button onclick="showView('settings',this);setTimeout(renderSettings,100)" id="btn-settings" style="padding:4px 8px;border:1px solid var(--b2);border-radius:var(--rs);background:transparent;color:var(--t2);font-size:13px;cursor:pointer" title="설정">⚙️</button>
+          <button onclick="showView('settings',this);setTimeout(function(){if(typeof renderSettings==='function')(typeof renderSettings==='function'&&renderSettings());},100)" id="btn-settings" style="padding:4px 8px;border:1px solid var(--b2);border-radius:var(--rs);background:transparent;color:var(--t2);font-size:13px;cursor:pointer" title="설정">⚙️</button>
         </div>
       </div>
 
@@ -1780,7 +1780,7 @@ function showView(v,btn){
   document.getElementById('view-'+v).classList.add('active');
   if(btn)btn.classList.add('active');
   if(v==='home'){renderDashboard();}if(v==='revenue'){renderRevenue();}if(v==='utm'){renderUtmView();}if(v==='calendar'){renderFullCal();renderFullDayTasks(S.selDate);}
-  if(v==='plan'){const p=getCurProj();if(p?.plan)renderPlanResult(p.plan);}if(v==='settings')setTimeout(renderSettings, 50);if(v==='plan'){const p=getCurProj();if(p?.plan)renderPlanResult(p.plan);}if(v==='settings')setTimeout(renderSettings, 50);if(v==='ads')renderAds();
+  if(v==='plan'){const p=getCurProj();if(p?.plan)renderPlanResult(p.plan);}if(v==='settings')setTimeout(function(){typeof renderSettings==="function"&&renderSettings();}, 100);if(v==='plan'){const p=getCurProj();if(p?.plan)renderPlanResult(p.plan);}if(v==='settings')setTimeout(function(){typeof renderSettings==="function"&&renderSettings();}, 100);if(v==='ads')renderAds();
   if(v==='progress')renderProgress();
   if(v==='meeting')renderMtgList();
   if(v==='experiment')loadExpIframe();
@@ -3690,7 +3690,8 @@ function openUtmCreateModal(){updateUtmPreview();document.getElementById('utm-ur
 
   // ── 마케터 인사이트 ──
   const insights=[];
-  const overBudget=budgetArr?budgetArr.filter(b=>b.actual>b.plan):[];
+  const _bArr=[];projs.forEach(p=>(Array.isArray(p.budget)?p.budget:[]).forEach(b=>{const plan=parseFloat(b.planTotal)||0;const actual=Object.values(b.monthly||{}).reduce((s,v)=>s+(parseFloat(v)||0),0);if(plan>0)_bArr.push({ch:b.channel||'기타',plan,actual});}));
+  const overBudget=_bArr.filter(b=>b.actual>b.plan);
   if(overBudget.length)insights.push({icon:'⚠️',color:'var(--rd)',bg:'var(--rdbg)',text:'<b>'+overBudget.map(b=>b.ch).join(', ')+'</b> 채널 예산 초과 집행 중'});
   const nearEnd=projs.filter(p=>{if(!p.end)return false;const diff=(new Date(p.end)-today)/(1000*60*60*24);return diff>=0&&diff<=7;});
   if(nearEnd.length)insights.push({icon:'📅',color:'var(--or)',bg:'var(--orbg)',text:'<b>'+nearEnd.map(p=>p.name).join(', ')+'</b> 마감 7일 이내'});

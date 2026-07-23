@@ -2740,6 +2740,12 @@ async function init(){
   S.planCalY=n.getFullYear();S.planCalM=n.getMonth();S.fullCalY=n.getFullYear();S.fullCalM=n.getMonth();
   S.selDate=`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
   S.planSelDate=S.selDate;
+  // ☁️ Supabase에서 팀 데이터 로드
+  try{
+    const cloudLoaded = await supaLoad();
+    if(cloudLoaded){ refreshProjSelects(); renderDashboard(); }
+  }catch(e){ console.warn('cloud load skip:', e); }
+
   // 세션 복원
   try{const saved=localStorage.getItem('mf_user');if(saved){_mfUser=JSON.parse(saved);document.getElementById('login-screen').style.display='none';document.getElementById('dashboard-body').style.display='block';const n=document.getElementById('dash-user-name');const a=document.getElementById('dash-user-avatar');if(n)n.textContent=_mfUser.name;if(a)a.textContent=_mfUser.name[0];const og=document.getElementById('dash-user-org');if(og)og.textContent=_mfUser.org||'';}}catch(e){}
   refreshProjSelects();updatePlanCalHint();renderDashboard();updateMemoHint();renderMiniCal();qtRefreshProj();qtAddRow();renderProjSummary();btRefreshProjSel();rpRefreshProjSel();
@@ -3114,6 +3120,8 @@ function doLogin(){
   try{localStorage.setItem('mf_user',JSON.stringify(user));}catch(e){}
   document.getElementById('login-screen').style.display='none';
   document.getElementById('dashboard-body').style.display='block';
+  // 로그인 시 클라우드 로드
+  supaLoad().then(loaded=>{ if(loaded){ refreshProjSelects(); renderDashboard(); } });
   const nameEl=document.getElementById('dash-user-name');
   const avatarEl=document.getElementById('dash-user-avatar');
   const orgEl=document.getElementById('dash-user-org');
@@ -3508,6 +3516,117 @@ function renderUtmView(){
   }).join('');
 }
   
+
+
+// ════════════════════════════════════════
+// ☁️ Supabase 연동 (팀 공유 저장소)
+// ════════════════════════════════════════
+const SUPA_URL = 'https://vwibsowtpdgtqcenncxt.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3aWJzb3d0cGRndHFjZW5uY3h0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3NzY1NTYsImV4cCI6MjEwMDM1MjU1Nn0.RkPQ08a0KBQ77j1Ph1ThfrCajsWnDlZ4tWKYRZjB5Dw';
+const SUPA_ORG = '바바그라운드';
+const SUPA_ID  = 'mf-' + SUPA_ORG;
+
+let _syncTimer = null;
+let _lastSyncAt = 0;
+
+async function supaLoad(){
+  try{
+    const res = await fetch(`${SUPA_URL}/rest/v1/mf_data?id=eq.${encodeURIComponent(SUPA_ID)}&select=data`, {
+      method: 'GET',
+      mode: 'cors',
+      headers: {
+        'apikey': SUPA_KEY,
+        'Authorization': 'Bearer ' + SUPA_KEY,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
+    });
+    if(!res.ok) throw new Error('fetch fail');
+    const rows = await res.json();
+    if(rows.length > 0 && rows[0].data){
+      const d = rows[0].data;
+      Object.assign(S, {
+        projects: d.projects||[],
+        curProjId: d.curProjId||null,
+        meetings: d.meetings||[],
+        products: d.products||[],
+        influencers: d.influencers||[],
+        revEntries: d.revEntries||[],
+        utmEntries: d.utmEntries||[]
+      });
+      console.log('☁️ Supabase 로드 완료');
+      return true;
+    }
+  } catch(e) {
+    console.warn('Supabase 로드 실패, 로컬 사용:', e.message, e);
+  }
+  return false;
+}
+
+async function supaSync(){
+  try{
+    const payload = {
+      id: SUPA_ID,
+      org: SUPA_ORG,
+      data: {
+        projects: S.projects,
+        curProjId: S.curProjId,
+        meetings: S.meetings||[],
+        products: S.products||[],
+        influencers: S.influencers||[],
+        revEntries: S.revEntries||[],
+        utmEntries: S.utmEntries||[]
+      },
+      updated_at: new Date().toISOString()
+    };
+    const res = await fetch(`${SUPA_URL}/rest/v1/mf_data`, {
+      method: 'POST',
+      mode: 'cors',
+      headers: {
+        'apikey': SUPA_KEY,
+        'Authorization': 'Bearer ' + SUPA_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+    if(!res.ok) throw new Error('sync fail ' + res.status);
+    _lastSyncAt = Date.now();
+    // 싱크 인디케이터 업데이트
+    const ind = document.getElementById('sync-indicator');
+    if(ind){ ind.textContent='☁️ 동기화됨'; ind.style.color='var(--gn)'; setTimeout(()=>{ if(ind)ind.textContent='☁️'; }, 2000); }
+  } catch(e) {
+    console.warn('Supabase 동기화 실패:', e.message);
+    const ind = document.getElementById('sync-indicator');
+    if(ind){ ind.textContent='⚠️ 오프라인'; ind.style.color='var(--or)'; }
+  }
+}
+
+// save 함수에 Supabase 동기화 추가
+const _origSave = save;
+async function save(){
+  _origSave();  // 로컬 먼저
+  // 디바운스: 1.5초 후 동기화
+  clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(supaSync, 1500);
+}
+
+// 30초마다 자동 동기화 (다른 팀원 변경사항 반영)
+setInterval(async ()=>{
+  const loaded = await supaLoad();
+  if(loaded){
+    // 현재 뷰 리렌더
+    const activeTab = document.querySelector('.nav-tab.active');
+    if(activeTab){
+      const view = activeTab.getAttribute('onclick')?.match(/showView\('(\w+)'/)?.[1];
+      if(view === 'home') renderDashboard();
+      else if(view === 'calendar') { renderFullCal(); renderFullDayTasks(S.selDate); }
+      else if(view === 'progress') renderProgress();
+    }
+    refreshProjSelects();
+  }
+}, 30000);
 
 // 모달 배경 클릭 시 닫기
 document.querySelectorAll('.modal-bg').forEach(bg=>{

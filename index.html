@@ -664,8 +664,6 @@ select:focus{border-color:var(--lm);outline:none}
     <span style="font-size:9px;color:var(--t3);font-weight:600;padding:0 3px;letter-spacing:.04em;white-space:nowrap">기록</span>
     <button class="nav-tab" onclick="showView('meeting',this)" title="회의록">🗣 회의록</button>
     <button class="nav-tab" onclick="showView('report',this)" title="리포트 생성">📑 리포트</button>
-    <div class="nav-divider"></div>
-    <button class="nav-tab" onclick="showView('settings',this)" title="설정">⚙️ 설정</button>
   </div>
   <div class="nav-right" id="pdf-hide">
     <select class="proj-sel" id="proj-sel" onchange="switchProj()" style="max-width:110px">
@@ -723,6 +721,7 @@ select:focus{border-color:var(--lm);outline:none}
             </div>
             <span onclick="doLogout()" style="color:var(--t3);font-size:10px;cursor:pointer;padding-left:4px;border-left:1px solid var(--b2)">로그아웃</span>
           </div>
+          <button onclick="showView('settings',this)" id="btn-settings" style="padding:4px 8px;border:1px solid var(--b2);border-radius:var(--rs);background:transparent;color:var(--t2);font-size:13px;cursor:pointer" title="설정">⚙️</button>
         </div>
       </div>
 

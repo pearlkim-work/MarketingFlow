@@ -925,21 +925,63 @@ select:focus{border-color:var(--lm);outline:none}
     <aside class="cal-sidebar-full">
       <div class="sidebar-date" id="full-sel-date-lbl">날짜를 선택하세요</div>
       <div class="sidebar-task-list" id="full-task-list"></div>
-      <div class="add-task-full">
-        <div class="sec-label">할 일 추가</div>
-        <input type="text" id="full-task-inp" placeholder="할 일..." onkeydown="if(event.key==='Enter')fullAddTask()">
-        <div class="add-row">
-          <select id="full-task-type">
-            <option value="ops">일반</option>
-            <option value="meta">Meta</option>
-            <option value="crm">CRM</option>
-            <option value="inf">인플루언서</option>
-            <option value="content">콘텐츠</option>
-            <option value="live">광고 라이브</option>
-          </select>
-          <select id="full-task-proj"></select>
+      <div class="add-task-full" style="display:flex;flex-direction:column;gap:7px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div class="sec-label" style="margin-bottom:0">일정 추가</div>
+          <button onclick="toggleDetailForm()" id="btn-toggle-detail" style="font-size:10px;color:var(--lm);background:transparent;border:none;cursor:pointer;padding:2px 6px">+ 상세</button>
         </div>
-        <button class="btn-add-full" onclick="fullAddTask()">추가</button>
+
+        <!-- 기본 입력 -->
+        <input type="text" id="full-task-inp" placeholder="할 일 내용..." onkeydown="if(event.key==='Enter'&&!event.shiftKey)fullAddTask()">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
+          <select id="full-task-type" style="font-size:11px">
+            <option value="ops">📋 일반</option>
+            <option value="meta">📘 Meta</option>
+            <option value="crm">📨 CRM</option>
+            <option value="inf">✨ 인플루언서</option>
+            <option value="content">🎨 콘텐츠</option>
+            <option value="live">🔴 광고 라이브</option>
+            <option value="meet">🗣 미팅</option>
+          </select>
+          <select id="full-task-proj" style="font-size:11px"></select>
+        </div>
+
+        <!-- 상세 입력 (기본 숨김) -->
+        <div id="detail-form" style="display:none;flex-direction:column;gap:5px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
+            <div class="field-g">
+              <label class="field-label">담당자</label>
+              <input type="text" id="full-task-assignee" placeholder="예) 진주, 규리" style="font-size:11px">
+            </div>
+            <div class="field-g">
+              <label class="field-label">우선순위</label>
+              <select id="full-task-priority" style="font-size:11px">
+                <option value="">없음</option>
+                <option value="high">🔴 High</option>
+                <option value="medium">🟡 Medium</option>
+                <option value="low">🟢 Low</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-g">
+            <label class="field-label">예산</label>
+            <input type="text" id="full-task-budget" placeholder="예) 200만원" style="font-size:11px">
+          </div>
+          <div class="field-g">
+            <label class="field-label">메모/디테일</label>
+            <textarea id="full-task-memo" placeholder="상세 내용, 참고사항..." rows="2" style="font-size:11px;resize:none"></textarea>
+          </div>
+          <div class="field-g">
+            <label class="field-label">링크 (URL)</label>
+            <input type="text" id="full-task-link" placeholder="https://..." style="font-size:11px">
+          </div>
+          <div class="field-g">
+            <label class="field-label">체크리스트 (줄바꿈으로 구분)</label>
+            <textarea id="full-task-checklist" placeholder="예)&#10;소재 제작&#10;타겟 설정&#10;성과 확인" rows="3" style="font-size:11px;resize:none"></textarea>
+          </div>
+        </div>
+
+        <button class="btn-add-full" onclick="fullAddTask()" style="background:#C8F064;color:#1a1917;font-weight:700">+ 추가</button>
       </div>
     </aside>
   </div>
@@ -1785,32 +1827,139 @@ function addCustomChannel(){
 }
 
 // ── PLAN GEN ──
-async function genPlan(){
-  const name=document.getElementById('p-name').value.trim();const products=document.getElementById('p-products').value.trim();
-  if(!products&&!name){alert('상품/테마 또는 기획전 이름을 입력하세요');return;}
-  const memo=document.getElementById('p-memo').value.trim();
-  const btn=document.getElementById('btn-gen');btn.disabled=true;btn.textContent='생성 중...';
-  document.getElementById('plan-output').innerHTML='<div class="loading"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
-  const prompt=`너는 노는법 마케팅 매니저야. 아래 정보로 마케팅 플랜을 JSON만 반환해. 다른 텍스트 없이.
-기획전:${name||'미입력'} 상품:${products||'미입력'} 예산:${document.getElementById('p-budget').value||'미입력'} 일정:${document.getElementById('p-timeline').value||'미입력'} 타겟:${document.getElementById('p-target').value||'미입력'} 채널:${getChs().join(',')||'전체'} 특이사항:${document.getElementById('p-notes').value||'없음'}${memo?` 기획자메모:${memo}`:''}
-{"campaign_name":"","concept":"","key_message":"","targets":[{"type":"A","label":"","desc":"","channel":""},{"type":"B","label":"","desc":"","channel":""},{"type":"C","label":"","desc":"","channel":""}],"phases":[{"period":"","name":"","actions":[{"text":"","type":"meta|crm|inf|ops|content"}]},{"period":"","name":"","actions":[]},{"period":"","name":"","actions":[]},{"period":"","name":"","actions":[]}],"budget":[{"channel":"","amount":"","pct":40,"note":""},{"channel":"","amount":"","pct":30,"note":""},{"channel":"","amount":"","pct":20,"note":""},{"channel":"","amount":"","pct":10,"note":""}],"kpi":[{"val":"","label":""},{"val":"","label":""},{"val":"","label":""},{"val":"","label":""}]}`;
-  try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,messages:[{role:'user',content:prompt}]})});
-    const data=await res.json();
-    const plan=JSON.parse(data.content[0].text.replace(/```json|```/g,'').trim());
-    S._pendingPlan=plan;renderPlanResult(plan);
-  }catch(e){document.getElementById('plan-output').innerHTML=`<div class="empty-plan"><div class="ei">⚠️</div><p>오류: ${e.message}</p></div>`;}
-  btn.disabled=false;btn.textContent='플랜 생성 →';
+function genPlan(){
+  const proj=getCurProj();
+  if(!proj){toast('프로젝트를 먼저 선택해주세요 👆');return;}
+
+  const name=document.getElementById('p-name')?.value.trim()||proj.name||'';
+  const products=document.getElementById('p-products')?.value.trim()||'';
+  const budget=document.getElementById('p-budget')?.value.trim()||proj.budget?.[0]?.planTotal||'';
+  const period=document.getElementById('p-period')?.value.trim()||`${proj.start||''}~${proj.end||''}`;
+  const target=document.getElementById('p-target')?.value.trim()||'';
+  const memo=document.getElementById('p-memo')?.value.trim()||proj.memo||'';
+  const channels=[...document.querySelectorAll('.ch-chip.on')].map(el=>el.dataset.ch)||[];
+
+  // 입력 기반으로 플랜 자동 구성
+  const channelList=channels.length?channels:['Meta','CRM','인플루언서'];
+  const now=new Date();
+  const weekTasks=[];
+
+  // 채널별 기본 플랜 태스크 자동 생성
+  const channelDefaults={
+    'Meta':['Meta 캠페인 세팅','소재 제작 (피드/릴스)','타겟 설정 및 오디언스 구성','성과 모니터링','소재 최적화'],
+    'CRM':['CRM 발송 리스트 추출','메시지 카피 작성','A/B 테스트 발송','오픈율/클릭률 분석'],
+    '네이버':['네이버 검색광고 키워드 세팅','입찰가 설정','성과 리포트 작성'],
+    '인플루언서':['인플루언서 리스트업','DM 컨택','브리핑 문서 발송','포스팅 확인 및 피드백'],
+    '카카오':['카카오 비즈보드 소재 제작','타겟팅 설정','성과 분석'],
+    '유튜브':['유튜브 광고 소재 제작','캠페인 세팅','성과 분석'],
+    '당근':['당근마켓 지역 광고 세팅','소재 제작'],
+    '카카오톡':['카카오톡 채널 메시지 작성','발송 및 반응 확인'],
+  };
+
+  const planTasks=[];
+  channelList.forEach(ch=>{
+    const defaults=channelDefaults[ch]||[ch+' 운영'];
+    defaults.forEach(task=>planTasks.push({channel:ch,task,done:false}));
+  });
+
+  // 공통 태스크
+  const commonTasks=[
+    {channel:'공통',task:'기획 및 랜딩 페이지 준비',done:false},
+    {channel:'공통',task:'성과 목표 설정 (ROAS/전환)',done:false},
+    {channel:'공통',task:'중간 성과 점검',done:false},
+    {channel:'공통',task:'최종 성과 리포트 작성',done:false},
+  ];
+
+  const plan={
+    name,products,budget,period,target,memo,
+    channels:channelList,
+    tasks:[...commonTasks,...planTasks],
+    createdAt:Date.now()
+  };
+
+  proj.plan=plan;
+  S._pendingPlan=plan;
+  save();
+  renderPlanResult(plan,false);
+  toast('플랜이 생성됐어요 ✓');
 }
-function renderPlanResult(plan,editMode=false){
-  const memo=document.getElementById('p-memo').value.trim();
-  const memoBlock=memo?`<div style="border:1px solid var(--b2);border-radius:var(--r-sm);padding:12px 14px;background:var(--surf2)"><div class="sec-label" style="margin-bottom:6px">기획자 메모</div><div style="font-size:12px;color:var(--t2);line-height:1.75;white-space:pre-wrap">${memo}</div></div>`:'';
-  const tCards=(plan.targets||[]).map((t,i)=>`<div class="target-card tc-${['a','b','c'][i]||'a'}"><span class="t-badge">${['💜','💚','🧡'][i]} ${t.label}</span><div class="t-title">${t.channel}</div><div class="t-desc">${t.desc}</div></div>`).join('');
-  const phases=(plan.phases||[]).map(ph=>`<div class="phase-item"><div class="phase-l"><div class="phase-period">${ph.period}</div><div class="phase-name">${ph.name}</div></div><div class="phase-r"><div class="acts">${(ph.actions||[]).map(a=>`<span class="atag ${a.type}">${a.text}</span>`).join('')}</div></div></div>`).join('');
-  const bRows=(plan.budget||[]).map(b=>`<div class="budget-row"><div><div class="b-ch">${b.channel}</div><div class="b-note">${b.note}</div></div><div class="b-bar-bg"><div class="b-bar" style="width:${b.pct}%"></div></div><div class="b-amt">${b.amount}</div></div>`).join('');
-  const kpis=(plan.kpi||[]).map(k=>`<div class="kpi-card"><div class="kpi-val">${k.val}</div><div class="kpi-label">${k.label}</div></div>`).join('');
-  document.getElementById('plan-output').innerHTML=`<div class="plan-result"><div class="plan-header"><div class="plan-title">${plan.campaign_name||''}</div><div class="plan-concept">${plan.concept||''}</div>${plan.key_message?`<span class="key-msg">💬 ${plan.key_message}</span>`:''}</div>${memoBlock}<div><div class="sec-label">타겟 세그먼트</div><div class="target-grid">${tCards}</div></div><div><div class="sec-label">단계별 액션</div><div class="phase-list">${phases}</div></div><div><div class="sec-label">예산 배분</div><div class="budget-list">${bRows}</div></div><div><div class="sec-label">목표 KPI</div><div class="kpi-grid">${kpis}</div></div><div class="plan-actions-bar"><button class="btn-save-p" onclick="savePlanToProj()">💾 프로젝트에 저장</button><button class="btn-pdf" onclick="window.print()">🖨 PDF</button></div></div>`;
-  setTimeout(()=>document.querySelectorAll('.b-bar').forEach(b=>{const w=b.style.width;b.style.width='0';setTimeout(()=>b.style.width=w,50)}),100);
+function renderPlanResult(plan, editMode=false){
+  if(!plan){document.getElementById('plan-output').innerHTML='';return;}
+
+  const CH_COLORS={'Meta':'var(--lm)','CRM':'var(--or)','인플루언서':'var(--bl)','네이버':'#03c75a','카카오':'#fee500','유튜브':'#ff0000','당근':'#ff6f0f','공통':'var(--t3)'};
+  const CH_BG={'Meta':'var(--lmbg)','CRM':'var(--orbg)','인플루언서':'var(--blbg)','네이버':'rgba(3,199,90,.1)','카카오':'rgba(254,229,0,.15)','유튜브':'rgba(255,0,0,.08)','당근':'rgba(255,111,15,.1)','공통':'var(--surf3)'};
+
+  // 채널별 태스크 그루핑
+  const grouped={};
+  (plan.tasks||[]).forEach(t=>{
+    const ch=t.channel||'공통';
+    if(!grouped[ch])grouped[ch]=[];
+    grouped[ch].push(t);
+  });
+
+  const channelBlocks=Object.entries(grouped).map(([ch,tasks])=>{
+    const color=CH_COLORS[ch]||'var(--t2)';
+    const bg=CH_BG[ch]||'var(--surf3)';
+    const taskRows=tasks.map((t,ti)=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--surf);border-radius:5px;border:1px solid var(--b)">
+        <div onclick="togglePlanTask('${ch}',${ti})" style="width:14px;height:14px;border-radius:3px;border:1.5px solid ${t.done?color:'var(--b3)'};background:${t.done?color:'transparent'};flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center">
+          ${t.done?'<span style="font-size:8px;color:#fff;font-weight:700">✓</span>':''}
+        </div>
+        <div style="flex:1;font-size:11px;${t.done?'text-decoration:line-through;color:var(--t3)':'color:var(--t)'}">${t.task}</div>
+      </div>`).join('');
+
+    const doneCnt=tasks.filter(t=>t.done).length;
+    return`<div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--r);overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:${bg};border-bottom:1px solid var(--b)">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="width:8px;height:8px;border-radius:50%;background:${color}"></div>
+          <span style="font-size:12px;font-weight:700;color:${color}">${ch}</span>
+        </div>
+        <span style="font-size:10px;color:var(--t3)">${doneCnt}/${tasks.length} 완료</span>
+      </div>
+      <div style="padding:8px;display:flex;flex-direction:column;gap:4px">${taskRows}</div>
+    </div>`;
+  }).join('');
+
+  const totalTasks=(plan.tasks||[]).length;
+  const doneTasks=(plan.tasks||[]).filter(t=>t.done).length;
+  const pct=totalTasks?Math.round(doneTasks/totalTasks*100):0;
+
+  document.getElementById('plan-output').innerHTML=`
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <!-- 플랜 헤더 -->
+      <div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:14px 16px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px">
+          <div>
+            <div style="font-size:14px;font-weight:700">${plan.name||'마케팅 플랜'}</div>
+            ${plan.period?`<div style="font-size:11px;color:var(--t3);margin-top:2px">📅 ${plan.period}</div>`:''}
+            ${plan.target?`<div style="font-size:11px;color:var(--t3);margin-top:1px">👥 ${plan.target}</div>`:''}
+            ${plan.budget?`<div style="font-size:11px;color:var(--t3);margin-top:1px">💰 ${plan.budget}</div>`:''}
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:20px;font-weight:800;color:var(--lm)">${pct}%</div>
+            <div style="font-size:10px;color:var(--t3)">${doneTasks}/${totalTasks} 완료</div>
+          </div>
+        </div>
+        <div style="height:6px;background:var(--surf3);border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:var(--lm);border-radius:3px;transition:width .6s"></div>
+        </div>
+        ${plan.memo?`<div style="margin-top:10px;font-size:11px;color:var(--t2);line-height:1.7;padding:8px 10px;background:var(--surf2);border-radius:var(--rs)">${plan.memo}</div>`:''}
+      </div>
+      <!-- 채널별 태스크 -->
+      ${channelBlocks||'<div style="text-align:center;padding:30px;color:var(--t3)">채널을 선택하고 플랜을 생성해봐요</div>'}
+    </div>`;
+}
+
+function togglePlanTask(ch, taskIdx){
+  const proj=getCurProj();
+  if(!proj||!proj.plan)return;
+  const tasks=proj.plan.tasks.filter(t=>t.channel===ch);
+  if(tasks[taskIdx]){
+    tasks[taskIdx].done=!tasks[taskIdx].done;
+    save();
+    renderPlanResult(proj.plan, false);
+  }
 }
 function savePlanToProj(){
   const proj=getCurProj();if(!proj){alert('프로젝트를 먼저 선택하세요');return;}
@@ -1940,20 +2089,90 @@ function calDrop(e,toDate){
 }
 function fullSelectDate(ds){S.selDate=ds;renderFullCal();renderFullDayTasks(ds);}
 function renderFullDayTasks(ds){
-  if(!ds){document.getElementById('full-sel-date-lbl').textContent='날짜를 선택하세요';document.getElementById('full-task-list').innerHTML='';return;}
+  if(!ds){
+    document.getElementById('full-sel-date-lbl').textContent='날짜를 선택하세요';
+    document.getElementById('full-task-list').innerHTML='';
+    return;
+  }
   const[y,m,d]=ds.split('-');
   document.getElementById('full-sel-date-lbl').textContent=`${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;
   const tasks=getAllTasksForDate(ds);
-  document.getElementById('full-task-list').innerHTML=tasks.map(t=>`<div class="sidebar-task"><div class="stask-chk ${t.done?'done':''}" onclick="fullToggle('${t.projId}','${ds}',${t.taskIdx})"></div><div class="stask-body"><div class="stask-text ${t.done?'done':''}">${t.text}</div><div class="stask-proj"><div class="stask-proj-dot" style="background:${t.projColor}"></div>${t.projName}</div></div><button class="stask-del" onclick="fullDel('${t.projId}','${ds}',${t.taskIdx})">✕</button></div>`).join('')||'<div style="font-size:12px;color:var(--t3);padding:4px 0">이 날 할 일이 없어요</div>';
+  const PRIO_STYLE={high:'background:var(--rdbg);color:var(--rd)',medium:'background:rgba(255,200,0,.1);color:#b8860b',low:'background:var(--gnbg);color:var(--gn)'};
+  const PRIO_LABEL={high:'🔴 High',medium:'🟡 Medium',low:'🟢 Low'};
+  const TYPE_COLOR={meta:'var(--lm)',crm:'var(--or)',inf:'var(--bl)',live:'var(--rd)',content:'var(--gn)',ops:'var(--t3)',meet:'#8a5cf6'};
+
+  document.getElementById('full-task-list').innerHTML=tasks.length
+  ?tasks.map((t,i)=>{
+    const color=TYPE_COLOR[t.type]||'var(--t3)';
+    const clItems=(t.checklist||[]).map((c,ci)=>`
+      <div style="display:flex;align-items:center;gap:5px;padding:3px 0;border-bottom:1px solid var(--b)">
+        <div onclick="toggleSubTask('${ds}','${t._projId}',${t._taskIdx},${ci})" style="width:12px;height:12px;border-radius:2px;border:1.5px solid ${c.done?color:'var(--b3)'};background:${c.done?color:'transparent'};flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center">
+          ${c.done?'<span style="font-size:7px;color:#fff;font-weight:700">✓</span>':''}
+        </div>
+        <span style="font-size:10px;${c.done?'text-decoration:line-through;color:var(--t3)':'color:var(--t2)'}">${c.text}</span>
+      </div>`).join('');
+
+    return`<div style="background:var(--surf2);border-radius:var(--rs);border:1px solid var(--b);border-left:3px solid ${color};padding:9px 10px;margin-bottom:5px">
+      <div style="display:flex;align-items:flex-start;gap:7px">
+        <div onclick="toggleTask(this,'${ds}','${t._projId}',${t._taskIdx})" class="stask-chk${t.done?' done':''}"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:11px;font-weight:500;${t.done?'text-decoration:line-through;color:var(--t3)':'color:var(--t)'}">${t.text}</div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:4px">
+            ${t.assignee?`<span style="font-size:9px;color:var(--t3)">👤 ${t.assignee}</span>`:''}
+            ${t.budget?`<span style="font-size:9px;color:var(--t3)">💰 ${t.budget}</span>`:''}
+            ${t.priority?`<span style="font-size:9px;padding:1px 5px;border-radius:8px;${PRIO_STYLE[t.priority]||''}">${PRIO_LABEL[t.priority]||''}</span>`:''}
+            ${t.link?`<a href="${t.link}" target="_blank" style="font-size:9px;color:var(--bl)">🔗 링크</a>`:''}
+          </div>
+          ${t.memo?`<div style="font-size:10px;color:var(--t2);margin-top:4px;padding:4px 6px;background:var(--surf3);border-radius:4px;line-height:1.5">${t.memo}</div>`:''}
+          ${clItems?`<div style="margin-top:5px">${clItems}</div>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('')
+  :'<div style="color:var(--t3);font-size:11px;text-align:center;padding:16px 0">이날 일정이 없어요</div>';
+}
+
+function toggleSubTask(ds, projId, taskIdx, subIdx){
+  const proj=getProj(projId);
+  if(!proj||!proj.tasks[ds]||!proj.tasks[ds][taskIdx])return;
+  const sub=proj.tasks[ds][taskIdx].checklist;
+  if(sub&&sub[subIdx])sub[subIdx].done=!sub[subIdx].done;
+  save();renderFullDayTasks(ds);
 }
 function fullToggle(pid,ds,i){const p=getProj(pid);if(p&&p.tasks[ds]&&p.tasks[ds][i]!==undefined){p.tasks[ds][i].done=!p.tasks[ds][i].done;save();renderFullCal();renderFullDayTasks(ds);}}
 function fullDel(pid,ds,i){const p=getProj(pid);if(p&&p.tasks[ds]){p.tasks[ds].splice(i,1);save();renderFullCal();renderFullDayTasks(ds);}}
 function fullAddTask(){
-  const text=document.getElementById('full-task-inp').value.trim();if(!text||!S.selDate)return;
-  const pid=document.getElementById('full-task-proj').value;const proj=getProj(pid);if(!proj){toast('프로젝트를 먼저 선택해주세요 👆');return;}
+  const text=document.getElementById('full-task-inp')?.value.trim();
+  if(!text||!S.selDate)return;
+  const pid=document.getElementById('full-task-proj')?.value;
+  const proj=getProj(pid);if(!proj){toast('프로젝트를 먼저 선택해주세요 👆');return;}
   if(!proj.tasks[S.selDate])proj.tasks[S.selDate]=[];
-  proj.tasks[S.selDate].push({text,type:document.getElementById('full-task-type').value,done:false});
-  document.getElementById('full-task-inp').value='';save();renderFullCal();renderFullDayTasks(S.selDate);
+
+  // 체크리스트 파싱
+  const clRaw=(document.getElementById('full-task-checklist')?.value||'').trim();
+  const checklist=clRaw?clRaw.split('\n').map(s=>s.trim()).filter(Boolean).map(s=>({text:s,done:false})):[];
+
+  proj.tasks[S.selDate].push({
+    text,
+    type:document.getElementById('full-task-type')?.value||'ops',
+    done:false,
+    assignee:document.getElementById('full-task-assignee')?.value.trim()||'',
+    priority:document.getElementById('full-task-priority')?.value||'',
+    budget:document.getElementById('full-task-budget')?.value.trim()||'',
+    memo:document.getElementById('full-task-memo')?.value.trim()||'',
+    link:document.getElementById('full-task-link')?.value.trim()||'',
+    checklist,
+    createdAt:Date.now()
+  });
+
+  // 인풋 초기화
+  ['full-task-inp','full-task-assignee','full-task-budget','full-task-memo','full-task-link','full-task-checklist'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.value='';
+  });
+  const pEl=document.getElementById('full-task-priority');if(pEl)pEl.value='';
+
+  save();renderFullCal();renderFullDayTasks(S.selDate);
+  toast('일정 추가됐어요 ✓');
 }
 
 // ── ADS ──
@@ -3228,6 +3447,16 @@ function saveNickname(){
   }
   document.getElementById('nickname-modal').style.display='none';
   toast('닉네임이 변경됐어요 ✓');
+}
+
+
+function toggleDetailForm(){
+  const df=document.getElementById('detail-form');
+  const btn=document.getElementById('btn-toggle-detail');
+  if(!df)return;
+  const isOpen=df.style.display==='flex';
+  df.style.display=isOpen?'none':'flex';
+  btn.textContent=isOpen?'+ 상세':'- 접기';
 }
 
 function openUtmCreateModal(){updateUtmPreview();document.getElementById('utm-url')?.focus();}

@@ -831,12 +831,12 @@ select:focus{border-color:var(--lm);outline:none}
       <div class="divider"></div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div class="sec-label" style="margin-bottom:0">채널</div></div>
       <div class="chips" id="ch-chips">
-        <span class="chip on" data-ch="Meta 광고" onclick="this.classList.toggle('on');syncPlanGroups()">Meta</span>
-        <span class="chip" data-ch="네이버 검색" onclick="this.classList.toggle('on');syncPlanGroups()">네이버</span>
-        <span class="chip on" data-ch="인플루언서/블로그" onclick="this.classList.toggle('on');syncPlanGroups()">인플루언서</span>
-        <span class="chip on" data-ch="카카오 CRM" onclick="this.classList.toggle('on');syncPlanGroups()">CRM</span>
-        <span class="chip" data-ch="유튜브" onclick="this.classList.toggle('on');syncPlanGroups()">유튜브</span>
-        <span class="chip" data-ch="당근마켓" onclick="this.classList.toggle('on');syncPlanGroups()">당근</span>
+        <span class="chip on" data-ch="Meta 광고" style="background:rgba(200,240,100,.2);border-color:#C8F064;color:#5a9e00;font-weight:700" onclick="this.classList.toggle('on');this.style.background=this.classList.contains('on')?'rgba(200,240,100,.2)':'';this.style.borderColor=this.classList.contains('on')?'#C8F064':'';this.style.color=this.classList.contains('on')?'#5a9e00':'';syncPlanGroups()">Meta</span>
+        <span class="chip" data-ch="네이버 검색" onclick="this.classList.toggle('on');var o=this.classList.contains('on');this.style.background=o?'rgba(200,240,100,.2)':'';this.style.borderColor=o?'#C8F064':'';this.style.color=o?'#5a9e00':'';this.style.fontWeight=o?'700':'';syncPlanGroups()">네이버</span>
+        <span class="chip on" data-ch="인플루언서/블로그" style="background:rgba(200,240,100,.2);border-color:#C8F064;color:#5a9e00;font-weight:700" onclick="this.classList.toggle('on');var o=this.classList.contains('on');this.style.background=o?'rgba(200,240,100,.2)':'';this.style.borderColor=o?'#C8F064':'';this.style.color=o?'#5a9e00':'';this.style.fontWeight=o?'700':'';syncPlanGroups()">인플루언서</span>
+        <span class="chip on" data-ch="카카오 CRM" style="background:rgba(200,240,100,.2);border-color:#C8F064;color:#5a9e00;font-weight:700" onclick="this.classList.toggle('on');var o=this.classList.contains('on');this.style.background=o?'rgba(200,240,100,.2)':'';this.style.borderColor=o?'#C8F064':'';this.style.color=o?'#5a9e00':'';this.style.fontWeight=o?'700':'';syncPlanGroups()">CRM</span>
+        <span class="chip" data-ch="유튜브" onclick="this.classList.toggle('on');var o=this.classList.contains('on');this.style.background=o?'rgba(200,240,100,.2)':'';this.style.borderColor=o?'#C8F064':'';this.style.color=o?'#5a9e00':'';this.style.fontWeight=o?'700':'';syncPlanGroups()">유튜브</span>
+        <span class="chip" data-ch="당근마켓" onclick="this.classList.toggle('on');var o=this.classList.contains('on');this.style.background=o?'rgba(200,240,100,.2)':'';this.style.borderColor=o?'#C8F064':'';this.style.color=o?'#5a9e00':'';this.style.fontWeight=o?'700':'';syncPlanGroups()">당근</span>
       </div>
       <div class="ch-add-row">
         <input type="text" id="ch-custom-inp" class="ch-custom-inp" placeholder="채널 직접 추가..." onkeydown="if(event.key==='Enter')addCustomChannel()">
@@ -1779,8 +1779,11 @@ function showView(v,btn){
   document.querySelectorAll('.nav-tab').forEach(el=>el.classList.remove('active'));
   document.getElementById('view-'+v).classList.add('active');
   if(btn)btn.classList.add('active');
-  if(v==='home'){renderDashboard();}if(v==='revenue'){renderRevenue();}if(v==='utm'){renderUtmView();}if(v==='calendar'){renderFullCal();renderFullDayTasks(S.selDate);}
-  if(v==='plan'){const p=getCurProj();if(p?.plan)renderPlanResult(p.plan);}if(v==='settings')supaLoad().then(()=>{refreshProjSelects();typeof renderSettings==="function"&&renderSettings();});if(v==='plan'){const p=getCurProj();if(p?.plan)renderPlanResult(p.plan);}if(v==='settings')setTimeout(function(){typeof renderSettings==="function"&&renderSettings();}, 100);if(v==='ads')renderAds();
+  if(v==='home')renderDashboard();
+  if(v==='revenue')renderRevenue();
+  if(v==='utm')renderUtmView();
+  if(v==='calendar'){renderFullCal();renderFullDayTasks(S.selDate);}
+  if(v==='plan'){const p=getCurProj();if(p?.plan)renderPlanResult(p.plan);}
   if(v==='progress')renderProgress();
   if(v==='meeting')renderMtgList();
   if(v==='experiment')loadExpIframe();
@@ -1788,7 +1791,9 @@ function showView(v,btn){
   if(v==='budget'){btRefreshProjSel();btLoadProject();}
   if(v==='influencer')renderInfluencers();
   if(v==='report')rpRefreshProjSel();
+  if(v==='settings'){supaLoad().then(()=>{refreshProjSelects();_drawSettingsProjList();});}
 }
+
 
 // ── GOALS IN NEW PROJECT MODAL ──
 let _npGoals=[];
@@ -1830,11 +1835,11 @@ function switchProj(){
 
   // chip 상태 복원 (저장된 plan.groups 기반)
   const TN_REV={'Meta':'Meta 광고','CRM':'카카오 CRM','인플루언서':'인플루언서/블로그','네이버':'네이버 검색','유튜브':'유튜브','당근':'당근마켓'};
-  document.querySelectorAll('#ch-chips .chip').forEach(chip=>chip.classList.remove('on'));
+  document.querySelectorAll('#ch-chips .chip').forEach(chip=>{chip.classList.remove('on');chip.style.background='';chip.style.borderColor='';chip.style.color='';chip.style.fontWeight='';});
   if(proj?.plan?.groups){
     proj.plan.groups.forEach(g=>{
       const ch=g._ch||(TN_REV[g.name])||null;
-      if(ch){const el=document.querySelector('#ch-chips .chip[data-ch="'+ch+'"]');if(el)el.classList.add('on');}
+      if(ch){const el=document.querySelector('#ch-chips .chip[data-ch="'+ch+'"]');if(el){el.classList.add('on');el.style.background='rgba(200,240,100,.2)';el.style.borderColor='#C8F064';el.style.color='#5a9e00';el.style.fontWeight='700';}}
     });
   } else {
     // 플랜 없으면 기본값 (Meta, CRM, 인플루언서) 선택
@@ -1934,7 +1939,7 @@ function getChs(){return[...document.querySelectorAll('#ch-chips .chip.on')].map
 function addCustomChannel(){
   const inp=document.getElementById('ch-custom-inp');const val=inp.value.trim();if(!val)return;
   const exists=[...document.querySelectorAll('#ch-chips .chip')].some(c=>c.dataset.ch===val);if(exists){inp.value='';return;}
-  const chip=document.createElement('span');chip.className='chip on';chip.dataset.ch=val;chip.innerHTML=`${val}<span style="font-size:9px;opacity:.6;cursor:pointer;margin-left:4px" onclick="this.parentElement.remove();syncPlanGroups();">✕</span>`;
+  const chip=document.createElement('span');chip.className='chip on';chip.style.background='rgba(200,240,100,.2)';chip.style.borderColor='#C8F064';chip.style.color='#5a9e00';chip.style.fontWeight='700';chip.dataset.ch=val;chip.innerHTML=`${val}<span style="font-size:9px;opacity:.6;cursor:pointer;margin-left:4px" onclick="this.parentElement.remove();syncPlanGroups();">✕</span>`;
   chip.onclick=function(){this.classList.toggle('on');syncPlanGroups();};
   document.getElementById('ch-chips').appendChild(chip);inp.value='';inp.focus();syncPlanGroups();
 }
@@ -3385,45 +3390,31 @@ function closeNavMore(){
 }
 
 function renderSettings(){
-  const list = document.getElementById('settings-proj-list');
-  if(!list) return;
-
-  // 데이터 없으면 Supabase에서 로드 후 재시도
-  if(!S.projects||!S.projects.length){
-    supaLoad().then(()=>{
-      _drawSettingsProjList();
-    });
-  } else {
-    _drawSettingsProjList();
-  }
+  _drawSettingsProjList();
 }
 
 function _drawSettingsProjList(){
-  const list = document.getElementById('settings-proj-list');
-  if(!list) return;
-
-  if(!S.projects||!S.projects.length){
-    list.innerHTML = '<div style="text-align:center;padding:24px;color:var(--t3);font-size:12px">아직 프로젝트가 없어요<br>위 + 새 프로젝트 버튼으로 추가해봐요</div>';
+  const list=document.getElementById('settings-proj-list');
+  if(!list)return;
+  const projs=S.projects||[];
+  if(!projs.length){
+    list.innerHTML='<div style="text-align:center;padding:24px;color:var(--t3);font-size:12px">프로젝트가 없어요<br>+ 새 프로젝트 버튼으로 추가해봐요</div>';
     return;
   }
-
-  list.innerHTML = S.projects.map((p,i) => {
-    const taskCount = Object.values(p.tasks||{}).reduce((s,ts)=>s+ts.length,0);
-    const doneCount = Object.values(p.tasks||{}).reduce((s,ts)=>s+ts.filter(t=>t.done).length,0);
-    const pct = taskCount ? Math.round(doneCount/taskCount*100) : 0;
-    const isCur = p.id === S.curProjId;
-    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${isCur?'var(--lmbg)':'var(--surf2)'};border-radius:var(--rs);margin-bottom:6px;border:1px solid ${isCur?'rgba(200,240,100,.3)':'var(--b)'}">
-      <div style="width:8px;height:8px;border-radius:50%;background:var(--lm);flex-shrink:0"></div>
+  list.innerHTML=projs.map((p,i)=>{
+    const tc=Object.values(p.tasks||{}).reduce((s,ts)=>s+ts.length,0);
+    const dc=Object.values(p.tasks||{}).reduce((s,ts)=>s+ts.filter(t=>t.done).length,0);
+    const pct=tc?Math.round(dc/tc*100):0;
+    const isCur=p.id===S.curProjId;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${isCur?'rgba(200,240,100,.1)':'var(--surf2)'};border-radius:var(--rs);margin-bottom:6px;border:1px solid ${isCur?'#C8F064':'var(--b)'}">
+      <div style="width:8px;height:8px;border-radius:50%;background:#C8F064;flex-shrink:0"></div>
       <input value="${p.name.replace(/"/g,'&quot;')}" onchange="renameProj('${p.id}',this.value)"
-        style="flex:1;background:transparent;border:none;font-size:12px;font-weight:${isCur?700:500};color:var(--t);font-family:inherit;outline:none;padding:2px 4px;border-radius:4px"
-        onfocus="this.style.background='var(--surf)';this.style.border='1px solid var(--lm)'"
-        onblur="this.style.background='transparent';this.style.border='none'">
-      <div style="font-size:10px;color:var(--t3);flex-shrink:0">${doneCount}/${taskCount} (${pct}%)</div>
-      <div style="font-size:10px;color:var(--t3);flex-shrink:0">${p.start||''}${p.end?' ~ '+p.end:''}</div>
-      <button onclick="selectAndGoProj('${p.id}')" style="padding:3px 9px;border:1px solid var(--b2);border-radius:var(--rs);background:transparent;color:var(--t2);font-size:10px;cursor:pointer" onmouseover="this.style.borderColor='var(--lm)';this.style.color='var(--lm)'" onmouseout="this.style.borderColor='var(--b2)';this.style.color='var(--t2)'">선택</button>
-      <button onclick="confirmDeleteProj('${p.id}','${p.name.replace(/'/g,"\\'")}')}"
-        style="padding:3px 9px;border:1px solid rgba(194,32,32,.3);border-radius:var(--rs);background:transparent;color:var(--rd);font-size:10px;cursor:pointer"
-        onmouseover="this.style.background='var(--rdbg)'" onmouseout="this.style.background='transparent'">삭제</button>
+        style="flex:1;background:transparent;border:none;font-size:12px;font-weight:${isCur?700:500};color:var(--t);font-family:inherit;outline:none;padding:2px 0"
+        onfocus="this.style.cssText='flex:1;background:var(--surf);border:1px solid var(--lm);border-radius:4px;font-size:12px;font-weight:${isCur?700:500};color:var(--t);font-family:inherit;outline:none;padding:2px 6px'"
+        onblur="this.style.cssText='flex:1;background:transparent;border:none;font-size:12px;font-weight:${isCur?700:500};color:var(--t);font-family:inherit;outline:none;padding:2px 0'">
+      <span style="font-size:10px;color:var(--t3)">${dc}/${tc} (${pct}%)</span>
+      <button onclick="selectAndGoProj('${p.id}')" style="padding:3px 10px;border:1px solid var(--b2);border-radius:var(--rs);background:transparent;color:var(--t2);font-size:11px;cursor:pointer">선택</button>
+      <button onclick="confirmDeleteProj('${p.id}','${p.name.replace(/'/g,"\\'")}')" style="padding:3px 10px;border:1px solid rgba(194,32,32,.3);border-radius:var(--rs);background:transparent;color:var(--rd);font-size:11px;cursor:pointer">삭제</button>
     </div>`;
   }).join('');
 }

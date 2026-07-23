@@ -664,6 +664,8 @@ select:focus{border-color:var(--lm);outline:none}
     <span style="font-size:9px;color:var(--t3);font-weight:600;padding:0 3px;letter-spacing:.04em;white-space:nowrap">기록</span>
     <button class="nav-tab" onclick="showView('meeting',this)" title="회의록">🗣 회의록</button>
     <button class="nav-tab" onclick="showView('report',this)" title="리포트 생성">📑 리포트</button>
+    <div class="nav-divider"></div>
+    <button class="nav-tab" onclick="showView('settings',this);setTimeout(renderSettings,100)" title="설정">⚙️ 설정</button>
   </div>
   <div class="nav-right" id="pdf-hide">
     <select class="proj-sel" id="proj-sel" onchange="switchProj()" style="max-width:110px">

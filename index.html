@@ -666,19 +666,11 @@ select:focus{border-color:var(--lm);outline:none}
     <button class="nav-tab" onclick="showView('report',this)" title="리포트 생성">📑 리포트</button>
   </div>
   <div class="nav-right" id="pdf-hide" style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0">
-    <!-- 더보기 버튼 -->
-    <div style="position:relative">
-      <button onclick="var dd=document.getElementById('nav-more-dropdown');dd.style.display=dd.style.display==='block'?'none':'block'" style="padding:4px 8px;border:1px solid var(--b2);border-radius:var(--rs);background:transparent;color:var(--t2);font-size:14px;cursor:pointer;line-height:1" title="설정/로그아웃">⚙️</button>
-      <div id="nav-more-dropdown" style="display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--surf);border:1px solid var(--b2);border-radius:var(--r);box-shadow:0 4px 16px rgba(0,0,0,.1);z-index:200;min-width:140px;overflow:hidden">
-        <button onclick="showView('settings',this);setTimeout(function(){typeof renderSettings==="function"&&renderSettings();},100);closeNavMore()" style="width:100%;padding:9px 14px;border:none;background:transparent;color:var(--t2);font-size:12px;text-align:left;cursor:pointer;font-family:inherit" onmouseover="this.style.background='var(--surf2)'" onmouseout="this.style.background='transparent'">⚙️ 설정</button>
-        <div style="height:1px;background:var(--b)"></div>
-        <button onclick="doLogout();closeNavMore()" style="width:100%;padding:9px 14px;border:none;background:transparent;color:var(--rd);font-size:12px;text-align:left;cursor:pointer;font-family:inherit" onmouseover="this.style.background='var(--rdbg)'" onmouseout="this.style.background='transparent'">🚪 로그아웃</button>
-      </div>
-    </div>
-    <select class="proj-sel" id="proj-sel" onchange="switchProj()" style="max-width:130px;white-space:nowrap">
+    <select class="proj-sel" id="proj-sel" onchange="switchProj()" style="max-width:130px">
       <option value="">프로젝트 선택</option>
     </select>
-    <button class="btn-sm btn-lime" onclick="openNpModal()" style="padding:4px 10px;font-size:11px;white-space:nowrap">+ 프로젝트</button>
+    <button onclick="goSettings()" style="padding:4px 9px;border:1px solid var(--b2);border-radius:var(--rs);background:transparent;color:var(--t2);font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap">⚙️ 설정</button>
+    <button onclick="openNpModal()" style="padding:4px 10px;background:#C8F064;color:#1a1917;border:none;border-radius:var(--rs);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">+ 프로젝트</button>
   </div>
 </nav>
 
@@ -3298,6 +3290,21 @@ function toggleNavMore(btn){
   }
 }
 function closeNavMore(){var dd=document.getElementById('nav-more-dropdown');if(dd)dd.style.display='none';}
+
+
+function goSettings(){
+  // 설정 뷰로 이동
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(el=>el.classList.remove('active'));
+  const v=document.getElementById('view-settings');
+  if(v)v.classList.add('active');
+  supaLoad().then(()=>{
+    refreshProjSelects();
+    if(typeof _drawSettingsProjList==='function')_drawSettingsProjList();
+  }).catch(()=>{
+    if(typeof _drawSettingsProjList==='function')_drawSettingsProjList();
+  });
+}
 
 function renderSettings(){
   _drawSettingsProjList();

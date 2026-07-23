@@ -664,13 +664,14 @@ select:focus{border-color:var(--lm);outline:none}
     <span style="font-size:9px;color:var(--t3);font-weight:600;padding:0 3px;letter-spacing:.04em;white-space:nowrap">기록</span>
     <button class="nav-tab" onclick="showView('meeting',this)" title="회의록">🗣 회의록</button>
     <button class="nav-tab" onclick="showView('report',this)" title="리포트 생성">📑 리포트</button>
+    <div class="nav-divider"></div>
+    <button class="nav-tab" onclick="showView('settings',this)" title="설정">⚙️ 설정</button>
   </div>
   <div class="nav-right" id="pdf-hide">
-    <select class="proj-sel" id="proj-sel" onchange="switchProj()">
+    <select class="proj-sel" id="proj-sel" onchange="switchProj()" style="max-width:110px">
       <option value="">프로젝트 선택</option>
     </select>
     <button class="btn-sm btn-lime" onclick="openNpModal()" style="padding:4px 10px;font-size:11px">+ 프로젝트</button>
-    <button onclick="deleteCurrentProj()" id="btn-del-proj" style="display:none;padding:4px 9px;font-size:11px;border:1px solid rgba(194,32,32,.3);border-radius:var(--rs);background:transparent;color:var(--rd);cursor:pointer" title="프로젝트 삭제">🗑 삭제</button>
   </div>
 </nav>
 
@@ -1042,6 +1043,73 @@ select:focus{border-color:var(--lm);outline:none}
       <button class="cal-ftag" data-ifilter="보류" onclick="infFilterClick(this)">보류</button>
     </div>
     <div class="inf-cards" id="inf-cards"></div>
+  </div>
+</div>
+
+
+<!-- ══ SETTINGS VIEW ══ -->
+<div class="view" id="view-settings">
+  <div style="flex:1;overflow-y:auto;padding:24px 28px;max-width:800px">
+
+    <div style="font-size:16px;font-weight:700;margin-bottom:4px">⚙️ 설정</div>
+    <div style="font-size:12px;color:var(--t3);margin-bottom:24px">프로젝트 관리, 팀원 계정, 앱 설정</div>
+
+    <!-- 프로젝트 관리 -->
+    <div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--r);overflow:hidden;margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--b)">
+        <div style="font-size:13px;font-weight:700">📋 프로젝트 관리</div>
+        <button onclick="openNpModal()" style="padding:5px 12px;background:var(--lm);color:#fff;border:none;border-radius:var(--rs);font-size:11px;font-weight:700;cursor:pointer">+ 새 프로젝트</button>
+      </div>
+      <div id="settings-proj-list" style="padding:8px"></div>
+    </div>
+
+    <!-- 팀원 계정 -->
+    <div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--r);overflow:hidden;margin-bottom:16px">
+      <div style="padding:14px 16px;border-bottom:1px solid var(--b)">
+        <div style="font-size:13px;font-weight:700">👥 팀원 계정</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:3px">계정 정보는 코드에 저장됩니다. 변경은 개발자에게 문의하세요.</div>
+      </div>
+      <div style="padding:8px">
+        <table style="width:100%;border-collapse:collapse;font-size:11px">
+          <tr style="background:var(--surf2)">
+            <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--t3);border-bottom:1px solid var(--b)">아이디</th>
+            <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--t3);border-bottom:1px solid var(--b)">이름</th>
+            <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--t3);border-bottom:1px solid var(--b)">소속</th>
+            <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--t3);border-bottom:1px solid var(--b)">권한</th>
+          </tr>
+          <tr><td style="padding:9px 12px;border-bottom:1px solid var(--b)">juju</td><td style="padding:9px 12px;border-bottom:1px solid var(--b)"><b>Juju</b></td><td style="padding:9px 12px;border-bottom:1px solid var(--b)">바바그라운드</td><td style="padding:9px 12px;border-bottom:1px solid var(--b)"><span style="background:var(--lmbg);color:var(--lm);padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700">관리자</span></td></tr>
+          <tr><td style="padding:9px 12px;border-bottom:1px solid var(--b)">admin1</td><td style="padding:9px 12px;border-bottom:1px solid var(--b)">규리</td><td style="padding:9px 12px;border-bottom:1px solid var(--b)">바바그라운드</td><td style="padding:9px 12px;border-bottom:1px solid var(--b)"><span style="background:var(--surf3);color:var(--t2);padding:1px 7px;border-radius:10px;font-size:10px">멤버</span></td></tr>
+          <tr><td style="padding:9px 12px">admin2</td><td style="padding:9px 12px">선우</td><td style="padding:9px 12px">바바그라운드</td><td style="padding:9px 12px"><span style="background:var(--surf3);color:var(--t2);padding:1px 7px;border-radius:10px;font-size:10px">멤버</span></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- 데이터 관리 -->
+    <div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--r);overflow:hidden;margin-bottom:16px">
+      <div style="padding:14px 16px;border-bottom:1px solid var(--b)">
+        <div style="font-size:13px;font-weight:700">💾 데이터 관리</div>
+      </div>
+      <div style="padding:16px;display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--surf2);border-radius:var(--rs)">
+          <div>
+            <div style="font-size:12px;font-weight:600">전체 데이터 초기화</div>
+            <div style="font-size:11px;color:var(--t3);margin-top:2px">모든 프로젝트, 일정, 회의록이 삭제됩니다</div>
+          </div>
+          <button onclick="resetAllData()" style="padding:6px 14px;border:1px solid var(--rd);border-radius:var(--rs);background:transparent;color:var(--rd);font-size:11px;font-weight:700;cursor:pointer">초기화</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 앱 정보 -->
+    <div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:16px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:10px">ℹ️ 앱 정보</div>
+      <div style="font-size:11px;color:var(--t2);line-height:1.8">
+        <div><b>MarketingFlow</b> — 바바그라운드 마케팅 워크스페이스</div>
+        <div style="color:var(--t3)">데이터 저장: Supabase (바바그라운드 조직 공유)</div>
+        <div style="color:var(--t3)">문의: 개발자에게 연락하세요</div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -1704,7 +1772,7 @@ function showView(v,btn){
   document.getElementById('view-'+v).classList.add('active');
   if(btn)btn.classList.add('active');
   if(v==='home'){renderDashboard();}if(v==='revenue'){renderRevenue();}if(v==='utm'){renderUtmView();}if(v==='calendar'){renderFullCal();renderFullDayTasks(S.selDate);}
-  if(v==='plan'){const p=getCurProj();if(p?.plan)renderPlanResult(p.plan);}if(v==='plan'){const p=getCurProj();if(p?.plan)renderPlanResult(p.plan);}if(v==='ads')renderAds();
+  if(v==='plan'){const p=getCurProj();if(p?.plan)renderPlanResult(p.plan);}if(v==='settings')renderSettings();if(v==='plan'){const p=getCurProj();if(p?.plan)renderPlanResult(p.plan);}if(v==='settings')renderSettings();if(v==='ads')renderAds();
   if(v==='progress')renderProgress();
   if(v==='meeting')renderMtgList();
   if(v==='experiment')loadExpIframe();
@@ -3286,6 +3354,75 @@ function setRevPeriod(btn,period){
     b.style.color=active?'#fff':'var(--t2)';
   });
   renderRevenue();
+}
+
+
+function renderSettings(){
+  const list = document.getElementById('settings-proj-list');
+  if(!list) return;
+
+  if(!S.projects.length){
+    list.innerHTML = '<div style="text-align:center;padding:24px;color:var(--t3);font-size:12px">아직 프로젝트가 없어요<br>위 + 새 프로젝트 버튼으로 추가해봐요</div>';
+    return;
+  }
+
+  list.innerHTML = S.projects.map((p,i) => {
+    const taskCount = Object.values(p.tasks||{}).reduce((s,ts)=>s+ts.length,0);
+    const doneCount = Object.values(p.tasks||{}).reduce((s,ts)=>s+ts.filter(t=>t.done).length,0);
+    const pct = taskCount ? Math.round(doneCount/taskCount*100) : 0;
+    const isCur = p.id === S.curProjId;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${isCur?'var(--lmbg)':'var(--surf2)'};border-radius:var(--rs);margin-bottom:6px;border:1px solid ${isCur?'rgba(200,240,100,.3)':'var(--b)'}">
+      <div style="width:8px;height:8px;border-radius:50%;background:var(--lm);flex-shrink:0"></div>
+      <input value="${p.name.replace(/"/g,'&quot;')}" onchange="renameProj('${p.id}',this.value)"
+        style="flex:1;background:transparent;border:none;font-size:12px;font-weight:${isCur?700:500};color:var(--t);font-family:inherit;outline:none;padding:2px 4px;border-radius:4px"
+        onfocus="this.style.background='var(--surf)';this.style.border='1px solid var(--lm)'"
+        onblur="this.style.background='transparent';this.style.border='none'">
+      <div style="font-size:10px;color:var(--t3);flex-shrink:0">${doneCount}/${taskCount} (${pct}%)</div>
+      <div style="font-size:10px;color:var(--t3);flex-shrink:0">${p.start||''}${p.end?' ~ '+p.end:''}</div>
+      <button onclick="selectAndGoProj('${p.id}')" style="padding:3px 9px;border:1px solid var(--b2);border-radius:var(--rs);background:transparent;color:var(--t2);font-size:10px;cursor:pointer" onmouseover="this.style.borderColor='var(--lm)';this.style.color='var(--lm)'" onmouseout="this.style.borderColor='var(--b2)';this.style.color='var(--t2)'">선택</button>
+      <button onclick="confirmDeleteProj('${p.id}','${p.name.replace(/'/g,"\\'")}')}"
+        style="padding:3px 9px;border:1px solid rgba(194,32,32,.3);border-radius:var(--rs);background:transparent;color:var(--rd);font-size:10px;cursor:pointer"
+        onmouseover="this.style.background='var(--rdbg)'" onmouseout="this.style.background='transparent'">삭제</button>
+    </div>`;
+  }).join('');
+}
+
+function renameProj(id, name){
+  const p = S.projects.find(p=>p.id===id);
+  if(!p||!name.trim()) return;
+  p.name = name.trim();
+  save();
+  refreshProjSelects();
+  toast('프로젝트 이름 변경됐어요 ✓');
+}
+
+function selectAndGoProj(id){
+  S.curProjId = id;
+  save();
+  document.getElementById('proj-sel').value = id;
+  switchProj();
+  showView('plan', document.querySelector('.nav-tab[onclick*="plan"]'));
+}
+
+function confirmDeleteProj(id, name){
+  if(!confirm('"' + name + '" 프로젝트를 삭제할까요?\n이 작업은 되돌릴 수 없어요.')) return;
+  S.projects = S.projects.filter(p=>p.id!==id);
+  S.products = (S.products||[]).filter(p=>p.projId!==id);
+  if(S.curProjId===id) S.curProjId = S.projects.length ? S.projects[0].id : null;
+  save();
+  refreshProjSelects();
+  renderSettings();
+  toast('프로젝트가 삭제됐어요');
+}
+
+function resetAllData(){
+  if(!confirm('정말 모든 데이터를 초기화할까요?\n프로젝트, 일정, 회의록이 모두 삭제됩니다.')) return;
+  S.projects=[]; S.curProjId=null; S.meetings=[]; S.products=[]; S.influencers=[];
+  S.revEntries=[]; S.utmEntries=[];
+  save();
+  refreshProjSelects();
+  renderSettings();
+  toast('데이터가 초기화됐어요');
 }
 
 function renderRevenue(){

@@ -53,7 +53,7 @@ input:focus,textarea:focus{border-color:var(--lm);background:var(--surf);box-sha
 input::placeholder,textarea::placeholder{color:var(--t3)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{padding:5px 11px;border-radius:20px;border:1px solid var(--b2);background:var(--surf2);color:var(--t2);font-size:11px;cursor:pointer;transition:all .15s}
-.chip.on{background:rgba(200,240,100,.15);border-color:#C8F064;color:#5a9e00;font-weight:700}
+.chip.on{background:rgba(200,240,100,.2) !important;border-color:#C8F064 !important;color:#5a9e00 !important;font-weight:700 !important}
 .divider{height:1px;background:var(--b);flex-shrink:0}
 .btn-gen{width:100%;padding:12px;background:#C8F064;color:#1a1917;border:none;border-radius:var(--r-sm);font-size:13px;font-weight:700;cursor:pointer;transition:background .15s}
 .btn-gen:hover{background:var(--lm2)}
@@ -2829,7 +2829,7 @@ function openDashPdf(){
   projs.forEach(proj=>{
     Object.values(proj.tasks||{}).forEach(ts=>ts.forEach(t=>{totTasks++;if(t.done)doneTasks++;}));
     (proj.ads||[]).forEach(a=>{if(a.status==='live')liveAds++;});
-    (proj.budget||[]).forEach(b=>{totalBudget+=(parseFloat(b.planTotal)||0);spentBudget+=Object.values(b.monthly||{}).reduce((s,v)=>s+(parseFloat(v)||0),0);});
+    (Array.isArray(proj.budget)?proj.budget:[]).forEach(b=>{totalBudget+=(parseFloat(b.planTotal)||0);spentBudget+=Object.values(b.monthly||{}).reduce((s,v)=>s+(parseFloat(v)||0),0);});
   });
   const completePct=totTasks?Math.round(doneTasks/totTasks*100):0;
   const burnRate=totalBudget?Math.round(spentBudget/totalBudget*100):0;
@@ -3227,7 +3227,7 @@ function renderDashboard(){
   projs.forEach(proj=>{
     Object.values(proj.tasks||{}).forEach(ts=>ts.forEach(t=>{totTasks++;if(t.done)doneTasks++;}));
     (proj.ads||[]).forEach(a=>{if(a.status==='live')liveAds++;});
-    (proj.budget||[]).forEach(b=>{totalBudget+=(parseFloat(b.planTotal)||0);spentBudget+=Object.values(b.monthly||{}).reduce((s,v)=>s+(parseFloat(v)||0),0);});
+    (Array.isArray(proj.budget)?proj.budget:[]).forEach(b=>{totalBudget+=(parseFloat(b.planTotal)||0);spentBudget+=Object.values(b.monthly||{}).reduce((s,v)=>s+(parseFloat(v)||0),0);});
   });
   const completePct=totTasks?Math.round(doneTasks/totTasks*100):0;
   const burnRate=totalBudget?Math.round(spentBudget/totalBudget*100):0;

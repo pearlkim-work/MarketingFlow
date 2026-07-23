@@ -670,6 +670,7 @@ select:focus{border-color:var(--lm);outline:none}
       <option value="">프로젝트 선택</option>
     </select>
     <button class="btn-sm btn-lime" onclick="openNpModal()" style="padding:4px 10px;font-size:11px">+ 프로젝트</button>
+    <button onclick="deleteCurrentProj()" id="btn-del-proj" style="display:none;padding:4px 9px;font-size:11px;border:1px solid rgba(194,32,32,.3);border-radius:var(--rs);background:transparent;color:var(--rd);cursor:pointer" title="프로젝트 삭제">🗑 삭제</button>
   </div>
 </nav>
 
@@ -1745,8 +1746,28 @@ function createProj(){
 }
 function switchProj(){
   S.curProjId=document.getElementById('proj-sel').value||null;save();
+  // 삭제 버튼 표시
+  const delBtn=document.getElementById('btn-del-proj');
+  if(delBtn)delBtn.style.display=S.curProjId?'block':'none';
   const proj=getCurProj();
   loadPlanInputFromProj(proj);renderProjSummary();
+
+  // chip 상태 복원 (저장된 plan.groups 기반)
+  const TN_REV={'Meta':'Meta 광고','CRM':'카카오 CRM','인플루언서':'인플루언서/블로그','네이버':'네이버 검색','유튜브':'유튜브','당근':'당근마켓'};
+  document.querySelectorAll('#ch-chips .chip').forEach(chip=>chip.classList.remove('on'));
+  if(proj?.plan?.groups){
+    proj.plan.groups.forEach(g=>{
+      const ch=g._ch||(TN_REV[g.name])||null;
+      if(ch){const el=document.querySelector('#ch-chips .chip[data-ch="'+ch+'"]');if(el)el.classList.add('on');}
+    });
+  } else {
+    // 플랜 없으면 기본값 (Meta, CRM, 인플루언서) 선택
+    ['Meta 광고','카카오 CRM','인플루언서/블로그'].forEach(ch=>{
+      const el=document.querySelector('#ch-chips .chip[data-ch="'+ch+'"]');
+      if(el)el.classList.add('on');
+    });
+  }
+
   if(proj&&proj.plan){S._pendingPlan=JSON.parse(JSON.stringify(proj.plan));renderPlanResult(proj.plan,false);}
   else{S._pendingPlan=null;resetPlanOutput();}
   updatePlanCalHint();renderMiniCal();
@@ -1862,7 +1883,7 @@ function genPlan(){
 // 채널 선택 변경 시 플랜 그룹 실시간 동기화
 function syncPlanGroups(){
   const p=getCurProj();
-  if(!p||!p.plan)return; // 플랜 없으면 스킵
+  if(!p||!p.plan||!p.plan.groups)return; // 플랜 없으면 스킵 (chip 상태만 바뀜)
 
   const TC={'Meta 광고':'#1877f2','카카오 CRM':'var(--or)','인플루언서/블로그':'var(--bl)','네이버 검색':'#03c75a','유튜브':'#ff0000','당근마켓':'#ff6f0f'};
   const TN={'Meta 광고':'Meta','카카오 CRM':'CRM','인플루언서/블로그':'인플루언서','네이버 검색':'네이버','유튜브':'유튜브','당근마켓':'당근'};
@@ -1960,6 +1981,22 @@ function renderPlanResult(plan,editMode=false){
   </div>`;
 }
 
+
+function toggleTask(el,ds,projId,taskIdx){
+  const proj=getProj(projId);if(!proj)return;
+  const tasks=proj.tasks[ds];if(!tasks||!tasks[taskIdx])return;
+  tasks[taskIdx].done=!tasks[taskIdx].done;
+  el.classList.toggle('done');
+  // 플랜 동기화
+  const t=tasks[taskIdx];
+  if(t._fromPlan&&t._planRef&&proj.plan?.groups){
+    const parts=t._planRef.split('-');
+    const gi=parseInt(parts[0]);const ti=parseInt(parts[1]);
+    if(proj.plan.groups[gi]?.tasks?.[ti])proj.plan.groups[gi].tasks[ti].done=t.done;
+  }
+  save();renderFullDayTasks(ds);
+}
+
 function getPG(){const p=getCurProj();if(!p||!p.plan)return null;if(!p.plan.groups)p.plan.groups=[{id:'g-c',name:'공통',color:'#aaa',tasks:[]}];return p.plan.groups;}
 function togglePT(gi,ti){const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(!t)return;t.done=!t.done;const p=getCurProj();if(t.date&&p.tasks[t.date]){const ct=p.tasks[t.date].find(c=>c._planRef===gi+'-'+ti);if(ct)ct.done=t.done;}save();renderPlanResult(p.plan);if(S.selDate)renderFullDayTasks(S.selDate);}
 function updatePT(gi,ti,field,val){const g=getPG();if(!g)return;if(ti===-1){if(g[gi])g[gi].name=val;}else{if(g[gi]?.tasks?.[ti])g[gi].tasks[ti][field]=val;}save();}
@@ -1968,50 +2005,6 @@ function addPT(gi){const g=getPG();if(!g)return;if(!g[gi].tasks)g[gi].tasks=[];g
 function deletePT(gi,ti){const p=getCurProj();if(!p||!p.plan)return;const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(t?.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}g[gi].tasks.splice(ti,1);save();renderPlanResult(p.plan);renderFullCal();}
 function addGroup(){const p=getCurProj();if(!p||!p.plan)return;if(!p.plan.groups)p.plan.groups=[];p.plan.groups.push({id:'g-'+Date.now(),name:'새 그룹',color:'var(--lm)',tasks:[]});save();renderPlanResult(p.plan);setTimeout(()=>{const inputs=document.querySelectorAll('[onchange*="updatePT"]');if(inputs.length)inputs[inputs.length-1].select();},50);}
 function deleteGroup(gi){const p=getCurProj();if(!p||!p.plan?.groups)return;(p.plan.groups[gi]?.tasks||[]).forEach((t,ti)=>{if(t.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}});p.plan.groups.splice(gi,1);save();renderPlanResult(p.plan);renderFullCal();}
-
-function getPG(){const p=getCurProj();if(!p||!p.plan)return null;if(!p.plan.groups)p.plan.groups=[{id:'g-c',name:'공통',color:'#aaa',tasks:[]}];return p.plan.groups;}
-
-function togglePT(gi,ti){const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(!t)return;t.done=!t.done;
-  // 캘린더 동기화
-  const p=getCurProj();if(t.date&&p.tasks[t.date]){const ct=p.tasks[t.date].find(c=>c._planRef===gi+'-'+ti);if(ct)ct.done=t.done;}
-  save();renderPlanResult(getCurProj().plan);if(S.selDate)renderFullDayTasks(S.selDate);}
-
-function updatePT(gi,ti,field,val){const g=getPG();if(!g)return;
-  if(ti===-1){if(g[gi])g[gi].name=val;}
-  else{if(g[gi]?.tasks?.[ti])g[gi].tasks[ti][field]=val;}
-  save();}
-
-function updatePTDate(gi,ti,date){const p=getCurProj();if(!p||!p.plan)return;const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(!t)return;
-  // 기존 날짜 캘린더 항목 제거
-  if(t.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}
-  t.date=date;
-  // 새 날짜에 추가
-  if(date){if(!p.tasks[date])p.tasks[date]=[];const ex=p.tasks[date].find(c=>c._planRef===gi+'-'+ti);
-    if(ex){ex.text=t.text;ex.done=t.done;}else{p.tasks[date].push({text:t.text||'(제목 없음)',type:'ops',done:t.done,assignee:t.assignee||'',_planRef:gi+'-'+ti,_fromPlan:true});}}
-  save();renderPlanResult(p.plan);renderFullCal();if(S.selDate===date)renderFullDayTasks(date);toast('캘린더에 반영됐어요 📅',1800);}
-
-function addPT(gi){const g=getPG();if(!g)return;if(!g[gi].tasks)g[gi].tasks=[];g[gi].tasks.push({text:'',done:false,date:''});save();renderPlanResult(getCurProj().plan);}
-
-function deletePT(gi,ti){const p=getCurProj();if(!p||!p.plan)return;const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];
-  if(t?.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}
-  g[gi].tasks.splice(ti,1);save();renderPlanResult(p.plan);renderFullCal();}
-
-function addGroup(){
-  const p=getCurProj();if(!p||!p.plan)return;
-  if(!p.plan.groups)p.plan.groups=[];
-  p.plan.groups.push({id:'g-'+Date.now(),name:'새 그룹',color:'var(--lm)',tasks:[]});
-  save();renderPlanResult(p.plan);
-  // 새 그룹 이름 인풋에 자동 포커스
-  setTimeout(()=>{
-    const inputs=document.querySelectorAll('[onchange*="updatePT"][onchange*="gname"]');
-    if(inputs.length)inputs[inputs.length-1].select();
-  },50);
-}
-
-function deleteGroup(gi){const p=getCurProj();if(!p||!p.plan?.groups)return;
-  (p.plan.groups[gi]?.tasks||[]).forEach((t,ti)=>{if(t.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}});
-  p.plan.groups.splice(gi,1);save();renderPlanResult(p.plan);renderFullCal();}
-
 function togglePlanTask(ch, taskIdx){
   const proj=getCurProj();
   if(!proj||!proj.plan)return;
@@ -2809,7 +2802,7 @@ async function init(){
 
   // 세션 복원
   try{const saved=localStorage.getItem('mf_user');if(saved){_mfUser=JSON.parse(saved);document.getElementById('login-screen').style.display='none';document.getElementById('dashboard-body').style.display='block';const n=document.getElementById('dash-user-name');const a=document.getElementById('dash-user-avatar');if(n)n.textContent=_mfUser.name;if(a)a.textContent=_mfUser.name[0];const og=document.getElementById('dash-user-org');if(og)og.textContent=_mfUser.org||'';}}catch(e){}
-  refreshProjSelects();updatePlanCalHint();renderDashboard();updateMemoHint();renderMiniCal();qtRefreshProj();qtAddRow();renderProjSummary();btRefreshProjSel();rpRefreshProjSel();
+  refreshProjSelects();updatePlanCalHint();renderDashboard();const _db=document.getElementById('btn-del-proj');if(_db&&S.curProjId)_db.style.display='block';updateMemoHint();renderMiniCal();qtRefreshProj();qtAddRow();renderProjSummary();btRefreshProjSel();rpRefreshProjSel();
   if(S.curProjId){const proj=getCurProj();if(proj&&proj.plan){S._pendingPlan=JSON.parse(JSON.stringify(proj.plan));renderPlanResult(proj.plan,false);}loadPlanInputFromProj(proj);}
 }
 

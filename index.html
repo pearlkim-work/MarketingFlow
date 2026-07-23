@@ -830,13 +830,13 @@ select:focus{border-color:var(--lm);outline:none}
       <div class="field-g"><label class="field-label">특이사항</label><textarea id="p-notes" rows="2" placeholder="예) 기존 고객 DB 보유, ROAS 2.5x" oninput="autosavePlanInput()"></textarea></div>
       <div class="divider"></div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div class="sec-label" style="margin-bottom:0">채널</div></div>
-      <div class="chips" id="ch-chips">
-        <span class="chip" data-ch="Meta 광고" onclick="var o=!this.classList.contains('sel');this.classList.toggle('sel');this.style.cssText=o?'background:rgba(200,240,100,.25);border-color:#8bc34a;color:#4a7a00;font-weight:700':'';syncPlanGroups()" >Meta</span>
-        <span class="chip" data-ch="네이버 검색" onclick="var o=!this.classList.contains('sel');this.classList.toggle('sel');this.style.cssText=o?'background:rgba(200,240,100,.25);border-color:#8bc34a;color:#4a7a00;font-weight:700':'';syncPlanGroups()" >네이버</span>
-        <span class="chip" data-ch="인플루언서/블로그" onclick="var o=!this.classList.contains('sel');this.classList.toggle('sel');this.style.cssText=o?'background:rgba(200,240,100,.25);border-color:#8bc34a;color:#4a7a00;font-weight:700':'';syncPlanGroups()" >인플루언서</span>
-        <span class="chip" data-ch="카카오 CRM" onclick="var o=!this.classList.contains('sel');this.classList.toggle('sel');this.style.cssText=o?'background:rgba(200,240,100,.25);border-color:#8bc34a;color:#4a7a00;font-weight:700':'';syncPlanGroups()" >CRM</span>
-        <span class="chip" data-ch="유튜브" onclick="var o=!this.classList.contains('sel');this.classList.toggle('sel');this.style.cssText=o?'background:rgba(200,240,100,.25);border-color:#8bc34a;color:#4a7a00;font-weight:700':'';syncPlanGroups()" >유튜브</span>
-        <span class="chip" data-ch="당근마켓" onclick="var o=!this.classList.contains('sel');this.classList.toggle('sel');this.style.cssText=o?'background:rgba(200,240,100,.25);border-color:#8bc34a;color:#4a7a00;font-weight:700':'';syncPlanGroups()" >당근</span>
+      <div id="ch-chips" style="display:flex;flex-direction:column;gap:6px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px"><input type="checkbox" data-ch="Meta 광고" onchange="syncPlanGroups()" checked style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> Meta</label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px"><input type="checkbox" data-ch="네이버 검색" onchange="syncPlanGroups()" style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 네이버</label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px"><input type="checkbox" data-ch="인플루언서/블로그" onchange="syncPlanGroups()" checked style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 인플루언서</label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px"><input type="checkbox" data-ch="카카오 CRM" onchange="syncPlanGroups()" checked style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> CRM</label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px"><input type="checkbox" data-ch="유튜브" onchange="syncPlanGroups()" style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 유튜브</label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px"><input type="checkbox" data-ch="당근마켓" onchange="syncPlanGroups()" style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 당근</label>
       </div>
       <div class="ch-add-row">
         <input type="text" id="ch-custom-inp" class="ch-custom-inp" placeholder="채널 직접 추가..." onkeydown="if(event.key==='Enter')addCustomChannel()">
@@ -1833,18 +1833,17 @@ function switchProj(){
   const proj=getCurProj();
   loadPlanInputFromProj(proj);renderProjSummary();
 
-  // chip 상태 복원
-  document.querySelectorAll('#ch-chips .chip').forEach(chip=>{chip.classList.remove('sel');chip.style.cssText='';});
+  // 채널 체크박스 상태 복원
+  document.querySelectorAll('#ch-chips input[type=checkbox]').forEach(cb=>cb.checked=false);
   if(proj?.plan?.groups){
     const TN_R={'Meta':'Meta 광고','CRM':'카카오 CRM','인플루언서':'인플루언서/블로그','네이버':'네이버 검색','유튜브':'유튜브','당근':'당근마켓'};
     proj.plan.groups.forEach(g=>{
       const ch=g._ch||(TN_R[g.name])||null;
-      if(ch){const el=document.querySelector('#ch-chips .chip[data-ch="'+ch+'"]');if(el){el.classList.add('sel');el.style.cssText='background:rgba(200,240,100,.25);border-color:#8bc34a;color:#4a7a00;font-weight:700';}}
+      if(ch){const el=document.querySelector('#ch-chips input[data-ch="'+ch+'"]');if(el)el.checked=true;}
     });
   } else {
     ['Meta 광고','카카오 CRM','인플루언서/블로그'].forEach(ch=>{
-      const el=document.querySelector('#ch-chips .chip[data-ch="'+ch+'"]');
-      if(el){el.classList.add('sel');el.style.cssText='background:rgba(200,240,100,.25);border-color:#8bc34a;color:#4a7a00;font-weight:700';}
+      const el=document.querySelector('#ch-chips input[data-ch="'+ch+'"]');if(el)el.checked=true;
     });
   }
 if(proj&&proj.plan){S._pendingPlan=JSON.parse(JSON.stringify(proj.plan));renderPlanResult(proj.plan,false);}
@@ -1936,10 +1935,18 @@ document.querySelectorAll('#ch-chips .chip').forEach(c=>c.addEventListener('clic
 function getChs(){return[...document.querySelectorAll('#ch-chips .chip.sel')].map(c=>c.dataset.ch)}
 function addCustomChannel(){
   const inp=document.getElementById('ch-custom-inp');const val=inp.value.trim();if(!val)return;
-  const exists=[...document.querySelectorAll('#ch-chips .chip')].some(c=>c.dataset.ch===val);if(exists){inp.value='';return;}
-  const chip=document.createElement('span');chip.className='chip sel';chip.style.cssText='background:rgba(200,240,100,.25);border-color:#8bc34a;color:#4a7a00;font-weight:700';chip.dataset.ch=val;chip.innerHTML=`${val}<span style="font-size:9px;opacity:.6;cursor:pointer;margin-left:4px" onclick="this.parentElement.remove();syncPlanGroups();">✕</span>`;
-  chip.onclick=function(){var o=!this.classList.contains('sel');this.classList.toggle('sel');this.style.cssText=o?'background:rgba(200,240,100,.25);border-color:#8bc34a;color:#4a7a00;font-weight:700':'';syncPlanGroups();};
-  document.getElementById('ch-chips').appendChild(chip);inp.value='';inp.focus();syncPlanGroups();
+  const exists=[...document.querySelectorAll('#ch-chips input')].some(c=>c.dataset.ch===val);if(exists){inp.value='';return;}
+  const label=document.createElement('label');
+  label.style.cssText='display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px';
+  const cb=document.createElement('input');
+  cb.type='checkbox';cb.dataset.ch=val;cb.checked=true;cb.style.cssText='width:14px;height:14px;accent-color:#8bc34a;cursor:pointer';
+  cb.addEventListener('change',syncPlanGroups);
+  const span=document.createElement('span');span.textContent=val;
+  const del=document.createElement('span');del.textContent='✕';del.style.cssText='font-size:10px;color:var(--t3);cursor:pointer;margin-left:2px';
+  del.onclick=function(){label.remove();syncPlanGroups();};
+  label.appendChild(cb);label.appendChild(span);label.appendChild(del);
+  document.getElementById('ch-chips').appendChild(label);
+  inp.value='';inp.focus();syncPlanGroups();
 }
 
 // ── PLAN GEN ──
@@ -1965,7 +1972,7 @@ function syncPlanGroups(){
   if(!p||!p.plan||!p.plan.groups)return;
   const TC={'Meta 광고':'#1877f2','카카오 CRM':'#f0a064','인플루언서/블로그':'#64b8f0','네이버 검색':'#03c75a','유튜브':'#ff0000','당근마켓':'#ff6f0f'};
   const TN={'Meta 광고':'Meta','카카오 CRM':'CRM','인플루언서/블로그':'인플루언서','네이버 검색':'네이버','유튜브':'유튜브','당근마켓':'당근'};
-  const selectedChs=[...document.querySelectorAll('#ch-chips .chip.sel')].map(el=>el.dataset.ch);
+  const selectedChs=[...document.querySelectorAll('#ch-chips input[type=checkbox]:checked')].map(el=>el.dataset.ch);
   const selectedNames=selectedChs.map(ch=>TN[ch]||ch);
   // 선택된 채널 그룹 추가
   selectedChs.forEach(ch=>{
@@ -3304,26 +3311,50 @@ function _drawSettingsProjList(){
   const list=document.getElementById('settings-proj-list');
   if(!list)return;
   if(!S.projects||!S.projects.length){
-    list.innerHTML='<div style="text-align:center;padding:24px;color:var(--t3);font-size:12px">프로젝트가 없어요<br>+ 새 프로젝트로 추가해봐요</div>';
+    list.innerHTML='<div style="text-align:center;padding:32px;color:var(--t3)"><div style="font-size:28px;margin-bottom:8px">📋</div><div style="font-size:12px">아직 프로젝트가 없어요<br>오른쪽 위 + 새 프로젝트로 추가해봐요</div></div>';
     return;
   }
-  list.innerHTML=S.projects.map((p)=>{
-    const tc=Object.values(p.tasks||{}).reduce((s,ts)=>s+ts.length,0);
-    const dc=Object.values(p.tasks||{}).reduce((s,ts)=>s+ts.filter(t=>t.done).length,0);
-    const pct=tc?Math.round(dc/tc*100):0;
-    const isCur=p.id===S.curProjId;
-    return`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${isCur?'rgba(200,240,100,.1)':'var(--surf2)'};border-radius:var(--rs);margin-bottom:6px;border:1px solid ${isCur?'#8bc34a':'var(--b)'}">
-      <div style="width:8px;height:8px;border-radius:50%;background:#8bc34a;flex-shrink:0"></div>
-      <input value="${p.name.replace(/"/g,'&quot;')}" onchange="renameProj('${p.id}',this.value)"
-        style="flex:1;background:transparent;border:none;font-size:12px;font-weight:${isCur?700:500};color:var(--t);font-family:inherit;outline:none;padding:2px 0"
-        onfocus="this.style.background='var(--surf)';this.style.border='1px solid #8bc34a';this.style.borderRadius='4px';this.style.padding='2px 6px'"
-        onblur="this.style.background='transparent';this.style.border='none';this.style.padding='2px 0'">
-      <span style="font-size:10px;color:var(--t3)">${dc}/${tc} (${pct}%)</span>
-      <button onclick="selectAndGoProj('${p.id}')" style="padding:3px 10px;border:1px solid var(--b2);border-radius:var(--rs);background:transparent;color:var(--t2);font-size:11px;cursor:pointer">선택</button>
-      <button onclick="confirmDeleteProj('${p.id}','${p.name.replace(/'/g,"\\'")}')" style="padding:3px 10px;border:1px solid rgba(194,32,32,.3);border-radius:var(--rs);background:transparent;color:var(--rd);font-size:11px;cursor:pointer">삭제</button>
-    </div>`;
-  }).join('');
+  list.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead><tr style="background:var(--surf2);border-bottom:2px solid var(--b)">
+      <th style="padding:9px 12px;text-align:left;font-weight:700;color:var(--t3);font-size:10px;text-transform:uppercase;letter-spacing:.05em">프로젝트명</th>
+      <th style="padding:9px 12px;text-align:center;font-weight:700;color:var(--t3);font-size:10px;width:80px">진행률</th>
+      <th style="padding:9px 12px;text-align:center;font-weight:700;color:var(--t3);font-size:10px;width:60px">상태</th>
+      <th style="padding:9px 12px;text-align:right;font-weight:700;color:var(--t3);font-size:10px;width:120px">관리</th>
+    </tr></thead>
+    <tbody>${S.projects.map(p=>{
+      const tc=Object.values(p.tasks||{}).reduce((s,ts)=>s+ts.length,0);
+      const dc=Object.values(p.tasks||{}).reduce((s,ts)=>s+ts.filter(t=>t.done).length,0);
+      const pct=tc?Math.round(dc/tc*100):0;
+      const isCur=p.id===S.curProjId;
+      return`<tr style="border-bottom:1px solid var(--b);background:${isCur?'rgba(200,240,100,.06)':'transparent'}">
+        <td style="padding:10px 12px">
+          <div style="display:flex;align-items:center;gap:8px">
+            ${isCur?'<span style="width:6px;height:6px;border-radius:50%;background:#8bc34a;flex-shrink:0"></span>':'<span style="width:6px;height:6px;border-radius:50%;background:var(--b3);flex-shrink:0"></span>'}
+            <input value="${p.name.replace(/"/g,'&quot;')}" onchange="renameProj('${p.id}',this.value)"
+              style="background:transparent;border:none;font-size:12px;font-weight:${isCur?700:500};color:var(--t);font-family:inherit;outline:none;width:100%"
+              onfocus="this.style.background='var(--surf)';this.style.outline='2px solid #8bc34a';this.style.borderRadius='4px';this.style.padding='2px 6px'"
+              onblur="this.style.background='transparent';this.style.outline='none';this.style.padding='0'">
+          </div>
+          ${p.start||p.end?`<div style="font-size:10px;color:var(--t3);margin-top:2px;padding-left:14px">${p.start||''}${p.end?' ~ '+p.end:''}</div>`:''}
+        </td>
+        <td style="padding:10px 12px;text-align:center">
+          <div style="font-size:11px;font-weight:700;color:${pct>=70?'#4a7a00':pct>=30?'var(--or)':'var(--t3)'}">${pct}%</div>
+          <div style="height:3px;background:var(--b2);border-radius:2px;margin-top:3px;overflow:hidden"><div style="height:100%;width:${pct}%;background:#8bc34a;border-radius:2px"></div></div>
+        </td>
+        <td style="padding:10px 12px;text-align:center">
+          ${isCur?'<span style="font-size:10px;padding:2px 7px;background:rgba(200,240,100,.2);color:#4a7a00;border-radius:10px;font-weight:700">현재</span>':''}
+        </td>
+        <td style="padding:10px 12px;text-align:right">
+          <div style="display:flex;gap:5px;justify-content:flex-end">
+            ${!isCur?`<button onclick="selectAndGoProj('${p.id}')" style="padding:4px 10px;border:1px solid var(--b2);border-radius:var(--rs);background:transparent;color:var(--t2);font-size:11px;cursor:pointer;font-family:inherit" onmouseover="this.style.borderColor='#8bc34a';this.style.color='#4a7a00'" onmouseout="this.style.borderColor='var(--b2)';this.style.color='var(--t2)'">선택</button>`:''}
+            <button onclick="confirmDeleteProj('${p.id}','${p.name.replace(/'/g,"\\'")}')" style="padding:4px 10px;border:1px solid rgba(194,32,32,.25);border-radius:var(--rs);background:transparent;color:var(--rd);font-size:11px;cursor:pointer;font-family:inherit" onmouseover="this.style.background='var(--rdbg)'" onmouseout="this.style.background='transparent'">삭제</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
 }
+
 function renameProj(id, name){
   const p = S.projects.find(p=>p.id===id);
   if(!p||!name.trim()) return;

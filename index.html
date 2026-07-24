@@ -1834,7 +1834,12 @@ function showView(v,btn){
   if(v==='budget'){btRefreshProjSel();btLoadProject();}
   if(v==='influencer')renderInfluencers();
   if(v==='report')rpRefreshProjSel();
-  if(v==='settings'){refreshProjSelects();if(typeof _drawSettingsProjList==='function')_drawSettingsProjList();}
+  if(v==='settings'){
+    refreshProjSelects();
+    if(typeof _drawSettingsProjList==='function')_drawSettingsProjList();
+    // supaLoad 후 다시 렌더 (팀 데이터 반영)
+    supaLoad().then(()=>{refreshProjSelects();if(typeof _drawSettingsProjList==='function')_drawSettingsProjList();}).catch(()=>{});
+  }
 }
 
 
@@ -3948,6 +3953,8 @@ async function resetAllData(){
   renderDashboard();
   if(typeof _drawSettingsProjList==='function')_drawSettingsProjList();
   toast('데이터가 초기화됐어요 🗑');
+  // 완전 리로드로 캐시/타이머 초기화
+  setTimeout(()=>location.reload(), 1000);
 }
 
 function renderRevenue(){

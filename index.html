@@ -644,10 +644,10 @@ select:focus{border-color:var(--lm);outline:none}
   <span class="nav-logo">Marketing<span style="color:var(--lm);font-style:italic">Flow</span></span>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="showView('home',this)" title="전체 현황">🏠 홈</button>
+    <button class="nav-tab" onclick="showView('calendar',this)" title="일정 관리">📅 캘린더</button>
     <div class="nav-divider"></div>
     <span style="font-size:9px;color:var(--t3);font-weight:600;padding:0 3px;letter-spacing:.04em;white-space:nowrap">기획</span>
     <button class="nav-tab" onclick="showView('plan',this)" title="마케팅 플랜 생성">📋 플랜</button>
-    <button class="nav-tab" onclick="showView('calendar',this)" title="일정 관리">📅 캘린더</button>
     <button class="nav-tab" onclick="showView('products',this)" title="상품 목록">📦 상품</button>
     <div class="nav-divider"></div>
     <span style="font-size:9px;color:var(--t3);font-weight:600;padding:0 3px;letter-spacing:.04em;white-space:nowrap">실행</span>
@@ -942,16 +942,19 @@ select:focus{border-color:var(--lm);outline:none}
 <div class="view" id="view-calendar">
   <div class="cal-view-layout" style="flex:1;overflow:hidden;min-height:0">
     <div class="cal-main">
-      <div class="cal-top" style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap">
+      <div class="cal-top" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
         <button class="cal-nav" onclick="fullCalMove(-1)">‹</button>
-        <div class="cal-month-title" id="full-cal-title" style="white-space:nowrap"></div>
+        <div class="cal-month-title" id="full-cal-title" style="white-space:nowrap;font-weight:700"></div>
         <button class="cal-nav" onclick="fullCalMove(1)">›</button>
         <button class="btn-ghost" onclick="goToday()" style="white-space:nowrap">오늘</button>
-        <div style="display:flex;gap:3px;margin-left:8px">
+        <div style="display:flex;gap:3px;margin-left:4px">
           <button id="cal-mode-month" onclick="setCalMode('month')" style="padding:3px 10px;border:1px solid var(--b2);border-radius:var(--rs);background:#C8F064;color:#1a1917;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">월</button>
           <button id="cal-mode-week" onclick="setCalMode('week')" style="padding:3px 10px;border:1px solid var(--b2);border-radius:var(--rs);background:transparent;color:var(--t2);font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap">주</button>
         </div>
-        <select id="cal-assignee-filter" onchange="renderCalView()" style="padding:3px 8px;border:1px solid var(--b2);border-radius:var(--rs);font-size:11px;font-family:inherit;background:var(--surf2);color:var(--t2);max-width:130px">
+        <select id="cal-proj-filter" onchange="renderCalView();updateCalProgress()" style="padding:3px 8px;border:1px solid var(--b2);border-radius:var(--rs);font-size:11px;font-family:inherit;background:var(--surf2);color:var(--t2);max-width:120px">
+          <option value="">📁 전체 프로젝트</option>
+        </select>
+        <select id="cal-assignee-filter" onchange="renderCalView();updateCalProgress()" style="padding:3px 8px;border:1px solid var(--b2);border-radius:var(--rs);font-size:11px;font-family:inherit;background:var(--surf2);color:var(--t2);max-width:110px">
           <option value="">👤 전체</option>
         </select>
       </div>
@@ -974,26 +977,37 @@ select:focus{border-color:var(--lm);outline:none}
     <aside class="cal-sidebar-full">
       <div class="sidebar-date" id="full-sel-date-lbl">날짜를 선택하세요</div>
       <div class="sidebar-task-list" id="full-task-list"></div>
-      <div class="add-task-full" style="display:flex;flex-direction:column;gap:7px">
-        <div style="display:flex;align-items:center;justify-content:space-between">
-          <div class="sec-label" style="margin-bottom:0">일정 추가</div>
-          <button onclick="toggleDetailForm()" id="btn-toggle-detail" style="font-size:10px;color:var(--lm);background:transparent;border:none;cursor:pointer;padding:2px 6px">+ 상세</button>
-        </div>
+      <div class="add-task-full" style="display:flex;flex-direction:column;gap:6px">
+        <div class="sec-label" style="margin-bottom:0">일정 추가</div>
 
-        <!-- 기본 입력 -->
-        <input type="text" id="full-task-inp" placeholder="할 일 내용..." onkeydown="if(event.key==='Enter'&&!event.shiftKey)fullAddTask()">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
-          <select id="full-task-type" style="font-size:11px">
-            <option value="ops">📋 일반</option>
-            <option value="meta">📘 Meta</option>
-            <option value="crm">📨 CRM</option>
-            <option value="inf">✨ 인플루언서</option>
-            <option value="content">🎨 콘텐츠</option>
-            <option value="live">🔴 광고 라이브</option>
-            <option value="meet">🗣 미팅</option>
-          </select>
-          <select id="full-task-proj" style="font-size:11px"></select>
-        </div>
+        <input type="text" id="full-task-inp" placeholder="할 일 내용..." onkeydown="if(event.key==='Enter'&&!event.shiftKey)fullAddTask()" style="font-size:12px">
+
+        <!-- 프로젝트 선택 -->
+        <select id="full-task-proj" onchange="updateSidebarPlanGroups()" style="font-size:11px;font-family:inherit">
+          <option value="">📁 프로젝트 선택</option>
+        </select>
+
+        <!-- 담당자 -->
+        <select id="full-task-assignee-sel" style="font-size:11px;font-family:inherit">
+          <option value="">👤 담당자</option>
+          <option value="전체">👥 전체</option>
+        </select>
+
+        <!-- 채널/유형 -->
+        <select id="full-task-type" style="font-size:11px" onchange="updateSidebarPlanGroups()">
+          <option value="ops">📋 일반</option>
+          <option value="meta">📘 Meta</option>
+          <option value="crm">📨 CRM</option>
+          <option value="inf">✨ 인플루언서</option>
+          <option value="content">🎨 콘텐츠</option>
+          <option value="live">🔴 광고 라이브</option>
+          <option value="meet">🗣 미팅</option>
+        </select>
+
+        <!-- 플랜 그룹 연동 -->
+        <select id="full-task-plan-group" style="font-size:11px;font-family:inherit;display:none">
+          <option value="">🗂 플랜 그룹 (선택)</option>
+        </select>
 
         <!-- 상세 입력 (기본 숨김) -->
         <div id="detail-form" style="display:none;flex-direction:column;gap:5px">
@@ -1822,10 +1836,15 @@ function showView(v,btn){
   document.querySelectorAll('.nav-tab').forEach(el=>el.classList.remove('active'));
   document.getElementById('view-'+v).classList.add('active');
   if(btn)btn.classList.add('active');
-  if(v==='home')renderDashboard();
+  if(v==='home'){renderDashboard();}
+  // 홈/캘린더에서는 상단 프로젝트 셀렉트 숨기기
+  const projSelArea=document.getElementById('proj-sel-area');
+  if(projSelArea){
+    projSelArea.style.display=(v==='home'||v==='calendar')?'none':'flex';
+  }
   if(v==='revenue')renderRevenue();
   if(v==='utm')renderUtmView();
-  if(v==='calendar'){renderCalView();renderFullDayTasks(S.selDate);updateCalProgress();updateAssigneeFilter();}
+  if(v==='calendar'){updateCalProjFilter();updateAssigneeFilter();renderCalView();renderFullDayTasks(S.selDate);updateCalProgress();updateSidebarAssignees();}
   if(v==='plan'){const p=getCurProj();loadPlanInputFromProj(p);if(p?.plan)renderPlanResult(p.plan);renderQuickAddGroups();updatePlanButtons();}
   if(v==='progress')renderProgress();
   if(v==='meeting')renderMtgList();
@@ -2367,6 +2386,100 @@ function updateCalProgress(){
 // ────────────────────────────
 // 주간 뷰 렌더링
 // ────────────────────────────
+
+// ════════════════════════════════════
+// 📅 캘린더 개선 함수들
+// ════════════════════════════════════
+
+// 캘린더 프로젝트 필터 값
+function getCalProjFilter(){
+  return document.getElementById('cal-proj-filter')?.value||'';
+}
+
+// 캘린더 프로젝트 필터 옵션 업데이트
+function updateCalProjFilter(){
+  const sel=document.getElementById('cal-proj-filter');
+  if(!sel)return;
+  const cur=sel.value;
+  sel.innerHTML='<option value="">📁 전체 프로젝트</option>'+
+    (S.projects||[]).map(p=>`<option value="${p.id}"${p.id===cur?' selected':''}>${p.name}</option>`).join('');
+}
+
+// 사이드바 담당자 옵션 업데이트
+function updateSidebarAssignees(){
+  const sel=document.getElementById('full-task-assignee-sel');
+  if(!sel)return;
+  const cur=sel.value;
+  sel.innerHTML='<option value="">👤 담당자</option><option value="전체">👥 전체</option>'+
+    MF_USERS.map(u=>`<option value="${u.name}"${u.name===cur?' selected':''}>${u.name}</option>`).join('');
+}
+
+// 사이드바 플랜 그룹 옵션 업데이트
+function updateSidebarPlanGroups(){
+  const projSel=document.getElementById('full-task-proj');
+  const groupSel=document.getElementById('full-task-plan-group');
+  if(!groupSel)return;
+  const pid=projSel?.value;
+  const proj=getProj(pid);
+  const groups=proj?.plan?.groups||[];
+  if(groups.length>0){
+    groupSel.style.display='block';
+    groupSel.innerHTML='<option value="">🗂 플랜 그룹 (선택)</option>'+
+      groups.map(g=>`<option value="${g.id}">${g.name}</option>`).join('');
+  } else {
+    groupSel.style.display='none';
+    groupSel.innerHTML='<option value="">🗂 플랜 그룹 없음</option>';
+  }
+}
+
+// 캘린더 날짜 선택 시 사이드바 업데이트 (기존 함수 보완)
+function initSidebarOnDateSelect(ds){
+  updateSidebarAssignees();
+  // 프로젝트 필터와 동기화
+  const calProj=getCalProjFilter();
+  const projSel=document.getElementById('full-task-proj');
+  if(projSel&&calProj){
+    projSel.value=calProj;
+    updateSidebarPlanGroups();
+  }
+}
+
+// 필터 적용된 태스크 가져오기
+function getFilteredTasks(ds){
+  const projF=getCalProjFilter();
+  const assigneeF=getAssigneeFilterVal();
+  const typeF=document.querySelector('#cal-filter-bar .cal-ftag.on:not(.on-all)')?.dataset?.filter||'all';
+  let tasks=[];
+  const projs=projF?S.projects.filter(p=>p.id===projF):S.projects;
+  projs.forEach(p=>{
+    (p.tasks[ds]||[]).forEach((t,ti)=>{
+      if(assigneeF&&t.assignee!==assigneeF)return;
+      if(typeF!=='all'&&t.type!==typeF)return;
+      tasks.push({...t,_projId:p.id,_taskIdx:ti,_projName:p.name,_projColor:p.color||'var(--lm)'});
+    });
+  });
+  return tasks;
+}
+
+// 프로젝트/담당자별 완료율 계산
+function calcCompletionRate(projId, assignee){
+  const projs=projId?S.projects.filter(p=>p.id===projId):S.projects;
+  let total=0,done=0;
+  projs.forEach(p=>{
+    Object.values(p.tasks||{}).forEach(ts=>{
+      ts.forEach(t=>{
+        if(assignee&&t.assignee!==assignee)return;
+        total++;if(t.done)done++;
+      });
+    });
+  });
+  return total?Math.round(done/total*100):0;
+}
+
+// updateCalProgress 업그레이드 - 프로젝트/담당자 필터 반영
+
+
+// renderWeekCal 필터 적용 버전
 function renderWeekCal(){
   const grid=document.getElementById('full-cal-grid');
   const title=document.getElementById('full-cal-title');
@@ -2378,42 +2491,43 @@ function renderWeekCal(){
   const days=[];
   for(let i=0;i<7;i++){const d=new Date(base);d.setDate(base.getDate()+i);days.push(d);}
   const fmt=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const projF=getCalProjFilter();
   const assigneeF=getAssigneeFilterVal();
+  const typeF=document.querySelector('#cal-filter-bar .cal-ftag.on:not(.on-all)')?.dataset?.filter;
   const DAYS=['일','월','화','수','목','금','토'];
   const TC={meta:'#1877f2',crm:'var(--or)',inf:'var(--bl)',live:'var(--rd)',content:'var(--gn)',ops:'var(--t3)',meet:'#8a5cf6'};
   const todayStr=fmt(new Date());
   const s=days[0],e=days[6];
   title.textContent=`${s.getFullYear()}년 ${s.getMonth()+1}월 ${s.getDate()}일 ~ ${e.getMonth()+1}월 ${e.getDate()}일`;
-
-  grid.style.cssText='display:grid;grid-template-columns:repeat(7,1fr);gap:0;height:calc(100% - 4px);overflow-y:auto;border:1px solid var(--b);border-radius:var(--r);overflow:hidden';
-
+  grid.style.cssText='display:grid;grid-template-columns:repeat(7,1fr);gap:0;height:calc(100% - 4px);border:1px solid var(--b);border-radius:var(--r);overflow:hidden';
   grid.innerHTML=days.map((d,i)=>{
     const ds=fmt(d);
     const isToday=ds===todayStr;
     const isSun=i===0,isSat=i===6;
+    const color=isToday?'#4a7a00':isSun?'var(--rd)':isSat?'var(--bl)':'var(--t)';
+    // 필터 적용
     let tasks=[];
-    S.projects.forEach(p=>{
+    const projs=projF?S.projects.filter(p=>p.id===projF):S.projects;
+    projs.forEach(p=>{
       (p.tasks[ds]||[]).forEach((t,ti)=>{
         if(assigneeF&&t.assignee!==assigneeF)return;
+        if(typeF&&typeF!=='all'&&t.type!==typeF)return;
         tasks.push({...t,_projId:p.id,_taskIdx:ti,_projName:p.name});
       });
     });
     const total=tasks.length,done=tasks.filter(t=>t.done).length;
     const pct=total?Math.round(done/total*100):0;
-    const color=isToday?'#4a7a00':isSun?'var(--rd)':isSat?'var(--bl)':'var(--t)';
-
-    const taskHtml=tasks.map((t,ti)=>{
+    const taskHtml=tasks.map(t=>{
       const c=TC[t.type]||'var(--t3)';
-      return`<div style="margin-bottom:3px;padding:4px 6px;background:var(--surf);border-left:2px solid ${c};border-radius:3px;cursor:pointer;border-top:1px solid var(--b);border-right:1px solid var(--b);border-bottom:1px solid var(--b)">
+      return`<div style="margin-bottom:3px;padding:4px 6px;background:var(--surf);border-left:2px solid ${c};border-radius:3px;border-top:1px solid var(--b);border-right:1px solid var(--b);border-bottom:1px solid var(--b)">
         <div style="display:flex;align-items:flex-start;gap:4px">
           <div onclick="event.stopPropagation();toggleTaskInline(this,'${ds}','${t._projId}',${t._taskIdx})" style="width:11px;height:11px;border-radius:2px;border:1.5px solid ${t.done?c:'var(--b3)'};background:${t.done?c:'transparent'};flex-shrink:0;margin-top:1px;cursor:pointer"></div>
           <div style="font-size:11px;${t.done?'text-decoration:line-through;color:var(--t3)':'color:var(--t)'};line-height:1.3;word-break:keep-all">${t.text||'(제목 없음)'}</div>
         </div>
-        ${t.assignee?`<div style="font-size:9px;color:var(--t3);margin-top:2px;padding-left:15px">👤 ${t.assignee}</div>`:''}
-        <div style="font-size:9px;color:var(--t3);margin-top:1px;padding-left:15px">${t._projName}</div>
+        ${t.assignee?`<div style="font-size:9px;color:var(--t3);padding-left:15px">👤 ${t.assignee}</div>`:''}
+        <div style="font-size:9px;color:var(--t3);padding-left:15px">${t._projName}</div>
       </div>`;
     }).join('');
-
     return`<div style="border-right:1px solid var(--b);${i===6?'border-right:none':''}background:${isToday?'rgba(200,240,100,.04)':'var(--surf)'}">
       <div style="padding:6px 8px;border-bottom:1px solid var(--b);background:${isToday?'rgba(200,240,100,.12)':'var(--surf2)'};position:sticky;top:0;z-index:1">
         <div style="display:flex;align-items:center;justify-content:space-between">
@@ -2424,13 +2538,14 @@ function renderWeekCal(){
           ${total?`<span style="font-size:9px;color:${pct===100?'#4a7a00':'var(--t3)'};font-weight:600">${pct}%</span>`:''}
         </div>
       </div>
-      <div style="padding:5px;min-height:80px">
+      <div style="padding:5px;min-height:80px;overflow-y:auto;max-height:calc(100vh - 280px)">
         ${taskHtml}
         <div onclick="S.selDate='${ds}';renderFullDayTasks('${ds}')" style="width:100%;padding:4px;border:1px dashed var(--b2);border-radius:3px;text-align:center;color:var(--t3);font-size:10px;cursor:pointer;margin-top:2px" onmouseover="this.style.borderColor='#8bc34a';this.style.color='#4a7a00'" onmouseout="this.style.borderColor='var(--b2)';this.style.color='var(--t3)'">+ 추가</div>
       </div>
     </div>`;
   }).join('');
 }
+
 
 function toggleTaskInline(el, ds, projId, taskIdx){
   const proj = getProj(projId); if(!proj) return;
@@ -2613,7 +2728,7 @@ function renderFullDayTasks(ds){
     return;
   }
   const[y,m,d]=ds.split('-');
-  document.getElementById('full-sel-date-lbl').textContent=`${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;updateCalTaskTypeOptions();
+  document.getElementById('full-sel-date-lbl').textContent=`${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;updateCalTaskTypeOptions();initSidebarOnDateSelect(ds);updateSidebarAssignees();
   const tasks=getAllTasksForDate(ds);
   const PRIO_STYLE={high:'background:var(--rdbg);color:var(--rd)',medium:'background:rgba(255,200,0,.1);color:#b8860b',low:'background:var(--gnbg);color:var(--gn)'};
   const PRIO_LABEL={high:'🔴 High',medium:'🟡 Medium',low:'🟢 Low'};
@@ -2664,49 +2779,52 @@ function fullAddTask(){
   if(!text||!S.selDate)return;
   const pid=document.getElementById('full-task-proj')?.value;
   const proj=getProj(pid);if(!proj){toast('프로젝트를 먼저 선택해주세요 👆');return;}
+  if(!proj.tasks)proj.tasks={};
   if(!proj.tasks[S.selDate])proj.tasks[S.selDate]=[];
 
   const typeVal=document.getElementById('full-task-type')?.value||'ops';
-  const isPlanGroup=typeVal.startsWith('plan_');
-  const groupId=isPlanGroup?typeVal.replace('plan_',''):'';
-  const actualType=isPlanGroup?'ops':typeVal;
+  // 담당자 - 새 셀렉트 우선
+  const assignee=document.getElementById('full-task-assignee-sel')?.value||
+                 document.getElementById('full-task-assignee')?.value?.trim()||'';
+  const planGroupId=document.getElementById('full-task-plan-group')?.value||'';
 
-  // 체크리스트 파싱
   const clRaw=(document.getElementById('full-task-checklist')?.value||'').trim();
   const checklist=clRaw?clRaw.split('\n').map(s=>s.trim()).filter(Boolean).map(s=>({text:s,done:false})):[];
 
   const task={
-    text,type:actualType,done:false,
-    assignee:document.getElementById('full-task-assignee')?.value.trim()||'',
+    text,type:typeVal,done:false,assignee,
     priority:document.getElementById('full-task-priority')?.value||'',
-    budget:document.getElementById('full-task-budget')?.value.trim()||'',
-    memo:document.getElementById('full-task-memo')?.value.trim()||'',
-    link:document.getElementById('full-task-link')?.value.trim()||'',
+    budget:document.getElementById('full-task-budget')?.value?.trim()||'',
+    memo:document.getElementById('full-task-memo')?.value?.trim()||'',
+    link:document.getElementById('full-task-link')?.value?.trim()||'',
     checklist,
     createdAt:Date.now()
   };
 
-  // 플랜 그룹에 연동
-  if(isPlanGroup&&groupId&&proj.plan?.groups){
-    const g=proj.plan.groups.find(g=>g.id===groupId);
+  // 플랜 그룹 연동
+  if(planGroupId&&proj.plan?.groups){
+    const g=proj.plan.groups.find(g=>g.id===planGroupId);
     if(g){
       if(!g.tasks)g.tasks=[];
       const ti=g.tasks.length;
-      g.tasks.push({text,done:false,date:S.selDate,assignee:task.assignee});
+      g.tasks.push({text,done:false,date:S.selDate,assignee});
       task._fromPlan=true;
-      task._planRef=groupId+'-'+ti;
+      task._planRef=planGroupId+'-'+ti;
     }
   }
 
   proj.tasks[S.selDate].push(task);
 
-  // 입력 초기화
-  ['full-task-inp','full-task-assignee','full-task-budget','full-task-memo','full-task-link','full-task-checklist'].forEach(id=>{
+  // 인풋 초기화
+  ['full-task-inp','full-task-budget','full-task-memo','full-task-link','full-task-checklist'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value='';
   });
-  const pEl=document.getElementById('full-task-priority');if(pEl)pEl.value='';
 
   save();renderFullCal();renderFullDayTasks(S.selDate);
+  if(planGroupId){
+    // 플랜 탭도 리렌더 (현재 열려있으면)
+    if(document.getElementById('view-plan')?.classList.contains('active'))renderPlanResult(proj.plan);
+  }
   toast('일정 추가됐어요 ✓');
 }
 

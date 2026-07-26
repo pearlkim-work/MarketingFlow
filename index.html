@@ -2,6 +2,9 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MarketingFlow</title>
 <style>
@@ -645,6 +648,7 @@ select:focus{border-color:var(--lm);outline:none}
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="showView('home',this)" title="전체 현황">🏠 홈</button>
     <button class="nav-tab" onclick="showView('calendar',this)" title="일정 관리">📅 캘린더</button>
+    <button class="nav-tab" onclick="showView('teamcheck',this)" title="스프린트">🏃 스프린트</button>
     <div class="nav-divider"></div>
     <span style="font-size:9px;color:var(--t3);font-weight:600;padding:0 3px;letter-spacing:.04em;white-space:nowrap">기획</span>
     <button class="nav-tab" onclick="showView('plan',this)" title="마케팅 플랜 생성">📋 플랜</button>
@@ -878,6 +882,7 @@ select:focus{border-color:var(--lm);outline:none}
           <option value="전체">👥 전체</option>
         </select>
         <input type="date" id="plan-quick-date" style="font-size:11px;padding:5px 8px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);font-family:inherit">
+        <input type="text" id="plan-quick-budget" placeholder="예산" style="font-size:11px;padding:5px 8px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);font-family:inherit;width:70px">
         <button onclick="quickAddPlanTask()" style="padding:5px 16px;background:#C8F064;color:#1a1917;border:none;border-radius:var(--rs);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">+ 추가</button>
       </div>
     </div>
@@ -1171,6 +1176,147 @@ select:focus{border-color:var(--lm);outline:none}
       </div>
     </div>
 
+  </div>
+</div>
+
+
+<!-- ══ TEAMCHECK VIEW ══ -->
+<div class="view" id="view-teamcheck">
+  <div style="flex:1;overflow-y:auto;padding:20px 24px;max-width:1000px">
+
+    <!-- 헤더 -->
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="font-size:16px;font-weight:700">🏃 스프린트</div>
+        <div style="font-size:12px;color:var(--t3);margin-top:2px">팀의 스프린트를 설정하고 회고해요</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="openSprintModal()" style="padding:7px 14px;background:#C8F064;color:#1a1917;border:none;border-radius:var(--rs);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">+ 새 스프린트</button>
+        <button onclick="showSprintHistory()" style="padding:7px 14px;background:transparent;border:1px solid var(--b2);border-radius:var(--rs);font-size:12px;cursor:pointer;font-family:inherit;color:var(--t2)">📚 히스토리</button>
+      </div>
+    </div>
+
+    <!-- 현재 스프린트 없을 때 -->
+    <div id="sprint-empty" style="display:none;text-align:center;padding:60px 20px;color:var(--t3)">
+      <div style="font-size:40px;margin-bottom:12px">🏃</div>
+      <div style="font-size:14px;font-weight:700;color:var(--t);margin-bottom:6px">진행 중인 스프린트가 없어요</div>
+      <div style="font-size:12px;margin-bottom:16px">+ 새 스프린트 버튼으로 시작해봐요!</div>
+      <button onclick="openSprintModal()" style="padding:9px 20px;background:#C8F064;color:#1a1917;border:none;border-radius:var(--rs);font-size:12px;font-weight:700;cursor:pointer">+ 스프린트 시작</button>
+    </div>
+
+    <!-- 현재 스프린트 -->
+    <div id="sprint-current" style="display:none">
+
+      <!-- 스프린트 헤더 카드 -->
+      <div id="sprint-header-card" style="background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:16px 20px;margin-bottom:16px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px">
+          <div style="flex:1">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <span id="sprint-badge" style="padding:2px 8px;background:rgba(200,240,100,.2);border:1px solid #8bc34a;border-radius:10px;font-size:10px;font-weight:700;color:#4a7a00">진행중</span>
+              <span id="sprint-no" style="font-size:11px;color:var(--t3)">Sprint #1</span>
+            </div>
+            <div id="sprint-title" style="font-size:15px;font-weight:700;margin-bottom:4px"></div>
+            <div id="sprint-period" style="font-size:11px;color:var(--t3)"></div>
+          </div>
+          <div style="text-align:right">
+            <div id="sprint-dday" style="font-size:22px;font-weight:800;color:#5a9e00"></div>
+            <div id="sprint-progress-pct" style="font-size:11px;color:var(--t3)"></div>
+          </div>
+        </div>
+        <div style="margin-top:10px">
+          <div style="height:8px;background:var(--surf3);border-radius:4px;overflow:hidden">
+            <div id="sprint-progress-bar" style="height:100%;width:0%;background:#C8F064;border-radius:4px;transition:width .8s"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--t3);margin-top:4px">
+            <span id="sprint-start-lbl"></span>
+            <span id="sprint-end-lbl"></span>
+          </div>
+        </div>
+        <div id="sprint-goal-display" style="margin-top:10px;padding:10px 12px;background:var(--surf2);border-radius:var(--rs);font-size:12px;color:var(--t2);line-height:1.6;display:none"></div>
+      </div>
+
+      <!-- 탭 (현황 / 팀원 목표 / 회고) -->
+      <div style="display:flex;border-bottom:2px solid var(--b);margin-bottom:16px;gap:0">
+        <button onclick="setSprintTab('status',this)" class="sprint-tab active-tab" style="padding:8px 16px;border:none;background:transparent;font-size:12px;font-weight:700;cursor:pointer;color:#5a9e00;border-bottom:2px solid #8bc34a;margin-bottom:-2px;font-family:inherit">📊 현황</button>
+        <button onclick="setSprintTab('goals',this)" class="sprint-tab" style="padding:8px 16px;border:none;background:transparent;font-size:12px;cursor:pointer;color:var(--t2);border-bottom:2px solid transparent;margin-bottom:-2px;font-family:inherit">🎯 팀원 목표</button>
+        <button onclick="setSprintTab('retro',this)" class="sprint-tab" style="padding:8px 16px;border:none;background:transparent;font-size:12px;cursor:pointer;color:var(--t2);border-bottom:2px solid transparent;margin-bottom:-2px;font-family:inherit">💬 회고</button>
+      </div>
+
+      <!-- 현황 패널 -->
+      <div id="sprint-panel-status">
+        <div id="sprint-summary" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px"></div>
+        <div style="font-size:12px;font-weight:700;margin-bottom:10px">👥 팀원별 진행률</div>
+        <div id="sprint-members" style="display:flex;flex-direction:column;gap:8px"></div>
+        <div style="font-size:12px;font-weight:700;margin:16px 0 10px">⚠️ 미완료 항목</div>
+        <div id="sprint-undone" style="display:flex;flex-direction:column;gap:5px"></div>
+      </div>
+
+      <!-- 팀원 목표 패널 -->
+      <div id="sprint-panel-goals" style="display:none">
+        <div style="font-size:12px;color:var(--t3);margin-bottom:12px">이번 스프린트에서 각자 달성하고 싶은 목표를 적어요</div>
+        <div id="sprint-goals-list" style="display:flex;flex-direction:column;gap:10px"></div>
+      </div>
+
+      <!-- 회고 패널 -->
+      <div id="sprint-panel-retro" style="display:none">
+        <div style="font-size:12px;color:var(--t3);margin-bottom:12px">스프린트를 마무리하며 각자의 회고를 남겨요</div>
+        <div id="sprint-retro-list" style="display:flex;flex-direction:column;gap:10px"></div>
+        <div style="margin-top:16px;padding:14px;background:var(--surf2);border-radius:var(--r);border:1px dashed var(--b2)">
+          <button onclick="finishSprint()" style="width:100%;padding:10px;background:var(--rd);color:#fff;border:none;border-radius:var(--rs);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🏁 스프린트 완료 처리</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 히스토리 패널 -->
+    <div id="sprint-history-panel" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-size:13px;font-weight:700">📚 스프린트 히스토리</div>
+        <button onclick="showSprintCurrent()" style="font-size:11px;color:var(--lm);background:transparent;border:none;cursor:pointer">← 현재 스프린트</button>
+      </div>
+      <div id="sprint-history-list" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 새 스프린트 모달 -->
+<div class="modal-bg" id="sprint-modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal" style="width:500px">
+    <div class="modal-title">🏃 새 스프린트</div>
+    <div class="field-g">
+      <label class="field-label">스프린트 이름</label>
+      <input type="text" id="sm-title" placeholder="예) Sprint #1 - 7월 마케팅">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="field-g">
+        <label class="field-label">시작일</label>
+        <input type="date" id="sm-start">
+      </div>
+      <div class="field-g">
+        <label class="field-label">종료일</label>
+        <input type="date" id="sm-end">
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:8px">
+      <button onclick="setSprintDuration(7)" style="flex:1;padding:6px;border:1px solid var(--b2);border-radius:var(--rs);background:transparent;font-size:11px;cursor:pointer;font-family:inherit">1주</button>
+      <button onclick="setSprintDuration(14)" style="flex:1;padding:6px;border:1px solid var(--b2);border-radius:var(--rs);background:transparent;font-size:11px;cursor:pointer;font-family:inherit">2주</button>
+      <button onclick="setSprintDuration(30)" style="flex:1;padding:6px;border:1px solid var(--b2);border-radius:var(--rs);background:transparent;font-size:11px;cursor:pointer;font-family:inherit">1달</button>
+    </div>
+    <div class="field-g">
+      <label class="field-label">스프린트 목표</label>
+      <textarea id="sm-goal" rows="3" placeholder="이번 스프린트에서 달성하고 싶은 팀 목표를 적어요"></textarea>
+    </div>
+    <div class="field-g">
+      <label class="field-label">연결 프로젝트 (선택)</label>
+      <select id="sm-proj" style="font-family:inherit">
+        <option value="">전체 프로젝트</option>
+      </select>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="document.getElementById('sprint-modal').style.display='none'">취소</button>
+      <button class="btn-confirm" onclick="saveSprint()">시작!</button>
+    </div>
   </div>
 </div>
 
@@ -1836,11 +1982,11 @@ function showView(v,btn){
   document.querySelectorAll('.nav-tab').forEach(el=>el.classList.remove('active'));
   document.getElementById('view-'+v).classList.add('active');
   if(btn)btn.classList.add('active');
-  if(v==='home'){renderDashboard();}
+  if(v==='home'){renderDashboard();}if(v==='teamcheck'){initSprints();renderTeamCheck();}
   // 홈/캘린더에서는 상단 프로젝트 셀렉트 숨기기
   const projSelArea=document.getElementById('proj-sel-area');
   if(projSelArea){
-    projSelArea.style.display=(v==='home'||v==='calendar')?'none':'flex';
+    projSelArea.style.display=(v==='home'||v==='calendar'||v==='teamcheck')?'none':'flex';
   }
   if(v==='revenue')renderRevenue();
   if(v==='utm')renderUtmView();
@@ -2056,7 +2202,8 @@ function quickAddPlanTask(){
   const date=document.getElementById('plan-quick-date')?.value||'';
 
   if(!group.tasks)group.tasks=[];
-  group.tasks.push({text,done:false,date,assignee});
+  const qBudget=document.getElementById('plan-quick-budget')?.value.trim()||'';
+  group.tasks.push({text,done:false,date,assignee,budget:qBudget});
 
   // 캘린더에도 추가
   if(date){
@@ -2067,6 +2214,7 @@ function quickAddPlanTask(){
 
   document.getElementById('plan-quick-text').value='';
   document.getElementById('plan-quick-date').value='';
+  const qbEl=document.getElementById('plan-quick-budget');if(qbEl)qbEl.value='';
 
   save();
   renderPlanResult(p.plan);
@@ -2257,6 +2405,7 @@ function renderPlanResult(plan,editMode=false){
         <div style="display:flex;gap:6px;padding-left:22px">
           <select onchange="updatePT(${gi},${ti},'assignee',this.value)" style="font-size:10px;padding:2px 6px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:var(--t3);flex:1;max-width:110px;font-family:inherit">${getAssigneeOpts(t.assignee||'')}</select>
           <input type="date" value="${t.date||''}" onchange="updatePTDate(${gi},${ti},this.value)" style="font-size:10px;padding:2px 6px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:${t.date?'var(--lm)':'var(--t3)'};flex:1;font-family:inherit">
+          <input type="number" value="${t.budget||''}" onchange="updatePT(${gi},${ti},'budget',this.value)" placeholder="예산(원)" min="0" style="font-size:10px;padding:2px 6px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:${t.budget?'#5a9e00':'var(--t3)'};width:80px;font-family:inherit">
         </div>
       </div>`;
     });
@@ -2973,6 +3122,321 @@ function delAction(id,i){const m=getMtg(id);if(m){m.actions.splice(i,1);save();r
 let _editProdId=null;const TYPE_EMOJI={힐링:'💜',계곡:'💚',이색:'🧡',기타:'·'};
 function refreshProdProjFilter(){const sel=document.getElementById('prod-proj-filter');if(!sel)return;const cur=sel.value;sel.innerHTML='<option value="">전체 프로젝트</option>'+S.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');if(cur)sel.value=cur;}
 
+
+// ════════════════════════════════════
+// 🔍 팀 점검 기능
+// ════════════════════════════════════
+let _tcPeriod = 'week';
+
+
+
+
+
+
+
+
+// ════════════════════════════════════
+// 🏃 스프린트 기능
+// ════════════════════════════════════
+
+let _sprintTab = 'status';
+
+function initSprints(){
+  if(!S.sprints)S.sprints=[];
+}
+
+function getCurrentSprint(){
+  initSprints();
+  const today=new Date().toISOString().split('T')[0];
+  return S.sprints.find(s=>s.status==='active'&&s.start<=today&&s.end>=today)||
+         S.sprints.find(s=>s.status==='active')||null;
+}
+
+function openSprintModal(){
+  initSprints();
+  const no=S.sprints.length+1;
+  document.getElementById('sm-title').value='Sprint #'+no;
+  // 오늘 날짜로 기본 설정
+  const today=new Date();
+  const fmt=d=>d.toISOString().split('T')[0];
+  document.getElementById('sm-start').value=fmt(today);
+  const end=new Date(today);end.setDate(today.getDate()+13);
+  document.getElementById('sm-end').value=fmt(end);
+  document.getElementById('sm-goal').value='';
+  // 프로젝트 셀렉트
+  const sel=document.getElementById('sm-proj');
+  if(sel)sel.innerHTML='<option value="">전체 프로젝트</option>'+
+    S.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  document.getElementById('sprint-modal').style.display='flex';
+}
+
+function setSprintDuration(days){
+  const start=document.getElementById('sm-start')?.value;
+  if(!start)return;
+  const s=new Date(start);
+  const e=new Date(s);e.setDate(s.getDate()+days-1);
+  document.getElementById('sm-end').value=e.toISOString().split('T')[0];
+}
+
+function saveSprint(){
+  const title=document.getElementById('sm-title')?.value.trim();
+  const start=document.getElementById('sm-start')?.value;
+  const end=document.getElementById('sm-end')?.value;
+  const goal=document.getElementById('sm-goal')?.value.trim();
+  const projId=document.getElementById('sm-proj')?.value||'';
+  if(!title||!start||!end){toast('이름, 시작일, 종료일을 입력해주세요');return;}
+  if(start>end){toast('종료일이 시작일보다 빠릅니다');return;}
+
+  initSprints();
+  const sprint={
+    id:'sprint-'+Date.now(),
+    no:S.sprints.length+1,
+    title,start,end,goal,projId,
+    status:'active',
+    memberGoals:{},  // {userId: {goal, note}}
+    retroNotes:{},   // {userId: {good, bad, next}}
+    createdAt:Date.now()
+  };
+  // 기존 active 스프린트 완료 처리
+  S.sprints.forEach(s=>{if(s.status==='active')s.status='done';});
+  S.sprints.push(sprint);
+  save();
+  document.getElementById('sprint-modal').style.display='none';
+  renderTeamCheck();
+  toast('스프린트가 시작됐어요 🚀');
+}
+
+function setSprintTab(tab, btn){
+  _sprintTab=tab;
+  document.querySelectorAll('.sprint-tab').forEach(b=>{
+    b.style.color='var(--t2)';b.style.borderBottomColor='transparent';b.style.fontWeight='400';
+  });
+  btn.style.color='#5a9e00';btn.style.borderBottomColor='#8bc34a';btn.style.fontWeight='700';
+  document.getElementById('sprint-panel-status').style.display=tab==='status'?'block':'none';
+  document.getElementById('sprint-panel-goals').style.display=tab==='goals'?'block':'none';
+  document.getElementById('sprint-panel-retro').style.display=tab==='retro'?'block':'none';
+}
+
+function showSprintHistory(){
+  document.getElementById('sprint-current').style.display='none';
+  document.getElementById('sprint-empty').style.display='none';
+  document.getElementById('sprint-history-panel').style.display='block';
+  renderSprintHistory();
+}
+
+function showSprintCurrent(){
+  document.getElementById('sprint-history-panel').style.display='none';
+  renderTeamCheck();
+}
+
+function finishSprint(){
+  const sprint=getCurrentSprint();
+  if(!sprint)return;
+  if(!confirm('스프린트를 완료 처리할까요?'))return;
+  sprint.status='done';
+  sprint.completedAt=Date.now();
+  save();
+  renderTeamCheck();
+  toast('스프린트가 완료됐어요 🎉');
+}
+
+function saveMemberGoal(userId, field, val){
+  const sprint=getCurrentSprint();if(!sprint)return;
+  if(!sprint.memberGoals[userId])sprint.memberGoals[userId]={};
+  sprint.memberGoals[userId][field]=val;
+  save();
+}
+
+function saveRetroNote(userId, field, val){
+  const sprint=getCurrentSprint();if(!sprint)return;
+  if(!sprint.retroNotes[userId])sprint.retroNotes[userId]={};
+  sprint.retroNotes[userId][field]=val;
+  save();
+}
+
+function renderTeamCheck(){
+  initSprints();
+  const sprint=getCurrentSprint();
+
+  if(!sprint){
+    document.getElementById('sprint-empty').style.display='block';
+    document.getElementById('sprint-current').style.display='none';
+    document.getElementById('sprint-history-panel').style.display='none';
+    return;
+  }
+
+  document.getElementById('sprint-empty').style.display='none';
+  document.getElementById('sprint-current').style.display='block';
+  document.getElementById('sprint-history-panel').style.display='none';
+
+  // 헤더
+  const today=new Date();
+  const endDate=new Date(sprint.end);
+  const startDate=new Date(sprint.start);
+  const totalDays=Math.ceil((endDate-startDate)/(1000*60*60*24))+1;
+  const passedDays=Math.max(0,Math.ceil((today-startDate)/(1000*60*60*24)));
+  const remainDays=Math.max(0,Math.ceil((endDate-today)/(1000*60*60*24)));
+  const timeProgress=Math.min(100,Math.round(passedDays/totalDays*100));
+
+  document.getElementById('sprint-no').textContent='Sprint #'+sprint.no;
+  document.getElementById('sprint-title').textContent=sprint.title;
+  document.getElementById('sprint-period').textContent=sprint.start+' ~ '+sprint.end+' ('+totalDays+'일)';
+  document.getElementById('sprint-dday').textContent=remainDays===0?'D-Day':'D-'+remainDays;
+  document.getElementById('sprint-progress-pct').textContent='기간 '+timeProgress+'% 경과';
+  document.getElementById('sprint-progress-bar').style.width=timeProgress+'%';
+  document.getElementById('sprint-start-lbl').textContent=sprint.start;
+  document.getElementById('sprint-end-lbl').textContent=sprint.end;
+
+  const goalDisp=document.getElementById('sprint-goal-display');
+  if(sprint.goal){goalDisp.style.display='block';goalDisp.textContent='🎯 '+sprint.goal;}
+  else goalDisp.style.display='none';
+
+  // 기간 내 태스크 수집
+  const projs=sprint.projId?S.projects.filter(p=>p.id===sprint.projId):S.projects;
+  let allTasks=[];
+  projs.forEach(p=>{
+    Object.entries(p.tasks||{}).forEach(([ds,ts])=>{
+      if(ds>=sprint.start&&ds<=sprint.end){
+        ts.forEach((t,ti)=>allTasks.push({...t,_projId:p.id,_projName:p.name,_date:ds}));
+      }
+    });
+  });
+
+  const total=allTasks.length;
+  const done=allTasks.filter(t=>t.done).length;
+  const pct=total?Math.round(done/total*100):0;
+  const today_str=today.toISOString().split('T')[0];
+
+  // 요약
+  const sumEl=document.getElementById('sprint-summary');
+  if(sumEl) sumEl.innerHTML=[
+    {icon:'📊',label:'할일 완료율',val:pct+'%',sub:done+'/'+total,c:pct>=70?'#5a9e00':pct>=40?'var(--or)':'var(--rd)'},
+    {icon:'📅',label:'남은 기간',val:'D-'+remainDays,sub:'총 '+totalDays+'일',c:'var(--bl)'},
+    {icon:'⚠️',label:'미완료',val:(total-done)+'건',sub:allTasks.filter(t=>!t.done&&t._date<today_str).length+'건 초과',c:(total-done)?'var(--or)':'var(--t3)'},
+  ].map(c=>`<div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:14px">
+    <div style="font-size:16px;margin-bottom:4px">${c.icon}</div>
+    <div style="font-size:10px;color:var(--t3);margin-bottom:3px">${c.label}</div>
+    <div style="font-size:20px;font-weight:800;color:${c.c}">${c.val}</div>
+    <div style="font-size:10px;color:var(--t3)">${c.sub}</div>
+  </div>`).join('');
+
+  // 팀원별
+  const membersEl=document.getElementById('sprint-members');
+  if(membersEl) membersEl.innerHTML=MF_USERS.map(u=>{
+    const mt=allTasks.filter(t=>t.assignee===u.name||t.assignee==='전체');
+    const md=mt.filter(t=>t.done).length;
+    const mp=mt.length?Math.round(md/mt.length*100):0;
+    const mOver=mt.filter(t=>!t.done&&t._date<today_str);
+    return`<div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:12px 16px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <div style="width:28px;height:28px;border-radius:50%;background:var(--lmbg);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--lm)">${u.name[0]}</div>
+        <div style="flex:1"><div style="font-size:12px;font-weight:700">${u.name}</div><div style="font-size:10px;color:var(--t3)">${mt.length}건 배정 ${mOver.length?'· <span style=color:var(--rd)>⚠️'+mOver.length+'건 초과</span>':''}</div></div>
+        <div style="font-size:18px;font-weight:800;color:${mp>=70?'#5a9e00':mp>=40?'var(--or)':'var(--rd)'}">${mp}%</div>
+      </div>
+      <div style="height:5px;background:var(--surf3);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${mp}%;background:${mp>=70?'#C8F064':mp>=40?'var(--or)':'var(--rd)'};border-radius:3px;transition:width .6s"></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // 미완료
+  const undoneEl=document.getElementById('sprint-undone');
+  const undone=allTasks.filter(t=>!t.done);
+  if(undoneEl) undoneEl.innerHTML=undone.length?undone.slice(0,10).map(t=>`
+    <div style="padding:8px 12px;background:var(--surf);border:1px solid var(--b);border-left:3px solid ${t._date<today_str?'var(--rd)':'var(--or)'};border-radius:var(--rs);display:flex;gap:8px;align-items:center">
+      <div style="flex:1">
+        <div style="font-size:11px;font-weight:500">${t.text}</div>
+        <div style="font-size:10px;color:var(--t3)">${t._projName}${t.assignee?' · 👤 '+t.assignee:''}${t._date?' · 📅 '+t._date:''}</div>
+      </div>
+      ${t._date<today_str?'<span style="font-size:10px;color:var(--rd);font-weight:700">초과</span>':''}
+    </div>`).join('')+(undone.length>10?`<div style="text-align:center;font-size:11px;color:var(--t3);padding:8px">+${undone.length-10}건 더</div>`:'')
+    :'<div style="text-align:center;padding:16px;color:var(--t3);font-size:12px">🎉 미완료 항목이 없어요!</div>';
+
+  // 팀원 목표 렌더
+  const goalsEl=document.getElementById('sprint-goals-list');
+  if(goalsEl) goalsEl.innerHTML=MF_USERS.map(u=>{
+    const g=sprint.memberGoals[u.id]||{};
+    return`<div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:14px 16px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <div style="width:26px;height:26px;border-radius:50%;background:var(--lmbg);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--lm)">${u.name[0]}</div>
+        <div style="font-size:12px;font-weight:700">${u.name}</div>
+      </div>
+      <div class="field-g" style="margin-bottom:8px">
+        <label class="field-label">이번 스프린트 목표</label>
+        <textarea placeholder="이번 스프린트에서 달성하고 싶은 목표를 적어요..." rows="2"
+          style="font-size:11px;resize:none;font-family:inherit"
+          onchange="saveMemberGoal('${u.id}','goal',this.value)">${g.goal||''}</textarea>
+      </div>
+      <div class="field-g">
+        <label class="field-label">메모</label>
+        <input type="text" value="${(g.note||'').replace(/"/g,'&quot;')}" placeholder="추가 메모..."
+          style="font-size:11px;font-family:inherit"
+          onchange="saveMemberGoal('${u.id}','note',this.value)">
+      </div>
+    </div>`;
+  }).join('');
+
+  // 회고 렌더
+  const retroEl=document.getElementById('sprint-retro-list');
+  if(retroEl) retroEl.innerHTML=MF_USERS.map(u=>{
+    const r=sprint.retroNotes[u.id]||{};
+    return`<div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:14px 16px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <div style="width:26px;height:26px;border-radius:50%;background:var(--lmbg);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--lm)">${u.name[0]}</div>
+        <div style="font-size:12px;font-weight:700">${u.name}의 회고</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div class="field-g">
+          <label class="field-label" style="color:#5a9e00">👍 잘한 것</label>
+          <textarea placeholder="잘했던 점..." rows="3" style="font-size:11px;resize:none;font-family:inherit;border-color:rgba(90,158,0,.3)"
+            onchange="saveRetroNote('${u.id}','good',this.value)">${r.good||''}</textarea>
+        </div>
+        <div class="field-g">
+          <label class="field-label" style="color:var(--rd)">👎 아쉬운 것</label>
+          <textarea placeholder="아쉬웠던 점..." rows="3" style="font-size:11px;resize:none;font-family:inherit;border-color:rgba(194,32,32,.3)"
+            onchange="saveRetroNote('${u.id}','bad',this.value)">${r.bad||''}</textarea>
+        </div>
+        <div class="field-g">
+          <label class="field-label" style="color:var(--bl)">🔄 다음엔</label>
+          <textarea placeholder="다음 스프린트에선..." rows="3" style="font-size:11px;resize:none;font-family:inherit;border-color:rgba(26,120,194,.3)"
+            onchange="saveRetroNote('${u.id}','next',this.value)">${r.next||''}</textarea>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderSprintHistory(){
+  const listEl=document.getElementById('sprint-history-list');
+  if(!listEl)return;
+  initSprints();
+  const done=S.sprints.filter(s=>s.status==='done').reverse();
+  if(!done.length){
+    listEl.innerHTML='<div style="text-align:center;padding:30px;color:var(--t3);font-size:12px">완료된 스프린트가 없어요</div>';
+    return;
+  }
+  listEl.innerHTML=done.map(s=>{
+    const totalDays=Math.ceil((new Date(s.end)-new Date(s.start))/(1000*60*60*24))+1;
+    const projs=s.projId?S.projects.filter(p=>p.id===s.projId):S.projects;
+    let tasks=[];
+    projs.forEach(p=>Object.entries(p.tasks||{}).forEach(([ds,ts])=>{
+      if(ds>=s.start&&ds<=s.end)ts.forEach(t=>tasks.push(t));
+    }));
+    const pct=tasks.length?Math.round(tasks.filter(t=>t.done).length/tasks.length*100):0;
+    return`<div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:14px 16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div>
+          <span style="font-size:10px;color:var(--t3)">Sprint #${s.no} · </span>
+          <span style="font-size:12px;font-weight:700">${s.title}</span>
+        </div>
+        <span style="font-size:14px;font-weight:800;color:${pct>=70?'#5a9e00':'var(--or)'}">${pct}%</span>
+      </div>
+      <div style="font-size:11px;color:var(--t3)">${s.start} ~ ${s.end} (${totalDays}일) · ${tasks.filter(t=>t.done).length}/${tasks.length} 완료</div>
+      ${s.goal?`<div style="margin-top:8px;font-size:11px;color:var(--t2);padding:6px 8px;background:var(--surf2);border-radius:var(--rs)">🎯 ${s.goal}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
 function prodTypeClick(btn){
   S.prodTypeFilter=btn.dataset.filter||'all';
   document.querySelectorAll('#prod-custom-tags .cal-ftag, .cal-ftag.on-all').forEach(b=>b.classList.remove('on'));
@@ -3059,11 +3523,104 @@ function btRefreshProjSel(){
   const cur=sel.value;sel.innerHTML='<option value="">프로젝트 선택</option>'+S.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
   if(cur)sel.value=cur;else if(S.curProjId)sel.value=S.curProjId;
 }
+
+// 플랜 할일 예산 집계해서 예산 탭에 반영
+function getPlanBudgetSummary(proj){
+  if(!proj||!proj.plan?.groups)return [];
+  const items=[];
+  proj.plan.groups.forEach(g=>{
+    (g.tasks||[]).forEach(t=>{
+      if(!t.budget&&!t.text)return;
+      const budget=parseFloat(t.budget)||0;
+      if(!t.text.trim())return;
+      items.push({
+        name:t.text,
+        group:g.name,
+        groupColor:g.color||'var(--lm)',
+        planned:budget,
+        actual:t.actualBudget||0,
+        done:t.done,
+        date:t.date||'',
+        assignee:t.assignee||''
+      });
+    });
+  });
+  return items;
+}
+
+// 예산 탭에 플랜 예산 섹션 추가
+function renderPlanBudgetSection(proj){
+  const container=document.getElementById('bt-plan-budget');
+  if(!container)return;
+  const items=getPlanBudgetSummary(proj);
+  if(!items.length){
+    container.style.display='none';
+    return;
+  }
+  container.style.display='block';
+  const totalPlan=items.reduce((s,i)=>s+i.planned,0);
+  const totalActual=items.reduce((s,i)=>s+i.actual,0);
+
+  container.innerHTML=`
+    <div style="font-size:13px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+      <span>📋 플랜 할일 예산</span>
+      <span style="font-size:11px;color:var(--t3)">계획 ${totalPlan.toLocaleString()}원 / 집행 ${totalActual.toLocaleString()}원</span>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead><tr style="background:var(--surf2);border-bottom:2px solid var(--b)">
+        <th style="padding:7px 10px;text-align:left;color:var(--t3);font-size:10px">할 일</th>
+        <th style="padding:7px 10px;text-align:left;color:var(--t3);font-size:10px">그룹</th>
+        <th style="padding:7px 10px;text-align:left;color:var(--t3);font-size:10px">담당자</th>
+        <th style="padding:7px 10px;text-align:right;color:var(--t3);font-size:10px">계획 예산</th>
+        <th style="padding:7px 10px;text-align:right;color:var(--t3);font-size:10px">실제 집행</th>
+        <th style="padding:7px 10px;text-align:center;color:var(--t3);font-size:10px">상태</th>
+      </tr></thead>
+      <tbody>
+        ${items.map((item,idx)=>`
+          <tr style="border-bottom:1px solid var(--b);${item.done?'opacity:.6':''}">
+            <td style="padding:7px 10px;font-weight:500">${item.done?'<span style="color:var(--t3);text-decoration:line-through">'+item.name+'</span>':item.name}</td>
+            <td style="padding:7px 10px"><span style="padding:2px 6px;background:var(--surf2);border-radius:10px;font-size:10px">${item.group}</span></td>
+            <td style="padding:7px 10px;color:var(--t3)">${item.assignee||'—'}</td>
+            <td style="padding:7px 10px;text-align:right;font-weight:600;color:${item.planned?'var(--t)':'var(--t3)'}">${item.planned?item.planned.toLocaleString()+'원':'—'}</td>
+            <td style="padding:7px 10px;text-align:right">
+              <input type="number" value="${item.actual||''}" onchange="updatePlanTaskActualBudget(${idx},this.value)"
+                placeholder="0" min="0"
+                style="width:90px;font-size:11px;padding:3px 6px;border:1px solid var(--b2);border-radius:4px;text-align:right;font-family:inherit;background:var(--surf2)">
+            </td>
+            <td style="padding:7px 10px;text-align:center">
+              ${item.done?'<span style="color:#5a9e00;font-size:10px">✓ 완료</span>':'<span style="color:var(--t3);font-size:10px">진행중</span>'}
+            </td>
+          </tr>`).join('')}
+      </tbody>
+      <tfoot><tr style="background:var(--surf2);border-top:2px solid var(--b);font-weight:700">
+        <td colspan="3" style="padding:8px 10px">합계</td>
+        <td style="padding:8px 10px;text-align:right;color:var(--lm)">${totalPlan.toLocaleString()}원</td>
+        <td style="padding:8px 10px;text-align:right;color:${totalActual>totalPlan?'var(--rd)':'var(--lm)'}">${totalActual.toLocaleString()}원</td>
+        <td style="padding:8px 10px;text-align:center;font-size:10px;color:var(--t3)">${totalPlan?Math.round(totalActual/totalPlan*100)+'%':''}</td>
+      </tr></tfoot>
+    </table>`;
+}
+
+// 플랜 할일 실제 집행 예산 업데이트
+function updatePlanTaskActualBudget(taskFlatIdx, val){
+  const p=getCurProj();if(!p?.plan?.groups)return;
+  let flat=0;
+  for(const g of p.plan.groups){
+    for(const t of (g.tasks||[])){
+      if(!t.text.trim())continue;
+      if(flat===taskFlatIdx){t.actualBudget=parseFloat(val)||0;save();renderPlanBudgetSection(p);return;}
+      flat++;
+    }
+  }
+}
+
 function btLoadProject(){
   const projId=document.getElementById('bt-proj-sel')?.value;const proj=getProj(projId);
   if(!proj){document.getElementById('bt-content').innerHTML='<div class="empty-plan"><div class="ei">💰</div><p style="font-weight:700;color:var(--t);margin-bottom:4px">예산 트래커</p><p style="font-size:12px">위에서 프로젝트를 선택하면<br>채널별 예산을 관리할 수 있어요</p></div>';return;}
   if(!proj.budget)proj.budget=[];
   renderBudgetTracker(proj);
+
+  renderPlanBudgetSection(proj);
 }
 function renderBudgetTracker(proj){
   const rows=proj.budget||[];
@@ -4496,9 +5053,4 @@ document.addEventListener('click', function(e){
 init();
 </script>
 </body>
-</htmlfunction prodTypeClick(btn){
-  S.prodTypeFilter=btn.dataset.filter||'all';
-  document.querySelectorAll('.cal-ftag').forEach(b=>b.classList.remove('on'));
-  btn.classList.add('on');
-  renderProducts();
-}>
+</html>

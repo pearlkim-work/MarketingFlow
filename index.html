@@ -2440,7 +2440,7 @@ function renderPlanResult(plan,editMode=false){
         <span style="font-size:10px;color:var(--t3)">${gd}/${(g.tasks||[]).length}</span>
         <button onclick="deleteGroup(${gi})" style="padding:2px 7px;border:1px solid transparent;border-radius:4px;background:transparent;color:var(--t3);font-size:10px;cursor:pointer" onmouseover="this.style.borderColor='var(--rd)';this.style.color='var(--rd)'" onmouseout="this.style.borderColor='transparent';this.style.color='var(--t3)'">삭제</button>
       </div>
-      <div style="padding:8px 10px">${th}${doneSection}<button onclick="addPT(${gi})" style="width:100%;padding:6px;border:1px dashed var(--b2);border-radius:var(--rs);background:transparent;color:var(--t3);font-size:11px;cursor:pointer" onmouseover="this.style.borderColor='var(--lm)'" onmouseout="this.style.borderColor='var(--b2)'">+ 할 일 추가</button></div>
+      <div style="padding:8px 10px">${th}${doneSection}</div>
     </div>`;
   }).join('');
   container.innerHTML=`<div style="display:flex;flex-direction:column;gap:0">

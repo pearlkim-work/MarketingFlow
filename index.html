@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MarketingFlow</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --bg:#f7f7f5;--surf:#fff;--surf2:#f0efec;--surf3:#e8e6e1;
@@ -22,7 +22,7 @@
   --r:10px;--rs:7px;
   --neo:#C8F064
 }
-body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--t);height:100vh;display:flex;flex-direction:column;font-size:13px;overflow:hidden}
+body{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;letter-spacing:-.01em;background:var(--bg);color:var(--t);height:100vh;display:flex;flex-direction:column;font-size:13px;overflow:hidden}
 button{font-family:inherit;cursor:pointer}
 input,textarea,select{font-family:inherit;font-size:13px}
 ::-webkit-scrollbar{width:3px;height:3px}
@@ -1086,6 +1086,7 @@ select:focus{border-color:var(--lm);outline:none}
     <div id="bt-content">
       <div class="empty-plan"><div class="ei">💰</div><p style="font-weight:700;color:var(--t);margin-bottom:4px">예산 트래커</p><p style="font-size:12px">위에서 프로젝트를 선택하면<br>채널별 예산을 관리할 수 있어요</p></div>
     </div>
+    <div id="bt-plan-budget" style="margin-top:16px;background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:14px 16px;display:none"></div>
   </div>
 </div>
 
@@ -2028,6 +2029,8 @@ function renderNpGoals(){
 // ── PROJECTS ──
 function getProj(id){return S.projects.find(p=>p.id===id)}
 function getCurProj(){return getProj(S.curProjId)}
+// 현재 프로젝트의 플랜 그룹 배열 반환 (togglePT/updatePT/addPT/deletePT 등에서 사용)
+function getPG(){const p=getCurProj();return p&&p.plan?p.plan.groups:null;}
 function openNpModal(){_npGoals=[];renderNpGoals();document.getElementById('np-modal').style.display='flex';document.getElementById('np-name').focus();}
 function closeNpModal(){document.getElementById('np-modal').style.display='none';}
 function createProj(){
@@ -2381,6 +2384,12 @@ function toggleTask(el,ds,projId,taskIdx){
 }
 
 
+// 그룹별 "완료" 섹션 접힘/펼침 상태 (기본값: 접힘)
+let _planDoneCollapse={};
+function togglePlanDoneSection(gid){
+  _planDoneCollapse[gid]=_planDoneCollapse[gid]===false?true:false;
+  const p=getCurProj();if(p&&p.plan)renderPlanResult(p.plan);
+}
 function renderPlanResult(plan,editMode=false){
   const container=document.getElementById('plan-task-view')||document.getElementById('plan-output');
   if(!container)return;
@@ -2393,10 +2402,7 @@ function renderPlanResult(plan,editMode=false){
   const groupsHtml=plan.groups.map((g,gi)=>{
     const gc=TC[g.name]||g.color||'var(--lm)';
     const gd=(g.tasks||[]).filter(t=>t.done).length;
-    let th='';
-    (g.tasks||[]).forEach((t,ti)=>{
-      if(!t.text||!t.text.trim())return; // 빈 할일 숨기기
-      th+=`<div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--rs);margin-bottom:5px;padding:8px 10px">
+    const rowHtml=(t,ti)=>`<div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--rs);margin-bottom:5px;padding:8px 10px">
         <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
           <div onclick="togglePT(${gi},${ti})" style="width:15px;height:15px;border-radius:3px;border:1.5px solid ${t.done?gc:'var(--b3)'};background:${t.done?gc:'transparent'};flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center">${t.done?'<span style="font-size:8px;color:#fff;font-weight:700">✓</span>':''}</div>
           <input value="${(t.text||'').replace(/"/g,'&quot;')}" onchange="updatePT(${gi},${ti},'text',this.value)" style="flex:1;min-width:0;background:transparent;border:none;font-size:11px;color:${t.done?'var(--t3)':'var(--t)'};${t.done?'text-decoration:line-through;':''}font-family:inherit;outline:none" placeholder="할 일 입력...">
@@ -2408,7 +2414,25 @@ function renderPlanResult(plan,editMode=false){
           <input type="number" value="${t.budget||''}" onchange="updatePT(${gi},${ti},'budget',this.value)" placeholder="예산(원)" min="0" style="font-size:10px;padding:2px 6px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:${t.budget?'#5a9e00':'var(--t3)'};width:80px;font-family:inherit">
         </div>
       </div>`;
-    });
+    const validIdx=[];
+    (g.tasks||[]).forEach((t,ti)=>{if(t.text&&t.text.trim())validIdx.push(ti);}); // 빈 할일 숨기기
+    const pendingIdx=validIdx.filter(ti=>!g.tasks[ti].done);
+    const doneIdx=validIdx.filter(ti=>g.tasks[ti].done);
+    let th=pendingIdx.map(ti=>rowHtml(g.tasks[ti],ti)).join('');
+    if(!pendingIdx.length&&doneIdx.length){
+      th='<div style="text-align:center;padding:10px;font-size:11px;color:var(--t3)">진행 중인 할 일이 없어요 🎉</div>';
+    }
+    let doneSection='';
+    if(doneIdx.length){
+      const collapsed=_planDoneCollapse[g.id]!==false; // 기본 접힘
+      doneSection=`<div style="margin-top:6px">
+        <button onclick="togglePlanDoneSection('${g.id}')" style="width:100%;display:flex;align-items:center;gap:5px;padding:6px 4px;border:none;background:transparent;color:var(--t3);font-size:11px;font-weight:600;cursor:pointer">
+          <span style="display:inline-block;font-size:9px;transform:rotate(${collapsed?'0':'90'}deg);transition:transform .12s">▶</span>
+          <span>완료됨 ${doneIdx.length}개</span>
+        </button>
+        ${collapsed?'':`<div>${doneIdx.map(ti=>rowHtml(g.tasks[ti],ti)).join('')}</div>`}
+      </div>`;
+    }
     return `<div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--r);overflow:hidden;margin-bottom:10px">
       <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--b);background:var(--surf2)">
         <div style="width:8px;height:8px;border-radius:50%;background:${gc}"></div>
@@ -2416,7 +2440,7 @@ function renderPlanResult(plan,editMode=false){
         <span style="font-size:10px;color:var(--t3)">${gd}/${(g.tasks||[]).length}</span>
         <button onclick="deleteGroup(${gi})" style="padding:2px 7px;border:1px solid transparent;border-radius:4px;background:transparent;color:var(--t3);font-size:10px;cursor:pointer" onmouseover="this.style.borderColor='var(--rd)';this.style.color='var(--rd)'" onmouseout="this.style.borderColor='transparent';this.style.color='var(--t3)'">삭제</button>
       </div>
-      <div style="padding:8px 10px">${th}<button onclick="addPT(${gi})" style="width:100%;padding:6px;border:1px dashed var(--b2);border-radius:var(--rs);background:transparent;color:var(--t3);font-size:11px;cursor:pointer" onmouseover="this.style.borderColor='var(--lm)'" onmouseout="this.style.borderColor='var(--b2)'">+ 할 일 추가</button></div>
+      <div style="padding:8px 10px">${th}${doneSection}<button onclick="addPT(${gi})" style="width:100%;padding:6px;border:1px dashed var(--b2);border-radius:var(--rs);background:transparent;color:var(--t3);font-size:11px;cursor:pointer" onmouseover="this.style.borderColor='var(--lm)'" onmouseout="this.style.borderColor='var(--b2)'">+ 할 일 추가</button></div>
     </div>`;
   }).join('');
   container.innerHTML=`<div style="display:flex;flex-direction:column;gap:0">
@@ -2709,9 +2733,9 @@ function togglePT(gi,ti){const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti]
 function updatePT(gi,ti,field,val){const g=getPG();if(!g)return;if(ti===-1){if(g[gi])g[gi].name=val;}else{if(g[gi]?.tasks?.[ti])g[gi].tasks[ti][field]=val;}save();}
 function updatePTDate(gi,ti,date){const p=getCurProj();if(!p||!p.plan)return;const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(!t)return;if(t.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}t.date=date;if(date){if(!p.tasks[date])p.tasks[date]=[];const ex=p.tasks[date].find(c=>c._planRef===gi+'-'+ti);if(ex){ex.text=t.text;ex.done=t.done;}else{p.tasks[date].push({text:t.text||'(제목 없음)',type:'ops',done:t.done,assignee:t.assignee||'',_planRef:gi+'-'+ti,_fromPlan:true});}}save();renderPlanResult(p.plan);renderFullCal();if(S.selDate===date)renderFullDayTasks(date);toast('캘린더에 반영됐어요 📅',1800);}
 function addPT(gi){const g=getPG();if(!g)return;if(!g[gi].tasks)g[gi].tasks=[];g[gi].tasks.push({text:'',done:false,date:'',assignee:''});save();renderPlanResult(getCurProj().plan);}
-function deletePT(gi,ti){const p=getCurProj();if(!p||!p.plan)return;const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(t?.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}g[gi].tasks.splice(ti,1);save();renderPlanResult(p.plan);renderFullCal();renderQuickAddGroups();}
+function deletePT(gi,ti){const p=getCurProj();if(!p||!p.plan)return;const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(t?.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}g[gi].tasks.splice(ti,1);_reindexPlanRefsAfterTaskDelete(p,gi,ti);save();renderPlanResult(p.plan);renderFullCal();renderQuickAddGroups();}
 function addGroup(){const p=getCurProj();if(!p||!p.plan)return;if(!p.plan.groups)p.plan.groups=[];p.plan.groups.push({id:'g-'+Date.now(),name:'새 그룹',color:'var(--lm)',tasks:[]});save();renderPlanResult(p.plan);renderQuickAddGroups();setTimeout(()=>{const inputs=document.querySelectorAll('[onchange*="updatePT"]');if(inputs.length)inputs[inputs.length-1].select();},50);}
-function deleteGroup(gi){const p=getCurProj();if(!p||!p.plan?.groups)return;(p.plan.groups[gi]?.tasks||[]).forEach((t,ti)=>{if(t.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}});p.plan.groups.splice(gi,1);save();renderPlanResult(p.plan);renderFullCal();}
+function deleteGroup(gi){const p=getCurProj();if(!p||!p.plan?.groups)return;(p.plan.groups[gi]?.tasks||[]).forEach((t,ti)=>{if(t.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}});p.plan.groups.splice(gi,1);_reindexPlanRefsAfterGroupDelete(p,gi);save();renderPlanResult(p.plan);renderFullCal();}
 function togglePlanTask(ch, taskIdx){
   const proj=getCurProj();
   if(!proj||!proj.plan)return;
@@ -2769,14 +2793,66 @@ function renderPlanDayTasks(ds){
   const typeC={meta:'var(--lm)',crm:'var(--orange)',inf:'var(--blue)',ops:'var(--t2)',live:'var(--red)',content:'var(--green)'};
   document.getElementById('plan-task-list').innerHTML=tasks.map((t,i)=>`<div class="task-mini"><div class="task-chk ${t.done?'done':''}" onclick="planToggleTask('${ds}',${i})"></div><div class="task-txt ${t.done?'done':''}" style="color:${typeC[t.type]||'var(--t2)'}">${t.text}</div><button class="task-del" onclick="planDelTask('${ds}',${i})">✕</button></div>`).join('')||'<div style="font-size:11px;color:var(--t3)">할 일 없음</div>';
 }
+// 캘린더 할일 타입 ↔ 플랜 그룹 매핑 (미니 캘린더에서 추가한 할일도 플랜 그룹에 동기화되도록)
+const PLAN_TYPE_GROUP={meta:'Meta',crm:'CRM',inf:'인플루언서',content:'콘텐츠',live:'광고 라이브',ops:'공통'};
+const PLAN_TYPE_COLOR={meta:'#1877f2',crm:'#f0a064',inf:'#64b8f0',content:'#1a9c5a',live:'#c22020',ops:'#aaa'};
+
+// _planRef(gi-ti)가 그룹 삭제/할일 삭제로 밀리는 것을 방지하기 위한 재정렬 헬퍼
+function _reindexPlanRefsAfterTaskDelete(p,gi,removedTi){
+  Object.values(p.tasks||{}).forEach(arr=>(arr||[]).forEach(x=>{
+    if(x&&x._planRef){
+      const parts=x._planRef.split('-');const xgi=Number(parts[0]),xti=Number(parts[1]);
+      if(xgi===gi&&xti>removedTi)x._planRef=xgi+'-'+(xti-1);
+    }
+  }));
+}
+function _reindexPlanRefsAfterGroupDelete(p,removedGi){
+  Object.values(p.tasks||{}).forEach(arr=>(arr||[]).forEach(x=>{
+    if(x&&x._planRef){
+      const parts=x._planRef.split('-');const xgi=Number(parts[0]);
+      if(xgi>removedGi)x._planRef=(xgi-1)+'-'+parts[1];
+    }
+  }));
+}
+
 function planAddTask(){
   if(!S.curProjId)return;const text=document.getElementById('plan-task-inp').value.trim();if(!text||!S.planSelDate)return;
-  const proj=getCurProj();if(!proj.tasks[S.planSelDate])proj.tasks[S.planSelDate]=[];
-  proj.tasks[S.planSelDate].push({text,type:document.getElementById('plan-task-type').value,done:false});
-  document.getElementById('plan-task-inp').value='';save();renderMiniCal();
+  const proj=getCurProj();
+  const type=document.getElementById('plan-task-type').value;
+  // 플랜 그룹에도 함께 추가 (중간 플랜 패널과 동기화)
+  if(!proj.plan)proj.plan={name:proj.name,groups:[{id:'g-common',name:'공통',color:'#aaa',tasks:[]}],createdAt:Date.now()};
+  if(!proj.plan.groups)proj.plan.groups=[{id:'g-common',name:'공통',color:'#aaa',tasks:[]}];
+  const gname=PLAN_TYPE_GROUP[type]||'공통';
+  let gi=proj.plan.groups.findIndex(g=>g.name===gname);
+  if(gi===-1){proj.plan.groups.push({id:'g-'+Date.now()+Math.random().toString(36).slice(2),name:gname,color:PLAN_TYPE_COLOR[type]||'var(--lm)',tasks:[]});gi=proj.plan.groups.length-1;}
+  const group=proj.plan.groups[gi];if(!group.tasks)group.tasks=[];
+  group.tasks.push({text,done:false,date:S.planSelDate,assignee:''});
+  const ti=group.tasks.length-1;
+  if(!proj.tasks[S.planSelDate])proj.tasks[S.planSelDate]=[];
+  proj.tasks[S.planSelDate].push({text,type,done:false,_planRef:gi+'-'+ti,_fromPlan:true});
+  document.getElementById('plan-task-inp').value='';
+  save();renderMiniCal();renderPlanResult(proj.plan);renderQuickAddGroups();renderFullCal();
+  toast('할 일 추가됐어요 ✓',1200);
 }
-function planToggleTask(ds,i){const proj=getCurProj();if(proj&&proj.tasks[ds]&&proj.tasks[ds][i]!==undefined){proj.tasks[ds][i].done=!proj.tasks[ds][i].done;save();renderMiniCal();}}
-function planDelTask(ds,i){const proj=getCurProj();if(proj&&proj.tasks[ds]){proj.tasks[ds].splice(i,1);save();renderMiniCal();}}
+function planToggleTask(ds,i){
+  const proj=getCurProj();if(!proj||!proj.tasks[ds]||proj.tasks[ds][i]===undefined)return;
+  const t=proj.tasks[ds][i];t.done=!t.done;
+  if(t._planRef&&proj.plan?.groups){
+    const[gi,ti]=t._planRef.split('-').map(Number);
+    if(proj.plan.groups[gi]?.tasks?.[ti])proj.plan.groups[gi].tasks[ti].done=t.done;
+  }
+  save();renderMiniCal();if(proj.plan)renderPlanResult(proj.plan);
+}
+function planDelTask(ds,i){
+  const proj=getCurProj();if(!proj||!proj.tasks[ds])return;
+  const t=proj.tasks[ds][i];
+  if(t&&t._planRef&&proj.plan?.groups){
+    const[gi,ti]=t._planRef.split('-').map(Number);
+    if(proj.plan.groups[gi]?.tasks){proj.plan.groups[gi].tasks.splice(ti,1);_reindexPlanRefsAfterTaskDelete(proj,gi,ti);}
+  }
+  proj.tasks[ds].splice(i,1);
+  save();renderMiniCal();if(proj.plan)renderPlanResult(proj.plan);
+}
 
 // ── QUICK TIMELINE ──
 function qtRefreshProj(){const sel=document.getElementById('qt-proj');if(!sel)return;const cur=sel.value;sel.innerHTML=S.projects.map(p=>`<option value="${p.id}" ${p.id===S.curProjId?'selected':''}>${p.name}</option>`).join('');if(cur)sel.value=cur;}
@@ -4482,6 +4558,11 @@ function renderDashboard(){
     ${weekTasks.length>6?`<div style="font-size:10px;color:var(--t3);text-align:center;padding:6px 0">+${weekTasks.length-6}개 더</div>`:''}
   `:'<div style="font-size:11px;color:var(--t3);text-align:center;padding:20px 0">이번 주 일정이 없어요</div>';
 
+  renderDashboardPart2(projs, today, liveAds, wPct, weekTasks);
+}
+// ⚠️ 버그 수정: renderDashboard()가 여기서 닫히지 않고 아래 25개 함수(매출/UTM/설정 등)를 통째로
+// 삼켜버려서 전역에서 호출이 불가능했던 문제를 수정함 (renderDashboardPart2로 나머지 로직 분리)
+
 // ════════════════════════════════════════
 // 📈 매출 분석
 // ════════════════════════════════════════
@@ -4867,6 +4948,7 @@ function toggleDetailForm(){
 
 function openUtmCreateModal(){updateUtmPreview();document.getElementById('utm-url')?.focus();}
 
+function renderDashboardPart2(projs, today, liveAds, wPct, weekTasks){
   // ── 마케터 인사이트 ──
   const insights=[];
   const _bArr=[];projs.forEach(p=>(Array.isArray(p.budget)?p.budget:[]).forEach(b=>{const plan=parseFloat(b.planTotal)||0;const actual=Object.values(b.monthly||{}).reduce((s,v)=>s+(parseFloat(v)||0),0);if(plan>0)_bArr.push({ch:b.channel||'기타',plan,actual});}));

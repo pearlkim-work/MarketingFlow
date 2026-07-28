@@ -412,7 +412,7 @@ input::placeholder,textarea::placeholder{color:var(--t3)}
 .bt-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
 .bt-title{font-size:15px;font-weight:700}
 .bt-proj-sel{font-size:12px;padding:6px 10px;background:var(--surf2);border:1px solid var(--b2);border-radius:var(--r-sm);color:var(--t);outline:none}
-.bt-table-wrap{border:1px solid var(--b2);border-radius:var(--r);overflow:hidden;margin-bottom:16px}
+.bt-table-wrap{border:1px solid var(--b2);border-radius:var(--r);overflow-x:auto;overflow-y:visible;margin-bottom:16px}
 .bt-table{width:100%;border-collapse:collapse;font-size:12px}
 .bt-table th{background:var(--surf2);padding:9px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid var(--b2);white-space:nowrap}
 .bt-table th.right{text-align:right}
@@ -846,14 +846,14 @@ select:focus{border-color:var(--lm);outline:none}
 
       <div class="divider"></div>
 
-      <div style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">항목 선택</div>
+      <div style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">항목 선택 · 예산</div>
       <div id="ch-chips" style="display:flex;flex-direction:column;gap:7px;margin-bottom:12px">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px"><input type="checkbox" data-ch="Meta 광고" onchange="syncPlanGroups()" checked style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> Meta</label>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px"><input type="checkbox" data-ch="네이버 검색" onchange="syncPlanGroups()" style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 네이버</label>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px"><input type="checkbox" data-ch="인플루언서/블로그" onchange="syncPlanGroups()" checked style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 인플루언서</label>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px"><input type="checkbox" data-ch="카카오 CRM" onchange="syncPlanGroups()" checked style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> CRM</label>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px"><input type="checkbox" data-ch="유튜브" onchange="syncPlanGroups()" style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 유튜브</label>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px"><input type="checkbox" data-ch="당근마켓" onchange="syncPlanGroups()" style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 당근</label>
+        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="Meta 광고" onchange="syncPlanGroups()" checked style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> Meta</label><input type="number" class="ch-budget-inp" data-ch="Meta 광고" placeholder="예산" min="0" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
+        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="네이버 검색" onchange="syncPlanGroups()" style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 네이버</label><input type="number" class="ch-budget-inp" data-ch="네이버 검색" placeholder="예산" min="0" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
+        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="인플루언서/블로그" onchange="syncPlanGroups()" checked style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 인플루언서</label><input type="number" class="ch-budget-inp" data-ch="인플루언서/블로그" placeholder="예산" min="0" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
+        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="카카오 CRM" onchange="syncPlanGroups()" checked style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> CRM</label><input type="number" class="ch-budget-inp" data-ch="카카오 CRM" placeholder="예산" min="0" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
+        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="유튜브" onchange="syncPlanGroups()" style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 유튜브</label><input type="number" class="ch-budget-inp" data-ch="유튜브" placeholder="예산" min="0" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
+        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="당근마켓" onchange="syncPlanGroups()" style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 당근</label><input type="number" class="ch-budget-inp" data-ch="당근마켓" placeholder="예산" min="0" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
       </div>
 
       <div class="ch-add-row" style="margin-bottom:14px">
@@ -1080,7 +1080,6 @@ select:focus{border-color:var(--lm);outline:none}
         <select class="bt-proj-sel" id="bt-proj-sel" onchange="btLoadProject()">
           <option value="">프로젝트 선택</option>
         </select>
-        <button class="btn-ghost" onclick="btOpenAddRowModal()">+ 항목 추가</button>
       </div>
     </div>
     <div id="bt-content">
@@ -2311,23 +2310,50 @@ function loadPlanInputFromProj(proj){
   set('p-memo', proj.memo||proj.planMemo);
   renderPlanGoals(proj);
   renderQuickAddGroups();
+  loadChBudgetInputs(proj);
 }
 document.querySelectorAll('#ch-chips .chip').forEach(c=>c.addEventListener('click',()=>{c.classList.toggle('on');renderProjSummary();}));
 function getChs(){return[...document.querySelectorAll('#ch-chips .chip.sel')].map(c=>c.dataset.ch)}
 function addCustomChannel(){
   const inp=document.getElementById('ch-custom-inp');const val=inp.value.trim();if(!val)return;
-  const exists=[...document.querySelectorAll('#ch-chips input')].some(c=>c.dataset.ch===val);if(exists){inp.value='';return;}
+  const exists=[...document.querySelectorAll('#ch-chips input[type=checkbox]')].some(c=>c.dataset.ch===val);if(exists){inp.value='';return;}
+  const row=document.createElement('div');
+  row.style.cssText='display:flex;align-items:center;gap:6px';
   const label=document.createElement('label');
-  label.style.cssText='display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px';
+  label.style.cssText='display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1';
   const cb=document.createElement('input');
   cb.type='checkbox';cb.dataset.ch=val;cb.checked=true;cb.style.cssText='width:14px;height:14px;accent-color:#8bc34a;cursor:pointer';
   cb.addEventListener('change',syncPlanGroups);
   const span=document.createElement('span');span.textContent=val;
   const del=document.createElement('span');del.textContent='✕';del.style.cssText='font-size:10px;color:var(--t3);cursor:pointer;margin-left:2px';
-  del.onclick=function(){label.remove();syncPlanGroups();};
+  del.onclick=function(){row.remove();syncPlanGroups();};
   label.appendChild(cb);label.appendChild(span);label.appendChild(del);
-  document.getElementById('ch-chips').appendChild(label);
+  const budgetInp=document.createElement('input');
+  budgetInp.type='number';budgetInp.className='ch-budget-inp';budgetInp.dataset.ch=val;budgetInp.placeholder='예산';budgetInp.min='0';
+  budgetInp.style.cssText='width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit';
+  budgetInp.addEventListener('change',()=>updateChBudget(budgetInp));
+  row.appendChild(label);row.appendChild(budgetInp);
+  document.getElementById('ch-chips').appendChild(row);
   inp.value='';inp.focus();syncPlanGroups();
+}
+
+// 항목(채널)별 계획 예산 저장 + 플랜 그룹 & 예산 탭에 동기화
+function updateChBudget(el){
+  const p=getCurProj();if(!p)return;
+  const ch=el.dataset.ch;const val=parseFloat(el.value)||0;
+  if(!p.chBudgets)p.chBudgets={};
+  p.chBudgets[ch]=val;
+  save();
+  syncPlanGroups();
+}
+
+// 항목 예산 입력값을 화면에 복원 (프로젝트 전환 시)
+function loadChBudgetInputs(proj){
+  document.querySelectorAll('#ch-chips .ch-budget-inp').forEach(el=>{
+    const ch=el.dataset.ch;
+    const v=proj?.chBudgets?.[ch];
+    el.value=v||'';
+  });
 }
 
 // ── PLAN GEN ──
@@ -2337,9 +2363,25 @@ function genPlan(){
   const TC={'Meta 광고':'#1877f2','카카오 CRM':'var(--or)','인플루언서/블로그':'var(--bl)','네이버 검색':'#03c75a','유튜브':'#ff0000','당근마켓':'#ff6f0f'};
   const TN={'Meta 광고':'Meta','카카오 CRM':'CRM','인플루언서/블로그':'인플루언서','네이버 검색':'네이버','유튜브':'유튜브','당근마켓':'당근'};
   const groups=[{id:'g-common',name:'공통',color:'#aaa',tasks:[]}];
-  chs.forEach(ch=>{groups.push({id:'g-'+ch.replace(/\s/g,'')+Date.now(),name:TN[ch]||ch,color:TC[ch]||'var(--lm)',tasks:[]});});
+  chs.forEach(ch=>{groups.push({id:'g-'+ch.replace(/\s/g,'')+Date.now(),name:TN[ch]||ch,color:TC[ch]||'var(--lm)',_ch:ch,tasks:[]});});
   const plan={name:document.getElementById('p-name')?.value.trim()||p.name||'',budget:document.getElementById('p-budget')?.value.trim()||'',period:document.getElementById('p-period')?.value.trim()||'',target:document.getElementById('p-target')?.value.trim()||'',memo:document.getElementById('p-memo')?.value.trim()||'',channels:chs,groups,createdAt:Date.now()};
-  p.plan=plan;save();renderPlanResult(plan);renderQuickAddGroups();renderFullCal();updatePlanButtons();toast('플랜 틀 생성! 할 일을 직접 입력해봐요 ✏️',3000);
+  p.plan=plan;applyChBudgetsToProject(p);save();renderPlanResult(plan);renderQuickAddGroups();renderFullCal();updatePlanButtons();toast('플랜 틀 생성! 할 일을 직접 입력해봐요 ✏️',3000);
+}
+
+// 항목(채널)별 계획 예산을 그룹 + 예산탭 데이터에 반영
+function applyChBudgetsToProject(p){
+  if(!p||!p.plan?.groups)return;
+  const chBudgets=p.chBudgets||{};
+  if(!p.budget)p.budget=[];
+  Object.keys(chBudgets).forEach(ch=>{
+    const val=parseFloat(chBudgets[ch])||0;
+    const group=p.plan.groups.find(g=>g._ch===ch);
+    if(!group)return; // 선택 해제된 항목이면 예산탭에도 반영 안 함
+    group.budget=val;
+    let row=p.budget.find(r=>r._ch===ch);
+    if(row){row.planTotal=val;}
+    else if(val>0){p.budget.push({id:'ch-'+ch,channel:group.name,cat:'플랜',planTotal:val,monthly:{},planMonthly:{},_ch:ch});}
+  });
 }
 
 // 채널 선택 변경 시 플랜 그룹 실시간 동기화
@@ -2366,6 +2408,7 @@ function syncPlanGroups(){
     if(!isChannel)return true;
     return (g.tasks||[]).some(t=>t.text.trim());
   });
+  applyChBudgetsToProject(p);
   save();renderPlanResult(p.plan);
 }
 
@@ -3596,7 +3639,8 @@ let _btCurMonth=new Date().getMonth(); // 0-indexed
 
 function btRefreshProjSel(){
   const sel=document.getElementById('bt-proj-sel');if(!sel)return;
-  const cur=sel.value;sel.innerHTML='<option value="">프로젝트 선택</option>'+S.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">프로젝트 선택</option><option value="all">📁 전체 프로젝트</option>'+S.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
   if(cur)sel.value=cur;else if(S.curProjId)sel.value=S.curProjId;
 }
 
@@ -3635,34 +3679,28 @@ function renderPlanBudgetSection(proj){
   }
   container.style.display='block';
   const totalPlan=items.reduce((s,i)=>s+i.planned,0);
-  const totalActual=items.reduce((s,i)=>s+i.actual,0);
 
   container.innerHTML=`
-    <div style="font-size:13px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
-      <span>📋 플랜 할일 예산</span>
-      <span style="font-size:11px;color:var(--t3)">계획 ${totalPlan.toLocaleString()}원 / 집행 ${totalActual.toLocaleString()}원</span>
+    <div style="font-size:13px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;justify-content:space-between">
+      <span>📋 플랜 할일 예산 (계획 참고용)</span>
+      <span style="font-size:11px;color:var(--t3)">계획 합계 ${totalPlan.toLocaleString()}원</span>
     </div>
+    <div style="font-size:10px;color:var(--t3);margin-bottom:8px">실제 집행 금액은 위 예산 표(월별 칸)에서 입력해줘</div>
     <table style="width:100%;border-collapse:collapse;font-size:11px">
       <thead><tr style="background:var(--surf2);border-bottom:2px solid var(--b)">
         <th style="padding:7px 10px;text-align:left;color:var(--t3);font-size:10px">할 일</th>
         <th style="padding:7px 10px;text-align:left;color:var(--t3);font-size:10px">그룹</th>
         <th style="padding:7px 10px;text-align:left;color:var(--t3);font-size:10px">담당자</th>
         <th style="padding:7px 10px;text-align:right;color:var(--t3);font-size:10px">계획 예산</th>
-        <th style="padding:7px 10px;text-align:right;color:var(--t3);font-size:10px">실제 집행</th>
         <th style="padding:7px 10px;text-align:center;color:var(--t3);font-size:10px">상태</th>
       </tr></thead>
       <tbody>
-        ${items.map((item,idx)=>`
+        ${items.map((item)=>`
           <tr style="border-bottom:1px solid var(--b);${item.done?'opacity:.6':''}">
             <td style="padding:7px 10px;font-weight:500">${item.done?'<span style="color:var(--t3);text-decoration:line-through">'+item.name+'</span>':item.name}</td>
             <td style="padding:7px 10px"><span style="padding:2px 6px;background:var(--surf2);border-radius:10px;font-size:10px">${item.group}</span></td>
             <td style="padding:7px 10px;color:var(--t3)">${item.assignee||'—'}</td>
             <td style="padding:7px 10px;text-align:right;font-weight:600;color:${item.planned?'var(--t)':'var(--t3)'}">${item.planned?item.planned.toLocaleString()+'원':'—'}</td>
-            <td style="padding:7px 10px;text-align:right">
-              <input type="number" value="${item.actual||''}" onchange="updatePlanTaskActualBudget(${idx},this.value)"
-                placeholder="0" min="0"
-                style="width:90px;font-size:11px;padding:3px 6px;border:1px solid var(--b2);border-radius:4px;text-align:right;font-family:inherit;background:var(--surf2)">
-            </td>
             <td style="padding:7px 10px;text-align:center">
               ${item.done?'<span style="color:#5a9e00;font-size:10px">✓ 완료</span>':'<span style="color:var(--t3);font-size:10px">진행중</span>'}
             </td>
@@ -3671,8 +3709,7 @@ function renderPlanBudgetSection(proj){
       <tfoot><tr style="background:var(--surf2);border-top:2px solid var(--b);font-weight:700">
         <td colspan="3" style="padding:8px 10px">합계</td>
         <td style="padding:8px 10px;text-align:right;color:var(--lm)">${totalPlan.toLocaleString()}원</td>
-        <td style="padding:8px 10px;text-align:right;color:${totalActual>totalPlan?'var(--rd)':'var(--lm)'}">${totalActual.toLocaleString()}원</td>
-        <td style="padding:8px 10px;text-align:center;font-size:10px;color:var(--t3)">${totalPlan?Math.round(totalActual/totalPlan*100)+'%':''}</td>
+        <td></td>
       </tr></tfoot>
     </table>`;
 }
@@ -3691,17 +3728,95 @@ function updatePlanTaskActualBudget(taskFlatIdx, val){
 }
 
 function btLoadProject(){
-  const projId=document.getElementById('bt-proj-sel')?.value;const proj=getProj(projId);
-  if(!proj){document.getElementById('bt-content').innerHTML='<div class="empty-plan"><div class="ei">💰</div><p style="font-weight:700;color:var(--t);margin-bottom:4px">예산 트래커</p><p style="font-size:12px">위에서 프로젝트를 선택하면<br>채널별 예산을 관리할 수 있어요</p></div>';return;}
+  const projId=document.getElementById('bt-proj-sel')?.value;
+  const planBudgetEl=document.getElementById('bt-plan-budget');
+  if(projId==='all'){
+    if(planBudgetEl)planBudgetEl.style.display='none';
+    renderAllProjectsBudget();
+    return;
+  }
+  const proj=getProj(projId);
+  if(!proj){document.getElementById('bt-content').innerHTML='<div class="empty-plan"><div class="ei">💰</div><p style="font-weight:700;color:var(--t);margin-bottom:4px">예산 트래커</p><p style="font-size:12px">위에서 프로젝트를 선택하면<br>채널별 예산을 관리할 수 있어요</p></div>';if(planBudgetEl)planBudgetEl.style.display='none';return;}
   if(!proj.budget)proj.budget=[];
   renderBudgetTracker(proj);
 
   renderPlanBudgetSection(proj);
 }
+
+// ── 전체 프로젝트 예산 비교 뷰 ──
+function renderAllProjectsBudget(){
+  const container=document.getElementById('bt-content');
+  const projs=S.projects.filter(p=>(p.budget||[]).length);
+  if(!projs.length){
+    container.innerHTML='<div class="empty-plan"><div class="ei">💰</div><p style="font-weight:700;color:var(--t);margin-bottom:4px">아직 예산 데이터가 없어요</p><p style="font-size:12px">각 프로젝트를 선택해서 항목을 추가해봐요</p></div>';
+    return;
+  }
+  const PC=['#eaf4ff','#eafaf0','#fdf3e3','#f5eefc','#fdeaea','#eafcf6'];
+  let grandPlan=0,grandActual=0;
+  const rowsHtml=projs.map((p,pi)=>{
+    const rows=p.budget||[];
+    const planTot=rows.reduce((s,r)=>s+(parseFloat(r.planTotal)||0),0);
+    const actualTot=rows.reduce((s,r)=>s+Object.values(r.monthly||{}).reduce((a,b)=>a+(parseFloat(b)||0),0),0);
+    const remTot=planTot-actualTot;
+    const burn=planTot>0?Math.round(actualTot/planTot*100):0;
+    grandPlan+=planTot;grandActual+=actualTot;
+    const bg=PC[pi%PC.length];
+    const headerRow=`<tr style="background:${bg};font-weight:700">
+      <td colspan="2" style="padding:8px 10px">${p.name}</td>
+      <td style="text-align:right;padding:8px 10px">${planTot.toLocaleString()}</td>
+      <td class="bt-col-rem" style="text-align:right;padding:8px 10px;background:#fff3b0">${remTot>=0?'':'-'}${Math.abs(remTot).toLocaleString()}</td>
+      ${MONTHS.map((m,mi)=>{const mk=String(mi+1).padStart(2,'0');const sum=rows.reduce((s,r)=>s+(parseFloat((r.monthly||{})[mk])||0),0);return`<td style="text-align:right;padding:8px 10px">${sum?sum.toLocaleString():''}</td>`;}).join('')}
+      <td style="text-align:right;padding:8px 10px;color:var(--lm)">${actualTot.toLocaleString()}</td>
+      <td style="text-align:right;padding:8px 10px;color:${burn>100?'var(--red)':burn>80?'var(--orange)':'var(--lm)'}">${burn}%</td>
+    </tr>`;
+    const itemRows=rows.map(r=>{
+      const totalActR=Object.values(r.monthly||{}).reduce((a,b)=>a+(parseFloat(b)||0),0);
+      const rem=(parseFloat(r.planTotal)||0)-totalActR;
+      return`<tr>
+        <td></td>
+        <td style="padding-left:14px;color:var(--t2)">${r.channel}</td>
+        <td style="text-align:right">${(parseFloat(r.planTotal)||0).toLocaleString()}</td>
+        <td class="bt-col-rem" style="text-align:right;background:#fffbe0">${rem>=0?'':'-'}${Math.abs(rem).toLocaleString()}</td>
+        ${MONTHS.map((m,mi)=>{const mk=String(mi+1).padStart(2,'0');const v=(r.monthly||{})[mk];return`<td style="text-align:right;color:var(--t2)">${v?parseFloat(v).toLocaleString():''}</td>`;}).join('')}
+        <td style="text-align:right;color:var(--t2)">${totalActR?totalActR.toLocaleString():''}</td>
+        <td></td>
+      </tr>`;
+    }).join('');
+    return headerRow+itemRows;
+  }).join('');
+
+  const grandRem=grandPlan-grandActual;
+  const grandBurn=grandPlan>0?Math.round(grandActual/grandPlan*100):0;
+
+  container.innerHTML=`<div class="bt-table-wrap">
+    <table class="bt-table bt-table-sheet">
+      <thead>
+        <tr>
+          <th>구분</th>
+          <th>세부구분</th>
+          <th class="right">예산(만원)</th>
+          <th class="right bt-col-rem">잔여예산(만원)</th>
+          ${MONTHS.map(m=>`<th class="right">${m}</th>`).join('')}
+          <th class="right">총사용예산(만원)</th>
+          <th class="right">소진율</th>
+        </tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+      <tfoot>
+        <tr class="total-row" style="background:var(--surf2)">
+          <td colspan="2" style="font-size:11px;font-weight:700">전체 합계</td>
+          <td style="text-align:right;font-weight:700">${grandPlan.toLocaleString()}</td>
+          <td class="bt-col-rem" style="text-align:right;font-weight:700;background:#fff3b0">${grandRem>=0?'':'-'}${Math.abs(grandRem).toLocaleString()}</td>
+          ${MONTHS.map((m,mi)=>{const mk=String(mi+1).padStart(2,'0');const sum=projs.reduce((s,p)=>s+(p.budget||[]).reduce((s2,r)=>s2+(parseFloat((r.monthly||{})[mk])||0),0),0);return`<td style="text-align:right;font-weight:700;color:var(--lm2)">${sum?sum.toLocaleString():''}</td>`;}).join('')}
+          <td style="text-align:right;font-weight:700;color:var(--lm)">${grandActual.toLocaleString()}</td>
+          <td style="text-align:right;font-weight:700;color:${grandBurn>100?'var(--red)':'var(--t2)'}">${grandBurn}%</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>`;
+}
 function renderBudgetTracker(proj){
   const rows=proj.budget||[];
-  // 월 탭
-  const monthTabsHtml=MONTHS.map((m,i)=>`<button class="bt-month-tab${i===_btCurMonth?' active':''}" onclick="btSelectMonth(${i})">${m}</button>`).join('');
   // 요약 카드
   const totalPlan=rows.reduce((s,r)=>s+(parseFloat(r.planTotal)||0),0);
   const totalActual=rows.reduce((s,r)=>{const monthly=r.monthly||{};return s+Object.values(monthly).reduce((a,b)=>a+(parseFloat(b)||0),0);},0);
@@ -3714,52 +3829,36 @@ function renderBudgetTracker(proj){
     <div class="bt-sum-card"><div class="bt-sum-label">소진율</div><div class="bt-sum-val" style="color:${burnRate>100?'var(--red)':burnRate>80?'var(--orange)':'var(--lm)'}">${burnRate}%</div><div class="bt-sum-sub">계획 대비</div></div>
   </div>`;
 
-  // 테이블 — 월별 열
-  const monthCols=['전체 계획'];
-  for(let i=0;i<12;i++)monthCols.push(MONTHS[i]);
-  monthCols.push('누적 집행','잔여','소진율');
-
-  // 현재 선택 월의 집행 입력 테이블
-  const curM=String(_btCurMonth+1).padStart(2,'0');
+  // 테이블 — 전체 달을 한 행에 나란히 (스프레드시트 형태)
   const tableHtml=`<div class="bt-table-wrap">
-    <table class="bt-table">
+    <table class="bt-table bt-table-sheet">
       <thead>
         <tr>
           <th>항목</th>
           <th>카테고리</th>
-          <th class="right">계획 총액(만원)</th>
-          <th class="right">${MONTHS[_btCurMonth]} 계획(만원)</th>
-          <th class="right">${MONTHS[_btCurMonth]} 실집행(만원)</th>
-          <th class="bt-bar-cell">계획 vs 실행</th>
-          <th class="right">누적 집행(만원)</th>
-          <th class="right">잔여(만원)</th>
-          <th class="right">소진율</th>
+          <th class="right">예산(만원)</th>
+          <th class="right bt-col-rem">잔여예산(만원)</th>
+          ${MONTHS.map(m=>`<th class="right">${m}</th>`).join('')}
+          <th class="right">총사용예산(만원)</th>
           <th></th>
         </tr>
       </thead>
       <tbody id="bt-tbody">
         ${rows.map((r,ri)=>{
-          const planM=parseFloat((r.planMonthly||{})[curM])||0;
-          const actualM=parseFloat((r.monthly||{})[curM])||0;
           const totalActR=Object.values(r.monthly||{}).reduce((a,b)=>a+(parseFloat(b)||0),0);
           const planTot=parseFloat(r.planTotal)||0;
           const rem=planTot-totalActR;
-          const br=planTot>0?Math.round(totalActR/planTot*100):0;
-          const planPct=planTot>0?Math.min(planM/planTot*100,100):0;
-          const actPct=planTot>0?Math.min(totalActR/planTot*100,100):0;
           return`<tr>
             <td style="font-weight:500">${r.channel}</td>
             <td><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:var(--surf2);color:var(--t2);border:1px solid var(--b)">${r.cat||'기타'}</span></td>
             <td style="text-align:right;font-weight:500">${planTot.toLocaleString()}</td>
-            <td style="text-align:right;color:var(--t2)">${planM?planM.toLocaleString():''}</td>
-            <td style="text-align:right"><input class="bt-inp" type="number" value="${actualM||''}" placeholder="0" min="0" onchange="btUpdateActual('${proj.id}',${ri},'${curM}',this.value)" style="color:var(--lm2);font-weight:600"></td>
-            <td class="bt-bar-cell"><div class="bt-bar-wrap">
-              <div class="bt-bar-row"><span class="bt-bar-label">계획</span><div class="bt-bar-bg"><div class="bt-bar-fill plan" style="width:${planPct}%"></div></div></div>
-              <div class="bt-bar-row"><span class="bt-bar-label">실행</span><div class="bt-bar-bg"><div class="bt-bar-fill actual" style="width:${actPct}%"></div></div><span class="bt-pct" style="color:${br>100?'var(--red)':'var(--lm)'}">${br}%</span></div>
-            </div></td>
+            <td class="bt-col-rem" style="text-align:right;background:#fff3b0;font-weight:600"><span class="${rem>=0?'bt-diff-pos':'bt-diff-neg'}">${rem>=0?'':'-'}${Math.abs(rem).toLocaleString()}</span></td>
+            ${MONTHS.map((m,mi)=>{
+              const mk=String(mi+1).padStart(2,'0');
+              const v=(r.monthly||{})[mk]||'';
+              return`<td style="text-align:right"><input class="bt-inp" type="number" value="${v}" placeholder="" min="0" onchange="btUpdateActual('${proj.id}',${ri},'${mk}',this.value)"></td>`;
+            }).join('')}
             <td style="text-align:right;font-weight:600;color:var(--lm)">${totalActR.toLocaleString()}</td>
-            <td style="text-align:right"><span class="${rem>=0?'bt-diff-pos':'bt-diff-neg'}">${rem>=0?'':'-'}${Math.abs(rem).toLocaleString()}</span></td>
-            <td style="text-align:right"><span style="font-size:11px;font-weight:600;color:${br>100?'var(--red)':br>80?'var(--orange)':'var(--t2)'}">${br}%</span></td>
             <td><button class="task-del" onclick="btDeleteRow('${proj.id}',${ri})">✕</button></td>
           </tr>`;
         }).join('')}
@@ -3768,27 +3867,20 @@ function renderBudgetTracker(proj){
         <tr class="total-row" style="background:var(--surf2)">
           <td colspan="2" style="font-size:11px;font-weight:700">합계</td>
           <td style="text-align:right;font-weight:700">${totalPlan.toLocaleString()}</td>
-          <td style="text-align:right;color:var(--t2)">—</td>
-          <td style="text-align:right;font-weight:700;color:var(--lm2)">${rows.reduce((s,r)=>s+(parseFloat((r.monthly||{})[curM])||0),0).toLocaleString()}</td>
-          <td></td>
+          <td class="bt-col-rem" style="text-align:right;font-weight:700;background:#fff3b0"><span class="${remaining>=0?'bt-diff-pos':'bt-diff-neg'}">${remaining>=0?'':'-'}${Math.abs(remaining).toLocaleString()}</span></td>
+          ${MONTHS.map((m,mi)=>{
+            const mk=String(mi+1).padStart(2,'0');
+            const sum=rows.reduce((s,r)=>s+(parseFloat((r.monthly||{})[mk])||0),0);
+            return`<td style="text-align:right;font-weight:700;color:var(--lm2)">${sum?sum.toLocaleString():''}</td>`;
+          }).join('')}
           <td style="text-align:right;font-weight:700;color:var(--lm)">${totalActual.toLocaleString()}</td>
-          <td style="text-align:right;font-weight:700"><span class="${remaining>=0?'bt-diff-pos':'bt-diff-neg'}">${remaining>=0?'':'-'}${Math.abs(remaining).toLocaleString()}</span></td>
-          <td style="text-align:right;font-weight:700;color:${burnRate>100?'var(--red)':'var(--t2)'}">${burnRate}%</td>
           <td></td>
         </tr>
       </tfoot>
     </table>
   </div>`;
 
-  // 월별 계획 입력 섹션
-  const planInputHtml=`<div style="background:var(--surf);border:1px solid var(--b2);border-radius:var(--r);padding:16px 18px;margin-bottom:14px">
-    <div style="font-size:12px;font-weight:700;margin-bottom:12px">📆 ${MONTHS[_btCurMonth]} 항목별 계획 예산 설정</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">
-      ${rows.map((r,ri)=>`<div style="background:var(--surf2);border-radius:var(--r-sm);padding:10px 12px"><div style="font-size:11px;font-weight:500;margin-bottom:6px;color:var(--t2)">${r.channel}</div><div style="display:flex;align-items:center;gap:6px"><input type="number" value="${(r.planMonthly||{})[curM]||''}" placeholder="계획(만원)" style="flex:1;font-size:11px;padding:5px 8px" onchange="btUpdatePlanMonthly('${proj.id}',${ri},'${curM}',this.value)"><span style="font-size:10px;color:var(--t3)">만원</span></div></div>`).join('')}
-    </div>
-  </div>`;
-
-  document.getElementById('bt-content').innerHTML=summaryHtml+`<div class="bt-month-tabs">${monthTabsHtml}</div>`+planInputHtml+tableHtml;
+  document.getElementById('bt-content').innerHTML=summaryHtml+tableHtml;
 }
 function btSelectMonth(m){_btCurMonth=m;const projId=document.getElementById('bt-proj-sel')?.value;const proj=getProj(projId);if(proj)renderBudgetTracker(proj);}
 function btUpdateActual(projId,ri,month,val){const proj=getProj(projId);if(!proj||!proj.budget[ri])return;if(!proj.budget[ri].monthly)proj.budget[ri].monthly={};proj.budget[ri].monthly[month]=parseFloat(val)||0;save();renderBudgetTracker(proj);}

@@ -3857,8 +3857,20 @@ function renderProducts(){
 
   // 사용자 요청: 인플루언서 탭처럼 엑셀 느낌으로 — 모달 없이 표의 각 칸을 바로 클릭해서 입력/수정
   const esc=v=>(v||'').toString().replace(/"/g,'&quot;');
+  // 사용자 요청: 프로젝트마다 상품 관리 항목이 다를 수 있으니, 특정 프로젝트를 선택했을 때만
+  // "+" 버튼으로 그 프로젝트 전용 커스텀 항목(텍스트/체크박스)을 자유롭게 추가·삭제할 수 있게 함.
+  // 전체 프로젝트 보기에서는 서로 다른 프로젝트의 커스텀 항목이 뒤섞여 헷갈릴 수 있어 숨김.
+  const curProjForCols=projFilter?getProj(projFilter):null;
+  const customCols=curProjForCols?(curProjForCols.prodCustomCols||[]):[];
+  const customTh=customCols.map(c=>`<th style="text-align:center">${c.label}<button class="task-del" onclick="delProdCustomCol('${projFilter}','${c.id}')" title="이 항목 삭제" style="margin-left:4px">✕</button></th>`).join('');
+  const addColTh=curProjForCols?`<th style="text-align:center"><button class="btn-ghost" style="font-size:11px;padding:3px 8px" onclick="addProdCustomCol()" title="이 프로젝트에만 적용되는 항목을 자유롭게 추가">+ 항목</button></th>`:'';
+  const customTd=p=>customCols.map(c=>{
+    const val=(p.custom||{})[c.id];
+    if(c.type==='checkbox')return`<td style="text-align:center"><input type="checkbox" ${val?'checked':''} onchange="toggleProdCustomCheck('${p.id}','${c.id}',this.checked)"></td>`;
+    return`<td><input class="prod-cell-inp" value="${esc(val)}" placeholder="${esc(c.label)}" oninput="updateProdCustomField('${p.id}','${c.id}',this.value)" style="min-width:100px"></td>`;
+  }).join('');
   document.getElementById('prod-list').innerHTML=`<div class="prod-table-wrap"><table class="prod-table">
-    <thead><tr><th>상품명</th><th>번호</th><th>링크</th><th>최저가</th><th>최소인원</th><th>지역</th><th>태그 (쉼표로 구분)</th><th>메모</th><th></th></tr></thead>
+    <thead><tr><th>상품명</th><th>번호</th><th>링크</th><th>최저가</th><th>최소인원</th><th>지역</th><th>태그 (쉼표로 구분)</th><th style="text-align:center">상세페이지 수정</th><th style="text-align:center">호스트 협의</th>${customTh}${addColTh}<th>메모</th><th></th></tr></thead>
     <tbody>${prods.map(p=>`<tr>
       <td><input class="prod-cell-inp" value="${esc(p.name)}" placeholder="상품명" oninput="updateProdField('${p.id}','name',this.value)" style="min-width:140px;font-weight:500"></td>
       <td><input class="prod-cell-inp" value="${esc(p.pid)}" placeholder="번호" oninput="updateProdField('${p.id}','pid',this.value)" style="width:70px"></td>
@@ -3867,10 +3879,42 @@ function renderProducts(){
       <td><input class="prod-cell-inp" value="${esc(p.minpax)}" placeholder="최소인원" oninput="updateProdField('${p.id}','minpax',this.value)" style="width:70px"></td>
       <td><input class="prod-cell-inp" value="${esc(p.region)}" placeholder="지역" oninput="updateProdField('${p.id}','region',this.value)" style="width:80px"></td>
       <td><input class="prod-cell-inp" value="${(p.tags||[]).join(', ')}" placeholder="태그1, 태그2..." onchange="updateProdTags('${p.id}',this.value)" style="min-width:120px"></td>
+      <td style="text-align:center"><input type="checkbox" ${p.pageEdit?'checked':''} onchange="toggleProdCheck('${p.id}','pageEdit',this.checked)"></td>
+      <td style="text-align:center"><input type="checkbox" ${p.hostAgree?'checked':''} onchange="toggleProdCheck('${p.id}','hostAgree',this.checked)"></td>
+      ${customTd(p)}${curProjForCols?'<td></td>':''}
       <td><input class="prod-cell-inp" value="${esc(p.memo)}" placeholder="메모" oninput="updateProdField('${p.id}','memo',this.value)" style="min-width:120px"></td>
       <td><button class="task-del" onclick="delProdRow('${p.id}')" title="삭제">✕</button></td>
     </tr>`).join('')}</tbody>
   </table></div>`;
+}
+// 사용자 요청: "+" 버튼으로 프로젝트 전용 커스텀 항목(텍스트 또는 체크박스)을 자유롭게 추가
+function addProdCustomCol(){
+  const projId=document.getElementById('prod-proj-filter')?.value;
+  const proj=projId?getProj(projId):null;
+  if(!proj){toast('특정 프로젝트를 선택한 상태에서만 항목을 추가할 수 있어요 👆');return;}
+  const label=(prompt('추가할 항목 이름을 입력하세요','')||'').trim();
+  if(!label)return;
+  const isCheck=confirm('체크박스 항목으로 만들까요?\n(취소를 누르면 텍스트 입력 항목으로 만들어요)');
+  if(!proj.prodCustomCols)proj.prodCustomCols=[];
+  proj.prodCustomCols.push({id:'pc_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),label,type:isCheck?'checkbox':'text'});
+  save();renderProducts();
+}
+function delProdCustomCol(projId,colId){
+  const proj=projId?getProj(projId):null;if(!proj||!proj.prodCustomCols)return;
+  if(!confirm('이 항목을 삭제할까요? 모든 상품에서 이 항목 값이 함께 사라져요.'))return;
+  proj.prodCustomCols=proj.prodCustomCols.filter(c=>c.id!==colId);
+  (S.products||[]).forEach(p=>{if(p.custom)delete p.custom[colId];});
+  save();renderProducts();
+}
+function updateProdCustomField(prodId,colId,val){
+  const p=(S.products||[]).find(p=>p.id===prodId);if(!p)return;
+  if(!p.custom)p.custom={};
+  p.custom[colId]=val;p.updatedAt=Date.now();save();
+}
+function toggleProdCustomCheck(prodId,colId,val){
+  const p=(S.products||[]).find(p=>p.id===prodId);if(!p)return;
+  if(!p.custom)p.custom={};
+  p.custom[colId]=!!val;p.updatedAt=Date.now();save();
 }
 function saveProdPeriod(){const projId=document.getElementById('prod-proj-filter')?.value;const proj=getProj(projId);if(!proj)return;proj.bookStart=document.getElementById('prod-book-start').value;proj.bookEnd=document.getElementById('prod-book-end').value;proj.travelStart=document.getElementById('prod-travel-start').value;proj.travelEnd=document.getElementById('prod-travel-end').value;save();}
 // 사용자 요청: "+ 상품 추가"를 누르면 모달 없이 표에 바로 빈 줄이 하나 생기고, 그 줄에 바로 입력하면 됨
@@ -3878,7 +3922,7 @@ function addProdRow(){
   if(!S.products)S.products=[];
   S.prodTypeFilter='all'; // 특정 태그로 필터링 중이었다면, 새로 만든(태그 없는) 상품이 안 보이는 걸 방지
   const projFilter=document.getElementById('prod-proj-filter')?.value||'';
-  const prod={id:Date.now().toString()+Math.random().toString(36).slice(2,6),name:'',pid:'',link:'',price:'',minpax:'',region:'',tags:[],memo:'',projId:projFilter||S.curProjId||'',updatedAt:Date.now()};
+  const prod={id:Date.now().toString()+Math.random().toString(36).slice(2,6),name:'',pid:'',link:'',price:'',minpax:'',region:'',tags:[],pageEdit:false,hostAgree:false,memo:'',projId:projFilter||S.curProjId||'',updatedAt:Date.now()};
   S.products.push(prod);
   save();renderProducts();
   toast('상품이 추가됐어요 — 표에 바로 입력해보세요 ✓',1800);
@@ -3892,6 +3936,11 @@ function updateProdTags(id,val){
   const p=(S.products||[]).find(p=>p.id===id);if(!p)return;
   p.tags=(val||'').split(',').map(t=>t.trim()).filter(Boolean);
   p.updatedAt=Date.now();save();renderProducts();
+}
+// 사용자 요청: "상세페이지 수정"/"호스트 협의" 체크 항목 추가
+function toggleProdCheck(id,field,val){
+  const p=(S.products||[]).find(p=>p.id===id);if(!p)return;
+  p[field]=!!val;p.updatedAt=Date.now();save();
 }
 function delProdRow(id){
   if(!confirm('이 상품을 삭제할까요?'))return;

@@ -2029,11 +2029,16 @@ function renderNpGoals(){
 // 버그 수정: 예전/손상된 데이터에서 proj.budget이 배열이 아닌 경우(예: 옛날 버전에서 만들어진 프로젝트)
 // .find/.reduce 등을 호출할 때 "is not a function" 에러로 플랜생성/예산탭이 전부 멈추던 문제 방지(자가치유)
 function normalizeProjectsData(){
-  (S.projects||[]).forEach(p=>{ if(!Array.isArray(p.budget))p.budget=[]; });
+  (S.projects||[]).forEach(p=>{
+    if(!Array.isArray(p.budget))p.budget=[];
+    // 버그 수정: 목표(goals)의 현재값이 없거나 숫자가 아니면(예전 데이터) NaN%로 뜨던 문제 방지
+    (p.goals||[]).forEach(g=>{ if(typeof g.current!=='number'||isNaN(g.current))g.current=parseFloat(g.current)||0; });
+  });
 }
 function getProj(id){
   const p=S.projects.find(p=>p.id===id);
   if(p&&!Array.isArray(p.budget))p.budget=[];
+  if(p)(p.goals||[]).forEach(g=>{ if(typeof g.current!=='number'||isNaN(g.current))g.current=parseFloat(g.current)||0; });
   return p;
 }
 function getCurProj(){return getProj(S.curProjId)}
@@ -3189,6 +3194,7 @@ function goalBarColor(pct){if(pct>=100)return'var(--green)';if(pct>=60)return'va
 function renderProgress(){
   if(!S.projects.length){document.getElementById('prog-wrap').innerHTML='<div class="prog-empty">프로젝트가 없어요</div>';return;}
   let html='<div class="section-title" style="margin-bottom:4px">📊 프로젝트 진행률</div>';
+  normalizeProjectsData(); // 버그 수정: 목표 현재값이 숫자가 아니면(예전 데이터) NaN%로 뜨던 문제 방지
   S.projects.forEach(proj=>{
     let tot=0,done=0;Object.values(proj.tasks||{}).forEach(ts=>ts.forEach(t=>{tot++;if(t.done)done++;}));
     const pct=tot?Math.round(done/tot*100):0;const ads=proj.ads||[];const liveN=ads.filter(a=>a.status==='live').length;

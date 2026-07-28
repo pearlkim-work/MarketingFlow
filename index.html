@@ -535,14 +535,27 @@ input::placeholder,textarea::placeholder{color:var(--t3)}
 .notes-editor:focus{border-color:var(--lm)}
 .notes-editor b,.notes-editor strong{font-weight:700}
 .notes-editor i,.notes-editor em{font-style:italic}
-/* 표 삽입(노션 스타일) */
-.note-table{border-collapse:collapse;margin:8px 0;width:auto;max-width:100%}
-.note-table td{border:1px solid var(--b2);padding:6px 9px;min-width:60px;vertical-align:top}
-/* 토글(접기/펼치기) 블록 - 네이티브 <details>/<summary> 사용 */
-.note-toggle{margin:6px 0;border:1px solid var(--b2);border-radius:6px;padding:4px 8px;background:var(--surf2)}
-.note-toggle summary{cursor:pointer;font-weight:600;font-size:12px;padding:4px 2px}
-.note-toggle summary::marker{color:var(--t2)}
-.note-toggle-body{padding:4px 4px 6px 14px;font-size:12px}
+/* 표 삽입(노션 스타일) — 마우스로 열 너비 조절 + 행/열 삭제 가능 */
+.note-table{border-collapse:collapse;margin:8px 0;width:auto;max-width:100%;table-layout:fixed}
+.note-table td{border:1px solid var(--b2);padding:6px 9px;min-width:24px;vertical-align:top;overflow:hidden}
+.note-table tr.note-table-ctl{background:var(--surf3)}
+.note-table tr.note-table-ctl td{padding:2px 3px;text-align:center;border-color:var(--b2)}
+.note-table-delbtn{width:16px;height:16px;border:none;background:transparent;color:var(--t3);font-size:9px;cursor:pointer;border-radius:3px;line-height:1;padding:0}
+.note-table-delbtn:hover{background:var(--red);color:#fff}
+.note-table-reshandle{cursor:col-resize;font-size:9px;color:var(--t3);padding:0 3px;user-select:none}
+.note-table-reshandle:hover{color:var(--t);font-weight:700}
+/* 우클릭 셀 병합 메뉴 */
+.note-table-ctxmenu{position:fixed;z-index:2000;background:var(--surf);border:1px solid var(--b2);border-radius:var(--r-sm);box-shadow:0 4px 16px rgba(0,0,0,.15);padding:4px;min-width:140px}
+.note-table-ctxmenu button{display:block;width:100%;text-align:left;padding:7px 10px;font-size:12px;background:transparent;border:none;color:var(--t);cursor:pointer;border-radius:4px;font-family:inherit}
+.note-table-ctxmenu button:hover{background:var(--surf2)}
+/* 토글(접기/펼치기) 블록 — 화살표를 눌러야만 접히고 펼쳐짐(네이티브 <details> 대신 직접 구현해서,
+   본문을 클릭해도 다시 편집할 수 없어지는 문제를 없앰). 의미 없는 배경색은 제거함 */
+.note-toggle{margin:4px 0}
+.note-toggle-row{display:flex;align-items:flex-start;gap:4px}
+.note-toggle-arrow{cursor:pointer;font-size:10px;color:var(--t2);user-select:none;flex-shrink:0;margin-top:3px}
+.note-toggle-arrow:hover{color:var(--t)}
+.note-toggle-body{padding:2px 2px 2px 16px;font-size:12px}
+.notes-editor a{color:var(--bl,#1a78c2);text-decoration:underline;cursor:pointer}
 /* Mtg folder */
 .mtg-folder-header{display:flex;align-items:center;gap:7px;padding:8px 10px;cursor:pointer;user-select:none;border-bottom:1px solid var(--b)}
 .mtg-folder-header:hover{background:var(--surf2)}
@@ -4569,20 +4582,157 @@ function ntbHighlight(color){document.execCommand('hiliteColor',false,color==='t
 function ntbFontColor(color){if(color)document.execCommand('foreColor',false,color);}
 function ntbClearFormat(){document.execCommand('removeFormat',false,null);}
 // 사용자 요청: 회의록/기록장 노트에 표와 토글(접기·펼치기) 블록을 넣을 수 있게 함(노션 스타일)
+// 표는 마우스로 열 너비를 조절할 수 있고, 행/열을 한 줄씩 삭제할 수 있고, 우클릭하면 셀 병합도 가능함
 function ntbInsertTable(targetId){
   const el=document.getElementById(targetId);if(el)el.focus();
   const rowsN=Math.max(1,parseInt(prompt('표 행 개수를 입력하세요','3'),10)||3);
   const colsN=Math.max(1,parseInt(prompt('표 열 개수를 입력하세요','3'),10)||3);
-  let html='<table class="note-table"><tbody>';
-  for(let r=0;r<rowsN;r++){html+='<tr>';for(let c=0;c<colsN;c++)html+='<td>&nbsp;</td>';html+='</tr>';}
+  const colWidth=110;
+  let html='<table class="note-table"><colgroup>';
+  for(let c=0;c<colsN;c++)html+=`<col style="width:${colWidth}px">`;
+  html+='<col style="width:22px"></colgroup><tbody>';
+  for(let r=0;r<rowsN;r++){
+    html+='<tr oncontextmenu="noteTableCellMenu(event)">';
+    for(let c=0;c<colsN;c++)html+='<td>&nbsp;</td>';
+    html+='<td class="note-table-ctl" contenteditable="false"><button class="note-table-delbtn" onmousedown="event.preventDefault()" onclick="noteTableDelRow(event)" title="이 행 삭제">✕</button></td>';
+    html+='</tr>';
+  }
+  html+='<tr class="note-table-ctl" contenteditable="false">';
+  for(let c=0;c<colsN;c++){
+    html+='<td><button class="note-table-delbtn" onmousedown="event.preventDefault()" onclick="noteTableDelCol(event)" title="이 열 삭제">✕</button><span class="note-table-reshandle" onmousedown="noteTableColResizeStart(event,this)" title="드래그해서 폭 조절">↔</span></td>';
+  }
+  html+='<td></td></tr>';
   html+='</tbody></table><p><br></p>';
   document.execCommand('insertHTML',false,html);
 }
+// 표 안에서 실제로 텍스트를 담는(컨트롤용이 아닌) 데이터 셀 안에서 편집기 id를 찾아 저장하는 공통 헬퍼
+function noteEditorSaveFor(descendantEl){
+  const editor=descendantEl.closest?descendantEl.closest('.notes-editor'):null;if(!editor)return;
+  const id=editor.id||'';
+  if(id.startsWith('ned-'))saveMtgNotes(id.slice(4),editor);
+  else if(id.startsWith('pned-'))saveMyNoteContent(id.slice(5),editor);
+}
+// 사용자 요청: 표에서 행을 한 줄씩 삭제
+function noteTableDelRow(e){
+  e.preventDefault();
+  const tr=e.target.closest('tr');if(!tr||tr.classList.contains('note-table-ctl'))return;
+  const table=tr.closest('table');if(!table)return;
+  tr.remove();
+  noteEditorSaveFor(table);
+}
+// 사용자 요청: 표에서 열을 한 칸씩 삭제 (병합(colspan)된 셀이 걸쳐있으면 그 셀의 colSpan만 1 줄이고,
+// colSpan이 이미 1이면 그 칸 자체를 삭제함 — 병합된 표에서도 열 구조가 깨지지 않도록)
+function noteTableDelCol(e){
+  e.preventDefault();
+  const td=e.target.closest('td');if(!td)return;
+  const ctlRow=td.parentElement;const table=td.closest('table');if(!table)return;
+  const colIdx=Array.from(ctlRow.children).indexOf(td);if(colIdx<0)return;
+  table.querySelectorAll('tr').forEach(tr=>{
+    if(tr===ctlRow){if(tr.children[colIdx])tr.children[colIdx].remove();return;}
+    let pos=0;
+    for(const cell of Array.from(tr.children)){
+      const span=cell.colSpan||1;
+      if(colIdx>=pos&&colIdx<pos+span){
+        if(span>1)cell.colSpan=span-1;else cell.remove();
+        break;
+      }
+      pos+=span;
+    }
+  });
+  const col=table.querySelectorAll(':scope > colgroup > col')[colIdx];if(col)col.remove();
+  noteEditorSaveFor(table);
+}
+// 사용자 요청: 표 열 너비를 마우스로 드래그해서 넓히고 줄일 수 있게 함
+function noteTableColResizeStart(e,handle){
+  e.preventDefault();e.stopPropagation();
+  const td=handle.closest('td');const ctlRow=td.parentElement;const table=td.closest('table');if(!table)return;
+  const colIdx=Array.from(ctlRow.children).indexOf(td);if(colIdx<0)return;
+  const col=table.querySelectorAll(':scope > colgroup > col')[colIdx];if(!col)return;
+  const startX=e.clientX;
+  const startW=col.getBoundingClientRect?(col.getBoundingClientRect().width||parseInt(col.style.width)||100):(parseInt(col.style.width)||100);
+  function onMove(ev){
+    const newW=Math.max(30,startW+(ev.clientX-startX));
+    col.style.width=newW+'px';
+  }
+  function onUp(){
+    document.removeEventListener('mousemove',onMove);
+    document.removeEventListener('mouseup',onUp);
+    noteEditorSaveFor(table);
+  }
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onUp);
+}
+// 사용자 요청: 셀을 마우스 우클릭하면 병합/병합 해제 메뉴가 뜨게 함
+let _tableCtxCell=null;
+function noteTableCellMenu(e){
+  const td=e.target.closest('td');if(!td||td.classList.contains('note-table-ctl'))return;
+  e.preventDefault();
+  document.querySelectorAll('.note-table-ctxmenu').forEach(m=>m.remove());
+  _tableCtxCell=td;
+  const tr=td.parentElement;
+  const idx=Array.from(tr.children).indexOf(td);
+  const hasRight=idx>=0&&idx<tr.children.length-2; // 컨트롤 칸(맨 끝) 앞까지만 병합 가능
+  const isMerged=(td.colSpan||1)>1;
+  const menu=document.createElement('div');
+  menu.className='note-table-ctxmenu';
+  menu.style.left=e.clientX+'px';menu.style.top=e.clientY+'px';
+  menu.innerHTML=(hasRight?'<button onclick="noteTableMergeRight()">→ 오른쪽 셀과 합치기</button>':'')+
+    (isMerged?'<button onclick="noteTableUnmerge()">↔ 병합 해제</button>':'');
+  if(!menu.innerHTML){menu.remove();_tableCtxCell=null;return;}
+  document.body.appendChild(menu);
+  setTimeout(()=>{
+    document.addEventListener('click',function closeMenu(){menu.remove();document.removeEventListener('click',closeMenu);},{once:true});
+  },0);
+}
+function noteTableMergeRight(){
+  const td=_tableCtxCell;if(!td)return;
+  const tr=td.parentElement;const idx=Array.from(tr.children).indexOf(td);
+  const rightTd=tr.children[idx+1];if(!rightTd||rightTd.classList.contains('note-table-ctl'))return;
+  const rightHtml=(rightTd.innerHTML||'').trim();
+  const curHtml=(td.innerHTML||'').trim();
+  if(rightHtml&&rightHtml!=='&nbsp;')td.innerHTML=(!curHtml||curHtml==='&nbsp;'?'':td.innerHTML+' ')+rightHtml;
+  td.colSpan=(td.colSpan||1)+(rightTd.colSpan||1);
+  rightTd.remove();
+  noteEditorSaveFor(td);
+  _tableCtxCell=null;
+}
+function noteTableUnmerge(){
+  const td=_tableCtxCell;if(!td||(td.colSpan||1)<=1)return;
+  const newTd=document.createElement('td');newTd.innerHTML='&nbsp;';
+  td.after(newTd);
+  td.colSpan=(td.colSpan||1)-1;
+  noteEditorSaveFor(td);
+  _tableCtxCell=null;
+}
+// 사용자 요청: 화살표를 눌러야만 접히고 펼쳐지는 토글(네이티브 <details> 대신 직접 구현).
+// 예전엔 <details>/<summary>를 썼는데, summary 전체가 클릭 감지 영역이라 텍스트를 편집하려고 클릭해도
+// 계속 접혔다 펼쳐지기만 하고, 본문(note-toggle-body)도 다시 클릭해서 편집을 이어가기 어려웠음.
+// 지금은 작은 화살표(▶/▼)만 클릭 대상이고, 나머지는 평범한 텍스트라 자유롭게 클릭·편집할 수 있음.
+function noteToggleClick(e){
+  const wrap=e.target.closest('.note-toggle');if(!wrap)return;
+  const body=wrap.querySelector('.note-toggle-body');if(!body)return;
+  const isOpen=body.style.display!=='none';
+  body.style.display=isOpen?'none':'';
+  e.target.textContent=isOpen?'▶':'▼';
+  noteEditorSaveFor(wrap);
+}
 function ntbInsertToggle(targetId){
   const el=document.getElementById(targetId);if(el)el.focus();
-  // <details>/<summary>는 네이티브 접기·펼치기를 지원해서, 왼쪽 화살표를 클릭하면 내용이 펼쳐짐
-  const html='<details class="note-toggle" open><summary>토글 제목 (클릭하면 접혀요)</summary><div class="note-toggle-body">여기에 내용을 적어보세요</div></details><p><br></p>';
+  const html='<div class="note-toggle"><div class="note-toggle-row"><span class="note-toggle-arrow" contenteditable="false" onmousedown="event.preventDefault()" onclick="noteToggleClick(event)">▼</span><span>토글 제목 (화살표를 눌러 접기/펼치기)</span></div><div class="note-toggle-body">여기에 내용을 적어보세요</div></div><p><br></p>';
   document.execCommand('insertHTML',false,html);
+}
+// 사용자 요청: 링크도 삽입할 수 있게 함
+function ntbInsertLink(targetId){
+  const el=document.getElementById(targetId);if(el)el.focus();
+  const url=(prompt('링크 주소(URL)를 입력하세요','https://')||'').trim();
+  if(!url)return;
+  const sel=window.getSelection&&window.getSelection();
+  if(sel&&sel.toString()){
+    document.execCommand('createLink',false,url);
+  }else{
+    const text=(prompt('링크에 표시할 글자','링크')||url).trim();
+    document.execCommand('insertHTML',false,`<a href="${url}" target="_blank" rel="noopener">${text}</a>`);
+  }
 }
 // 회의록/기록장에서 공통으로 쓰는 서식 툴바 (targetId = 적용할 contenteditable div의 id)
 function notesToolbarHtml(targetId){
@@ -4608,6 +4758,7 @@ function notesToolbarHtml(targetId){
     </select>
     <div class="ntb-sep"></div>
     <button class="ntb" onclick="ntbCmd('insertUnorderedList')" title="목록">≡</button>
+    <button class="ntb" onclick="ntbInsertLink('${targetId}')" title="링크 삽입">🔗</button>
     <button class="ntb" onclick="ntbInsertTable('${targetId}')" title="표 삽입" style="font-size:10px;width:32px">⊞표</button>
     <button class="ntb" onclick="ntbInsertToggle('${targetId}')" title="토글(접기·펼치기) 삽입" style="font-size:10px;width:36px">▶토글</button>
     <button class="ntb" onclick="ntbClearFormat()" title="서식 제거" style="font-size:10px">T✕</button>

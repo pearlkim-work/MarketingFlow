@@ -1176,19 +1176,7 @@ select:focus{border-color:var(--lm);outline:none}
         <div style="font-size:13px;font-weight:700">👥 팀원 계정</div>
         <div style="font-size:11px;color:var(--t3);margin-top:3px">계정 정보는 코드에 저장됩니다. 변경은 개발자에게 문의하세요.</div>
       </div>
-      <div style="padding:8px">
-        <table style="width:100%;border-collapse:collapse;font-size:11px">
-          <tr style="background:var(--surf2)">
-            <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--t3);border-bottom:1px solid var(--b)">아이디</th>
-            <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--t3);border-bottom:1px solid var(--b)">이름</th>
-            <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--t3);border-bottom:1px solid var(--b)">소속</th>
-            <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--t3);border-bottom:1px solid var(--b)">권한</th>
-          </tr>
-          <tr><td style="padding:9px 12px;border-bottom:1px solid var(--b)">juju</td><td style="padding:9px 12px;border-bottom:1px solid var(--b)"><b>Juju</b></td><td style="padding:9px 12px;border-bottom:1px solid var(--b)">바바그라운드</td><td style="padding:9px 12px;border-bottom:1px solid var(--b)"><span style="background:var(--lmbg);color:var(--lm);padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700">관리자</span></td></tr>
-          <tr><td style="padding:9px 12px;border-bottom:1px solid var(--b)">admin1</td><td style="padding:9px 12px;border-bottom:1px solid var(--b)">규리</td><td style="padding:9px 12px;border-bottom:1px solid var(--b)">바바그라운드</td><td style="padding:9px 12px;border-bottom:1px solid var(--b)"><span style="background:var(--surf3);color:var(--t2);padding:1px 7px;border-radius:10px;font-size:10px">멤버</span></td></tr>
-          <tr><td style="padding:9px 12px">admin2</td><td style="padding:9px 12px">선우</td><td style="padding:9px 12px">바바그라운드</td><td style="padding:9px 12px"><span style="background:var(--surf3);color:var(--t2);padding:1px 7px;border-radius:10px;font-size:10px">멤버</span></td></tr>
-        </table>
-      </div>
+      <div id="settings-team-accounts" style="padding:8px"></div>
     </div>
 
     <!-- 데이터 관리 -->
@@ -2026,7 +2014,7 @@ function scheduleSupa(){
   if(typeof supaSync==='function'){clearTimeout(_syncTimer);_syncTimer=setTimeout(supaSync,1500);}
 }
 async function save(){try{if(window.storage){await window.storage.set('nnb-v8',JSON.stringify(S));}else{localStorage.setItem('nnb-v8',JSON.stringify(S));}}catch(e){try{localStorage.setItem('nnb-v8',JSON.stringify(S));}catch(e2){}}scheduleSupa();}
-async function load(){try{let data=null;if(window.storage){const r=await window.storage.get('nnb-v8');if(r&&r.value)data=JSON.parse(r.value);}if(!data){const ls=localStorage.getItem('nnb-v8');if(ls)data=JSON.parse(ls);}if(data)Object.assign(S,{projects:data.projects||[],curProjId:data.curProjId||null,meetings:data.meetings||[],products:data.products||[],influencers:data.influencers||[],personalNotes:data.personalNotes||{},mtgFolders:data.mtgFolders||[]});normalizeProjectsData();normalizePersonalNotes();}catch(e){}}
+async function load(){try{let data=null;if(window.storage){const r=await window.storage.get('nnb-v8');if(r&&r.value)data=JSON.parse(r.value);}if(!data){const ls=localStorage.getItem('nnb-v8');if(ls)data=JSON.parse(ls);}if(data)Object.assign(S,{projects:data.projects||[],curProjId:data.curProjId||null,meetings:data.meetings||[],products:data.products||[],influencers:data.influencers||[],personalNotes:data.personalNotes||{},mtgFolders:data.mtgFolders||[]});normalizeProjectsData();normalizePersonalNotes();normalizeOrgTags();}catch(e){}}
 
 // ── VIEWS ──
 function showView(v,btn){
@@ -2053,9 +2041,9 @@ function showView(v,btn){
   if(v==='report')rpRefreshProjSel();
   if(v==='settings'){
     refreshProjSelects();
-    if(typeof _drawSettingsProjList==='function')_drawSettingsProjList();
+    if(typeof renderSettings==='function')renderSettings();
     // supaLoad 후 다시 렌더 (팀 데이터 반영)
-    supaLoad().then(()=>{refreshProjSelects();if(typeof _drawSettingsProjList==='function')_drawSettingsProjList();}).catch(()=>{});
+    supaLoad().then(()=>{refreshProjSelects();if(typeof renderSettings==='function')renderSettings();}).catch(()=>{});
   }
 }
 
@@ -2119,7 +2107,7 @@ function closeNpModal(){
 }
 function createProj(){
   const name=document.getElementById('np-name').value.trim();if(!name)return;
-  const p={id:Date.now().toString(),name,start:document.getElementById('np-start').value,end:document.getElementById('np-end').value,memo:document.getElementById('np-memo').value,plan:null,tasks:{},ads:[],goals:_npGoals.map(g=>({...g})),budget:[]};
+  const p={id:Date.now().toString(),name,start:document.getElementById('np-start').value,end:document.getElementById('np-end').value,memo:document.getElementById('np-memo').value,plan:null,tasks:{},ads:[],goals:_npGoals.map(g=>({...g})),budget:[],org:_mfUser?.org||''};
   S.projects.push(p);S.curProjId=p.id;save();refreshProjSelects();
   const cameFromMtg=_npReturnToMtg;
   closeNpModal();
@@ -2148,22 +2136,22 @@ function resetPlanOutput(){
   qtRefreshProj();qtAddRow();
 }
 function refreshProjSelects(){
-  const opts='<option value="">선택</option>'+S.projects.map(p=>`<option value="${p.id}" ${p.id===S.curProjId?'selected':''}>${p.name}</option>`).join('');
+  const opts='<option value="">선택</option>'+getVisibleProjects().map(p=>`<option value="${p.id}" ${p.id===S.curProjId?'selected':''}>${p.name}</option>`).join('');
   document.getElementById('proj-sel').innerHTML=opts;
   // 버그 수정: 아래 셀렉트들은 값을 보존하지 않고 통째로 innerHTML을 다시 그려서, 회의록 모달에서
   // "+ 새 프로젝트"로 만든 프로젝트를 방금 선택해놔도 30초 자동동기화 등으로 refreshProjSelects()가
   // 다시 호출되면 선택값이 "없음"으로 초기화되어 버렸음(회의는 저장되지만 프로젝트 연결이 풀림).
   // 다른 셀렉트(prod-proj-filter)처럼 기존 선택값을 보존하도록 통일함.
   const amProj=document.getElementById('am-proj');
-  if(amProj){const cur=amProj.value;amProj.innerHTML=S.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');if(cur)amProj.value=cur;}
+  if(amProj){const cur=amProj.value;amProj.innerHTML=getVisibleProjects().map(p=>`<option value="${p.id}">${p.name}</option>`).join('');if(cur)amProj.value=cur;}
   const fullTaskProj=document.getElementById('full-task-proj');
-  if(fullTaskProj){const cur=fullTaskProj.value;fullTaskProj.innerHTML=S.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');if(cur)fullTaskProj.value=cur;}
+  if(fullTaskProj){const cur=fullTaskProj.value;fullTaskProj.innerHTML=getVisibleProjects().map(p=>`<option value="${p.id}">${p.name}</option>`).join('');if(cur)fullTaskProj.value=cur;}
   const mmProj=document.getElementById('mm-proj');
-  if(mmProj){const cur=mmProj.value;mmProj.innerHTML='<option value="">없음</option>'+S.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');if(cur)mmProj.value=cur;}
+  if(mmProj){const cur=mmProj.value;mmProj.innerHTML='<option value="">없음</option>'+getVisibleProjects().map(p=>`<option value="${p.id}">${p.name}</option>`).join('');if(cur)mmProj.value=cur;}
   const ppf=document.getElementById('prod-proj-filter');
-  if(ppf){const cur=ppf.value;ppf.innerHTML='<option value="">전체 프로젝트</option>'+S.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');if(cur)ppf.value=cur;}
+  if(ppf){const cur=ppf.value;ppf.innerHTML='<option value="">전체 프로젝트</option>'+getVisibleProjects().map(p=>`<option value="${p.id}">${p.name}</option>`).join('');if(cur)ppf.value=cur;}
   btRefreshProjSel();qtRefreshProj();rpRefreshProjSel();
-  document.getElementById('proj-colors').innerHTML=S.projects.map((p,i)=>`<div class="proj-color-item"><div class="pcd" style="background:${projColor(i)}"></div>${p.name}</div>`).join('');
+  document.getElementById('proj-colors').innerHTML=getVisibleProjects().map((p,i)=>`<div class="proj-color-item"><div class="pcd" style="background:${projColor(i)}"></div>${p.name}</div>`).join('');
 }
 let _autosaveTimer=null;
 function autosavePlanInput(){
@@ -2187,7 +2175,7 @@ function deleteCurrentProj(){
   if(!confirm(`"${proj.name}" 프로젝트를 삭제할까요?`))return;
   S.projects=S.projects.filter(p=>p.id!==S.curProjId);
   S.products=(S.products||[]).filter(p=>p.projId!==S.curProjId);
-  S.curProjId=S.projects.length?S.projects[0].id:null;
+  S.curProjId=getVisibleProjects().length?getVisibleProjects()[0].id:null;
   save();refreshProjSelects();
   ['p-name','p-budget','p-timeline','p-target','p-memo','p-notes','p-products'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   renderProjSummary();S._pendingPlan=null;resetPlanOutput();updatePlanCalHint();renderMiniCal();
@@ -2313,7 +2301,7 @@ function quickAddPlanTask(){
 function getAssigneeOpts(cur){
   return ['<option value="">👤 담당자</option>',
     '<option value="전체"'+(cur==='전체'?' selected':'')+'>👥 전체</option>',
-    ...MF_USERS.map(u=>'<option value="'+u.name+'"'+(cur===u.name?' selected':'')+'>'+u.name+'</option>')
+    ...getVisibleUsers().map(u=>'<option value="'+u.name+'"'+(cur===u.name?' selected':'')+'>'+u.name+'</option>')
   ].join('');
 }
 
@@ -2333,7 +2321,7 @@ function renderQuickAddGroups(){
   if(asel){
     const curA=asel.value;
     asel.innerHTML='<option value="">👤 담당자</option><option value="전체">👥 전체</option>'+
-      MF_USERS.map(u=>`<option value="${u.name}"${u.name===curA?' selected':''}>${u.name}</option>`).join('');
+      getVisibleUsers().map(u=>`<option value="${u.name}"${u.name===curA?' selected':''}>${u.name}</option>`).join('');
   }
 }
 
@@ -2659,8 +2647,8 @@ function updateAssigneeFilter(){
   const cur = sel.value;
   sel.innerHTML = '<option value="">👤 전체 담당자</option><option value="전체">👥 전체</option>';
   const assignees = new Set();
-  MF_USERS.forEach(u => assignees.add(u.name));
-  S.projects.forEach(p => {
+  getVisibleUsers().forEach(u => assignees.add(u.name));
+  getVisibleProjects().forEach(p => {
     Object.values(p.tasks||{}).forEach(ts => ts.forEach(t => { if(t.assignee) assignees.add(t.assignee); }));
   });
   assignees.forEach(a => {
@@ -2688,7 +2676,7 @@ function updateCalProgress(){
     const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
     const fmt = d => d.toISOString().split('T')[0];
     let total=0, done=0;
-    S.projects.forEach(p => {
+    getVisibleProjects().forEach(p => {
       Object.entries(p.tasks||{}).forEach(([ds,ts]) => {
         if(ds >= fmt(weekStart) && ds <= fmt(weekEnd)){
           ts.forEach(t => {
@@ -2710,7 +2698,7 @@ function updateCalProgress(){
     const y = now.getFullYear(), m = now.getMonth()+1;
     const prefix = y+'-'+(m<10?'0'+m:m);
     let total=0, done=0;
-    S.projects.forEach(p => {
+    getVisibleProjects().forEach(p => {
       Object.entries(p.tasks||{}).forEach(([ds,ts]) => {
         if(ds.startsWith(prefix)){
           ts.forEach(t => {
@@ -2758,7 +2746,7 @@ function updateSidebarAssignees(){
   if(!sel)return;
   const cur=sel.value;
   sel.innerHTML='<option value="">👤 담당자</option><option value="전체">👥 전체</option>'+
-    MF_USERS.map(u=>`<option value="${u.name}"${u.name===cur?' selected':''}>${u.name}</option>`).join('');
+    getVisibleUsers().map(u=>`<option value="${u.name}"${u.name===cur?' selected':''}>${u.name}</option>`).join('');
 }
 
 // 사이드바 플랜 그룹 옵션 업데이트
@@ -2815,7 +2803,7 @@ function getFilteredTasks(ds){
   const assigneeF=getAssigneeFilterVal();
   const typeF=document.querySelector('#cal-filter-bar .cal-ftag.on:not(.on-all)')?.dataset?.filter||'all';
   let tasks=[];
-  const projs=projF?S.projects.filter(p=>p.id===projF):S.projects;
+  const projs=projF?S.projects.filter(p=>p.id===projF):getVisibleProjects();
   projs.forEach(p=>{
     (p.tasks[ds]||[]).forEach((t,ti)=>{
       if(assigneeF&&t.assignee!==assigneeF)return;
@@ -2828,7 +2816,7 @@ function getFilteredTasks(ds){
 
 // 프로젝트/담당자별 완료율 계산
 function calcCompletionRate(projId, assignee){
-  const projs=projId?S.projects.filter(p=>p.id===projId):S.projects;
+  const projs=projId?S.projects.filter(p=>p.id===projId):getVisibleProjects();
   let total=0,done=0;
   projs.forEach(p=>{
     Object.values(p.tasks||{}).forEach(ts=>{
@@ -2872,7 +2860,7 @@ function renderWeekCal(){
     const color=isToday?'#4a7a00':isSun?'var(--rd)':isSat?'var(--bl)':'var(--t)';
     // 필터 적용
     let tasks=[];
-    const projs=projF?S.projects.filter(p=>p.id===projF):S.projects;
+    const projs=projF?S.projects.filter(p=>p.id===projF):getVisibleProjects();
     projs.forEach(p=>{
       (p.tasks[ds]||[]).forEach((t,ti)=>{
         if(assigneeF&&t.assignee!==assigneeF)return;
@@ -3071,7 +3059,7 @@ function planDelTask(ds,i){
 }
 
 // ── QUICK TIMELINE ──
-function qtRefreshProj(){const sel=document.getElementById('qt-proj');if(!sel)return;const cur=sel.value;sel.innerHTML=S.projects.map(p=>`<option value="${p.id}" ${p.id===S.curProjId?'selected':''}>${p.name}</option>`).join('');if(cur)sel.value=cur;}
+function qtRefreshProj(){const sel=document.getElementById('qt-proj');if(!sel)return;const cur=sel.value;sel.innerHTML=getVisibleProjects().map(p=>`<option value="${p.id}" ${p.id===S.curProjId?'selected':''}>${p.name}</option>`).join('');if(cur)sel.value=cur;}
 function qtAddRow(date='',text='',type='ops'){
   const rows=document.getElementById('qt-rows');if(!rows)return;
   const id='qt-'+Date.now()+Math.random();const div=document.createElement('div');div.id=id;
@@ -3118,7 +3106,7 @@ function goToday(){
   renderFullDayTasks(S.selDate);
 }
 function getAllTasksForDate(ds){
-  const r=[];S.projects.forEach((p,pi)=>(p.tasks[ds]||[]).forEach((t,ti)=>r.push({...t,projId:p.id,projName:p.name,projColor:projColor(pi),taskIdx:ti})));return r;
+  const r=[];getVisibleProjects().forEach((p,pi)=>(p.tasks[ds]||[]).forEach((t,ti)=>r.push({...t,projId:p.id,projName:p.name,projColor:projColor(pi),taskIdx:ti})));return r;
 }
 let _drag={projId:null,fromDate:null,taskIdx:null};
 function renderFullCal(){
@@ -3345,7 +3333,7 @@ function delAd(id){S.projects.forEach(p=>{p.ads=p.ads.filter(a=>a.id!==id);});sa
 function toggleAdStatus(id){S.projects.forEach(p=>{const a=p.ads.find(a=>a.id===id);if(a){const c=['scheduled','live','paused'];a.status=c[(c.indexOf(a.status)+1)%3];}});save();renderAds();if(typeof renderDashboard==='function')renderDashboard();}
 function renderAds(){
   const statusL={live:'🔴 라이브',paused:'⏸ 일시정지',scheduled:'🗓 예정'};let html='';
-  S.projects.forEach((proj,pi)=>{(proj.ads||[]).forEach(ad=>{html+=`<div class="ad-card"><div class="ad-card-top"><div><div class="ad-name">${ad.name}</div><div class="ad-proj-nm"><div class="pcd" style="background:${projColor(pi)}"></div>${proj.name}</div></div><button class="live-badge ${ad.status}" onclick="toggleAdStatus('${ad.id}')">${statusL[ad.status]}</button></div><div class="ad-info"><span>📺 ${ad.channel}</span>${ad.budget?`<span>💰 ${ad.budget}</span>`:''} ${ad.start?`<span>📅 ${ad.start}${ad.end?' ~ '+ad.end:''}</span>`:''}</div><div class="ad-card-btns"><button class="ad-card-btn" onclick="openAdModal('${ad.id}')">수정</button><button class="ad-card-btn del" onclick="delAd('${ad.id}')">삭제</button></div></div>`;});});
+  getVisibleProjects().forEach((proj,pi)=>{(proj.ads||[]).forEach(ad=>{html+=`<div class="ad-card"><div class="ad-card-top"><div><div class="ad-name">${ad.name}</div><div class="ad-proj-nm"><div class="pcd" style="background:${projColor(pi)}"></div>${proj.name}</div></div><button class="live-badge ${ad.status}" onclick="toggleAdStatus('${ad.id}')">${statusL[ad.status]}</button></div><div class="ad-info"><span>📺 ${ad.channel}</span>${ad.budget?`<span>💰 ${ad.budget}</span>`:''} ${ad.start?`<span>📅 ${ad.start}${ad.end?' ~ '+ad.end:''}</span>`:''}</div><div class="ad-card-btns"><button class="ad-card-btn" onclick="openAdModal('${ad.id}')">수정</button><button class="ad-card-btn del" onclick="delAd('${ad.id}')">삭제</button></div></div>`;});});
   document.getElementById('ad-cards').innerHTML=html||'<div style="text-align:center;padding:40px 20px;color:var(--t3)"><div style="font-size:28px;opacity:.3;margin-bottom:8px">📣</div><p style="font-size:12px">등록된 광고가 없어요<br><span style="font-size:11px">+ 광고 추가 버튼으로 시작해봐요</span></p></div>';
 }
 
@@ -3360,10 +3348,10 @@ function addGoalToProj(projId){
 function goalBarColor(pct){if(pct>=100)return'var(--green)';if(pct>=60)return'var(--blue)';if(pct>=30)return'var(--orange)';return'var(--red)';}
 function renderProgress(){
   if(!document.getElementById('prog-wrap'))return; // 진행률 탭 제거됨 (홈 대시보드로 이전)
-  if(!S.projects.length){document.getElementById('prog-wrap').innerHTML='<div class="prog-empty">프로젝트가 없어요</div>';return;}
+  if(!getVisibleProjects().length){document.getElementById('prog-wrap').innerHTML='<div class="prog-empty">프로젝트가 없어요</div>';return;}
   let html='<div class="section-title" style="margin-bottom:4px">📊 프로젝트 진행률</div>';
   normalizeProjectsData(); // 버그 수정: 목표 현재값이 숫자가 아니면(예전 데이터) NaN%로 뜨던 문제 방지
-  S.projects.forEach(proj=>{
+  getVisibleProjects().forEach(proj=>{
     let tot=0,done=0;Object.values(proj.tasks||{}).forEach(ts=>ts.forEach(t=>{tot++;if(t.done)done++;}));
     const pct=tot?Math.round(done/tot*100):0;const ads=proj.ads||[];const liveN=ads.filter(a=>a.status==='live').length;
     const statusL={live:'🔴 라이브',paused:'⏸ 일시정지',scheduled:'🗓 예정'};const goals=proj.goals||[];
@@ -3498,11 +3486,11 @@ let _curMtgId=null;
 function getMtg(id){return(S.meetings||[]).find(m=>m.id===id)}
 function openMtgModal(id){
   _curMtgId=id||null;
-  const sel=document.getElementById('mm-proj');sel.innerHTML='<option value="">없음</option>'+S.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
-  const folderSel=document.getElementById('mm-folder');if(folderSel)folderSel.innerHTML='<option value="">폴더 없음</option>'+(S.mtgFolders||[]).map(f=>`<option value="${f.id}">${f.name}</option>`).join('');
+  const sel=document.getElementById('mm-proj');sel.innerHTML='<option value="">없음</option>'+getVisibleProjects().map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  const folderSel=document.getElementById('mm-folder');if(folderSel)folderSel.innerHTML='<option value="">폴더 없음</option>'+getVisibleMtgFolders().map(f=>`<option value="${f.id}">${f.name}</option>`).join('');
   const carryWrap=document.getElementById('mm-carryover-wrap');const prevSel=document.getElementById('mm-prev-sel');
   if(id){const mtg=getMtg(id);if(mtg){document.getElementById('mm-title').value=mtg.title;document.getElementById('mm-date').value=mtg.date||'';document.getElementById('mm-time').value=mtg.time||'';document.getElementById('mm-members').value=(mtg.members||[]).join(', ');document.getElementById('mm-proj').value=mtg.projId||'';if(folderSel)folderSel.value=mtg.folderId||'';}document.getElementById('mtg-modal-title').textContent='회의 수정';carryWrap.style.display='none';document.querySelector('#mtg-modal .btn-confirm').textContent='저장';}
-  else{const n=new Date();document.getElementById('mm-date').value=`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;document.getElementById('mm-time').value=`${String(n.getHours()).padStart(2,'0')}:00`;document.getElementById('mm-title').value='';document.getElementById('mm-members').value='';document.getElementById('mm-proj').value='';if(folderSel)folderSel.value='';document.getElementById('mtg-modal-title').textContent='새 회의';document.querySelector('#mtg-modal .btn-confirm').textContent='만들기';const meetings=S.meetings||[];if(meetings.length){carryWrap.style.display='block';prevSel.innerHTML='<option value="">이전 회의 선택...</option>'+meetings.map(m=>`<option value="${m.id}">${m.date||''} ${m.title}</option>`).join('');document.getElementById('mm-carryover-items').style.display='none';}else{carryWrap.style.display='none';}}
+  else{const n=new Date();document.getElementById('mm-date').value=`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;document.getElementById('mm-time').value=`${String(n.getHours()).padStart(2,'0')}:00`;document.getElementById('mm-title').value='';document.getElementById('mm-members').value='';document.getElementById('mm-proj').value='';if(folderSel)folderSel.value='';document.getElementById('mtg-modal-title').textContent='새 회의';document.querySelector('#mtg-modal .btn-confirm').textContent='만들기';const meetings=getVisibleMeetings();if(meetings.length){carryWrap.style.display='block';prevSel.innerHTML='<option value="">이전 회의 선택...</option>'+meetings.map(m=>`<option value="${m.id}">${m.date||''} ${m.title}</option>`).join('');document.getElementById('mm-carryover-items').style.display='none';}else{carryWrap.style.display='none';}}
   document.getElementById('mtg-modal').style.display='flex';
 }
 function closeMtgModal(){document.getElementById('mtg-modal').style.display='none';}
@@ -3512,16 +3500,16 @@ function saveMtg(){
   const title=document.getElementById('mm-title').value.trim()||'(제목 없음)';if(!S.meetings)S.meetings=[];
   const folderVal=document.getElementById('mm-folder')?document.getElementById('mm-folder').value:'';
   if(_curMtgId){const mtg=getMtg(_curMtgId);if(mtg){mtg.title=title;mtg.date=document.getElementById('mm-date').value;mtg.time=document.getElementById('mm-time').value;mtg.members=document.getElementById('mm-members').value.split(',').map(s=>s.trim()).filter(Boolean);mtg.projId=document.getElementById('mm-proj').value;if(folderVal)mtg.folderId=folderVal;else delete mtg.folderId;}}
-  else{const pickedAgendas=[];const pickedActions=[];document.querySelectorAll('.pick-item.picked').forEach(el=>{if(el.dataset.type==='agenda')pickedAgendas.push({text:el.dataset.text});if(el.dataset.type==='action')pickedActions.push({text:el.dataset.text,who:el.dataset.who||'',due:el.dataset.due||'',done:false,id:Date.now().toString()+Math.random()});});const mtg={id:Date.now().toString(),title,date:document.getElementById('mm-date').value,time:document.getElementById('mm-time').value,members:document.getElementById('mm-members').value.split(',').map(s=>s.trim()).filter(Boolean),projId:document.getElementById('mm-proj').value,folderId:folderVal||null,agenda:pickedAgendas,notes:'',actions:pickedActions,carryFrom:document.getElementById('mm-prev-sel').value||null,createdAt:Date.now()};if(!mtg.folderId)delete mtg.folderId;S.meetings.unshift(mtg);_curMtgId=mtg.id;}
+  else{const pickedAgendas=[];const pickedActions=[];document.querySelectorAll('.pick-item.picked').forEach(el=>{if(el.dataset.type==='agenda')pickedAgendas.push({text:el.dataset.text});if(el.dataset.type==='action')pickedActions.push({text:el.dataset.text,who:el.dataset.who||'',due:el.dataset.due||'',done:false,id:Date.now().toString()+Math.random()});});const mtg={id:Date.now().toString(),title,date:document.getElementById('mm-date').value,time:document.getElementById('mm-time').value,members:document.getElementById('mm-members').value.split(',').map(s=>s.trim()).filter(Boolean),projId:document.getElementById('mm-proj').value,folderId:folderVal||null,agenda:pickedAgendas,notes:'',actions:pickedActions,carryFrom:document.getElementById('mm-prev-sel').value||null,createdAt:Date.now(),org:_mfUser?.org||''};if(!mtg.folderId)delete mtg.folderId;S.meetings.unshift(mtg);_curMtgId=mtg.id;}
   save();closeMtgModal();renderMtgList();if(_curMtgId)renderMtgDetail(_curMtgId);
 }
 function delMtg(id){if(!confirm('삭제할까요?'))return;S.meetings=(S.meetings||[]).filter(m=>m.id!==id);if(_curMtgId===id){_curMtgId=null;document.getElementById('mtg-detail').innerHTML='<div class="empty-plan"><div class="ei">🗣</div><p>회의를 선택하거나 새로 만들어봐요</p></div>';}save();renderMtgList();}
 function renderMtgList(){
   const q=(document.getElementById('mtg-search').value||'').toLowerCase();
-  const all=(S.meetings||[]).filter(m=>!q||m.title.toLowerCase().includes(q)||m.date.includes(q));
+  const all=getVisibleMeetings().filter(m=>!q||m.title.toLowerCase().includes(q)||m.date.includes(q));
   const listEl=document.getElementById('mtg-list');
   if(!all.length){listEl.innerHTML=`<div class="mtg-empty-search">${q?'검색 결과 없음':'아직 회의록이 없어요'}</div>`;return;}
-  const folders=S.mtgFolders||[];
+  const folders=getVisibleMtgFolders();
   const ungrouped=all.filter(m=>!m.folderId||!folders.some(f=>f.id===m.folderId));
   let html='';
   folders.forEach(f=>{
@@ -3558,7 +3546,7 @@ function renderMtgDetail(id){
         <input class="ai-text${av.done?' done-txt':''}" value="${(av.text||'').replace(/"/g,'&quot;')}" placeholder="액션 아이템..." oninput="updateAction('${id}',${i},'text',this.value)">
         <select class="ai-who" onchange="updateAction('${id}',${i},'who',this.value)">
           <option value="">담당자</option>
-          ${MF_USERS.map(u=>`<option value="${u.name}"${av.who===u.name?' selected':''}>${u.name}</option>`).join('')}
+          ${getVisibleUsers().map(u=>`<option value="${u.name}"${av.who===u.name?' selected':''}>${u.name}</option>`).join('')}
         </select>
         <input class="ai-due" type="date" value="${av.due||''}" onchange="updateAction('${id}',${i},'due',this.value)">
         <button class="item-del" onclick="delAction('${id}',${i})">✕</button>
@@ -3566,7 +3554,7 @@ function renderMtgDetail(id){
       <div class="ai-row2">
         <select class="ai-proj" onchange="updateAction('${id}',${i},'projId',this.value)">
           <option value="">🔗 프로젝트 연동 안 함</option>
-          ${S.projects.map(p=>`<option value="${p.id}"${a.projId===p.id?' selected':''}>${p.name}</option>`).join('')}
+          ${getVisibleProjects().map(p=>`<option value="${p.id}"${a.projId===p.id?' selected':''}>${p.name}</option>`).join('')}
         </select>
         ${a.projId?`<select class="ai-group" onchange="updateAction('${id}',${i},'groupId',this.value)">
           <option value="">항목 선택</option>
@@ -3682,7 +3670,7 @@ function delAction(id,i){
 }
 
 // ── PRODUCTS ──
-function refreshProdProjFilter(){const sel=document.getElementById('prod-proj-filter');if(!sel)return;const cur=sel.value;sel.innerHTML='<option value="">전체 프로젝트</option>'+S.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');if(cur)sel.value=cur;}
+function refreshProdProjFilter(){const sel=document.getElementById('prod-proj-filter');if(!sel)return;const cur=sel.value;sel.innerHTML='<option value="">전체 프로젝트</option>'+getVisibleProjects().map(p=>`<option value="${p.id}">${p.name}</option>`).join('');if(cur)sel.value=cur;}
 
 
 // ════════════════════════════════════
@@ -3728,7 +3716,7 @@ function openSprintModal(){
   // 프로젝트 셀렉트
   const sel=document.getElementById('sm-proj');
   if(sel)sel.innerHTML='<option value="">전체 프로젝트</option>'+
-    S.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+    getVisibleProjects().map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
   document.getElementById('sprint-modal').style.display='flex';
 }
 
@@ -3854,7 +3842,7 @@ function renderTeamCheck(){
   else goalDisp.style.display='none';
 
   // 기간 내 태스크 수집
-  const projs=sprint.projId?S.projects.filter(p=>p.id===sprint.projId):S.projects;
+  const projs=sprint.projId?S.projects.filter(p=>p.id===sprint.projId):getVisibleProjects();
   let allTasks=[];
   projs.forEach(p=>{
     Object.entries(p.tasks||{}).forEach(([ds,ts])=>{
@@ -3884,7 +3872,7 @@ function renderTeamCheck(){
 
   // 팀원별
   const membersEl=document.getElementById('sprint-members');
-  if(membersEl) membersEl.innerHTML=MF_USERS.map(u=>{
+  if(membersEl) membersEl.innerHTML=getVisibleUsers().map(u=>{
     const mt=allTasks.filter(t=>t.assignee===u.name||t.assignee==='전체');
     const md=mt.filter(t=>t.done).length;
     const mp=mt.length?Math.round(md/mt.length*100):0;
@@ -3916,7 +3904,7 @@ function renderTeamCheck(){
 
   // 팀원 목표 렌더
   const goalsEl=document.getElementById('sprint-goals-list');
-  if(goalsEl) goalsEl.innerHTML=MF_USERS.map(u=>{
+  if(goalsEl) goalsEl.innerHTML=getVisibleUsers().map(u=>{
     const g=sprint.memberGoals[u.id]||{};
     return`<div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:14px 16px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
@@ -3940,7 +3928,7 @@ function renderTeamCheck(){
 
   // 회고 렌더
   const retroEl=document.getElementById('sprint-retro-list');
-  if(retroEl) retroEl.innerHTML=MF_USERS.map(u=>{
+  if(retroEl) retroEl.innerHTML=getVisibleUsers().map(u=>{
     const r=sprint.retroNotes[u.id]||{};
     return`<div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:14px 16px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
@@ -3979,7 +3967,7 @@ function renderSprintHistory(){
   }
   listEl.innerHTML=done.map(s=>{
     const totalDays=Math.ceil((new Date(s.end)-new Date(s.start))/(1000*60*60*24))+1;
-    const projs=s.projId?S.projects.filter(p=>p.id===s.projId):S.projects;
+    const projs=s.projId?S.projects.filter(p=>p.id===s.projId):getVisibleProjects();
     let tasks=[];
     projs.forEach(p=>Object.entries(p.tasks||{}).forEach(([ds,ts])=>{
       if(ds>=s.start&&ds<=s.end)ts.forEach(t=>tasks.push(t));
@@ -4010,7 +3998,7 @@ function renderProducts(){
   const tagContainer=document.getElementById('prod-custom-tags');
   if(tagContainer){
     const allTags=new Set();
-    (S.products||[]).forEach(p=>(p.tags||[]).forEach(t=>allTags.add(t)));
+    getVisibleProducts().forEach(p=>(p.tags||[]).forEach(t=>allTags.add(t)));
     const curFilter=S.prodTypeFilter||'all';
     tagContainer.innerHTML=`<button class="cal-ftag${curFilter==='all'?' on':''}" onclick="setProdTagFilter('all')">전체</button>`+
       [...allTags].map(tag=>`<button class="cal-ftag${curFilter===tag?' on':''}" onclick="setProdTagFilter(${JSON.stringify(tag)})">#${tag}</button>`).join('');
@@ -4019,7 +4007,7 @@ function renderProducts(){
   refreshProdProjFilter();const projFilter=document.getElementById('prod-proj-filter')?.value||'';const typeFilter=S.prodTypeFilter||'all';
   const banner=document.getElementById('prod-period-banner');
   if(projFilter){banner.style.display='flex';const proj=getProj(projFilter);if(proj){document.getElementById('prod-book-start').value=proj.bookStart||'';document.getElementById('prod-book-end').value=proj.bookEnd||'';document.getElementById('prod-travel-start').value=proj.travelStart||'';document.getElementById('prod-travel-end').value=proj.travelEnd||'';}}else{banner.style.display='none';}
-  let prods=S.products||[];if(projFilter)prods=prods.filter(p=>p.projId===projFilter);if(typeFilter!=='all')prods=prods.filter(p=>(p.tags||[]).includes(typeFilter));
+  let prods=getVisibleProducts();if(projFilter)prods=prods.filter(p=>p.projId===projFilter);if(typeFilter!=='all')prods=prods.filter(p=>(p.tags||[]).includes(typeFilter));
   if(!prods.length){document.getElementById('prod-list').innerHTML=`<div class="prod-empty">상품이 없어요. "+ 상품 추가"로 첫 상품을 등록해봐요</div>`;return;}
 
   // 사용자 요청: 인플루언서 탭처럼 엑셀 느낌으로 — 모달 없이 표의 각 칸을 바로 클릭해서 입력/수정
@@ -4089,7 +4077,7 @@ function addProdRow(){
   if(!S.products)S.products=[];
   S.prodTypeFilter='all'; // 특정 태그로 필터링 중이었다면, 새로 만든(태그 없는) 상품이 안 보이는 걸 방지
   const projFilter=document.getElementById('prod-proj-filter')?.value||'';
-  const prod={id:Date.now().toString()+Math.random().toString(36).slice(2,6),name:'',pid:'',link:'',price:'',minpax:'',region:'',tags:[],pageEdit:false,hostAgree:false,memo:'',projId:projFilter||S.curProjId||'',updatedAt:Date.now()};
+  const prod={id:Date.now().toString()+Math.random().toString(36).slice(2,6),name:'',pid:'',link:'',price:'',minpax:'',region:'',tags:[],pageEdit:false,hostAgree:false,memo:'',projId:projFilter||S.curProjId||'',updatedAt:Date.now(),org:_mfUser?.org||''};
   S.products.push(prod);
   save();renderProducts();
   toast('상품이 추가됐어요 — 표에 바로 입력해보세요 ✓',1800);
@@ -4123,7 +4111,7 @@ let _btCurMonth=new Date().getMonth(); // 0-indexed
 function btRefreshProjSel(){
   const sel=document.getElementById('bt-proj-sel');if(!sel)return;
   const cur=sel.value;
-  sel.innerHTML='<option value="">프로젝트 선택</option><option value="all">📁 전체 프로젝트</option>'+S.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  sel.innerHTML='<option value="">프로젝트 선택</option><option value="all">📁 전체 프로젝트</option>'+getVisibleProjects().map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
   if(cur)sel.value=cur;else if(S.curProjId)sel.value=S.curProjId;
   // 버그 수정: 드롭다운 값(예: 프로젝트 이름)만 갱신되고 실제 예산 표는 그대로 비어있던 문제 방지.
   // 어디서 호출되든 드롭다운이 가리키는 프로젝트와 실제 표시되는 표 내용이 항상 일치하도록 자가치유.
@@ -4304,7 +4292,7 @@ function renderBudgetForecastSection(){
 // ── 전체 프로젝트 예산 비교 뷰 ──
 function renderAllProjectsBudget(){
   const container=document.getElementById('bt-content');
-  const projs=S.projects.filter(p=>(p.budget||[]).length);
+  const projs=getVisibleProjects().filter(p=>(p.budget||[]).length);
   if(!projs.length){
     container.innerHTML='<div class="empty-plan"><div class="ei">💰</div><p style="font-weight:700;color:var(--t);margin-bottom:4px">아직 예산 데이터가 없어요</p><p style="font-size:12px">각 프로젝트를 선택해서 항목을 추가해봐요</p></div>';
     return;
@@ -4532,14 +4520,15 @@ function closeInfModal(){document.getElementById('inf-modal').style.display='non
 function saveInfluencer(){
   const name=document.getElementById('im-name').value.trim();if(!name)return;
   if(!S.influencers)S.influencers=[];
-  const inf={id:_editInfId||Date.now().toString(),name,channel:document.getElementById('im-channel').value,handle:document.getElementById('im-handle').value.trim(),followers:document.getElementById('im-followers').value.trim(),rate:document.getElementById('im-rate').value.trim(),contact:document.getElementById('im-contact').value.trim(),contentType:document.getElementById('im-content-type').value.trim(),tags:document.getElementById('im-tags').value.split(',').map(s=>s.trim()).filter(Boolean),status:document.getElementById('im-status').value,memo:document.getElementById('im-memo').value.trim(),createdAt:Date.now()};
+  const existingInf=_editInfId?S.influencers.find(x=>x.id===_editInfId):null;
+  const inf={id:_editInfId||Date.now().toString(),name,channel:document.getElementById('im-channel').value,handle:document.getElementById('im-handle').value.trim(),followers:document.getElementById('im-followers').value.trim(),rate:document.getElementById('im-rate').value.trim(),contact:document.getElementById('im-contact').value.trim(),contentType:document.getElementById('im-content-type').value.trim(),tags:document.getElementById('im-tags').value.split(',').map(s=>s.trim()).filter(Boolean),status:document.getElementById('im-status').value,memo:document.getElementById('im-memo').value.trim(),createdAt:Date.now(),org:existingInf?existingInf.org:(_mfUser?.org||'')};
   if(_editInfId){const i=S.influencers.findIndex(x=>x.id===_editInfId);if(i>-1)S.influencers[i]=inf;}else S.influencers.unshift(inf);
   save();closeInfModal();renderInfluencers();
 }
 function delInfluencer(id){if(!confirm('삭제할까요?'))return;S.influencers=(S.influencers||[]).filter(i=>i.id!==id);save();renderInfluencers();}
 function renderInfluencers(){
   const q=(document.getElementById('inf-search')?.value||'').toLowerCase();
-  let infs=S.influencers||[];
+  let infs=getVisibleInfluencers();
   if(_infFilter!=='all')infs=infs.filter(i=>i.status===_infFilter);
   if(q)infs=infs.filter(i=>i.name.toLowerCase().includes(q)||i.handle?.toLowerCase().includes(q)||(i.tags||[]).some(t=>t.toLowerCase().includes(q)));
   const chIcons={instagram:'instagram',youtube:'youtube',blog:'blog',tiktok:'tiktok'};
@@ -4581,7 +4570,7 @@ function infCycleStatus(id){
 // ══════════════════════════════════════════
 function rpRefreshProjSel(){
   const sel=document.getElementById('rp-proj');if(!sel)return;
-  sel.innerHTML='<option value="">선택하세요</option>'+S.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  sel.innerHTML='<option value="">선택하세요</option>'+getVisibleProjects().map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
   if(S.curProjId)sel.value=S.curProjId;
 }
 async function genReport(){
@@ -4712,7 +4701,7 @@ function createMtgFolder(){
   const name=document.getElementById('folder-name-inp').value.trim();
   if(!name)return;
   if(!S.mtgFolders)S.mtgFolders=[];
-  S.mtgFolders.push({id:'folder-'+Date.now(),name,color:_selectedFolderColor,open:true});
+  S.mtgFolders.push({id:'folder-'+Date.now(),name,color:_selectedFolderColor,open:true,org:_mfUser?.org||''});
   save();
   document.getElementById('create-folder-modal').style.display='none';
   renderMtgList();
@@ -5045,7 +5034,7 @@ let _actionImportTargetMtgId=null;
 function openActionImportModal(targetMtgId){
   _actionImportTargetMtgId=targetMtgId;
   const sel=document.getElementById('ai-prev-sel');
-  const others=(S.meetings||[]).filter(m=>m.id!==targetMtgId);
+  const others=getVisibleMeetings().filter(m=>m.id!==targetMtgId);
   sel.innerHTML='<option value="">회의 선택...</option>'+others.map(m=>`<option value="${m.id}">${m.date||'날짜 미정'} ${m.title}</option>`).join('');
   document.getElementById('ai-picks').innerHTML='<div style="font-size:11px;color:var(--t3)">위에서 회의를 선택하면 미완료 액션 아이템이 나와요</div>';
   document.getElementById('action-import-modal').style.display='flex';
@@ -5106,7 +5095,7 @@ async function init(){
 function openDashPdf(){
   normalizeProjectsData(); // 버그 수정: 목표 current 값이 숫자가 아니면(예전 데이터) PDF 생성 중 에러로 보고서 전체가 안 뜨던 문제 방지
   const projId=document.getElementById('dash-proj-sel')?.value||'all';
-  const projs=projId==='all'?S.projects:S.projects.filter(p=>p.id===projId);
+  const projs=projId==='all'?getVisibleProjects():S.projects.filter(p=>p.id===projId);
   const projLabel=projId==='all'?'전체 프로젝트':projs[0]?.name||'';
   const today=new Date();
   const dateStr=`${today.getFullYear()}년 ${today.getMonth()+1}월 ${today.getDate()}일`;
@@ -5151,7 +5140,7 @@ function openDashPdf(){
   const overallRoas=totalAdSpend>0?totalRevAmt/totalAdSpend:0;
 
   const pendingActions=[];
-  (S.meetings||[]).forEach(m=>{
+  getVisibleMeetings().forEach(m=>{
     const proj=m.projId?S.projects.find(p=>p.id===m.projId):null;
     if(projId!=='all'&&proj?.id!==projId)return;
     (m.actions||[]).filter(a=>!a.done).forEach(a=>pendingActions.push({...a,mtgTitle:m.title}));
@@ -5334,7 +5323,7 @@ async function runAiInsight(){
   </div>`;
 
   const projId=document.getElementById('dash-proj-sel')?.value||'all';
-  const projs=projId==='all'?S.projects:S.projects.filter(p=>p.id===projId);
+  const projs=projId==='all'?getVisibleProjects():S.projects.filter(p=>p.id===projId);
 
   // 데이터 수집
   let totTasks=0,doneTasks=0;
@@ -5355,7 +5344,7 @@ async function runAiInsight(){
 
   // 미완료 액션
   const pendingActions=[];
-  (S.meetings||[]).forEach(m=>{
+  getVisibleMeetings().forEach(m=>{
     const proj=m.projId?projs.find(p=>p.id===m.projId):null;
     if(projId!=='all'&&!proj)return;
     (m.actions||[]).filter(a=>!a.done).forEach(a=>pendingActions.push({...a,mtgTitle:m.title}));
@@ -5452,10 +5441,17 @@ ${dataCtx}
 }
 
 // ── 홈 대시보드 ──
+// juju = 서비스 최고 관리자 전용 계정. 다른 회사(조직)의 실제 데이터(프로젝트/회의록/상품/인플루언서 등)는
+// 전혀 보이지 않고, 오직 회사·계정 목록(설정 > 팀원 계정) 같은 "관리 기능"과 본인만의 빈 테스트 공간(org:'관리자')만 사용함.
+// 예전에는 juju 계정으로 바바그라운드의 실제 업무 데이터를 함께 써왔었는데, 그 계정을 admin3(진주)로 이름만 바꾸고
+// (기존에 쌓인 바바그라운드 데이터는 org 태그로 계속 남아있으므로 그대로 유지됨), juju는 완전히 새로 깨끗한 관리자 계정으로 만듦.
 const MF_USERS=[
-  {id:'juju',name:'Juju',email:'juju',pw:'0000',role:'admin',org:'바바그라운드'},
+  {id:'juju',name:'Juju',email:'juju',pw:'0000',role:'admin',org:'관리자'},
   {id:'admin1',name:'규리',email:'admin1',pw:'0000',role:'member',org:'바바그라운드'},
   {id:'admin2',name:'선우',email:'admin2',pw:'0000',role:'member',org:'바바그라운드'},
+  {id:'admin3',name:'진주',email:'admin3',pw:'0000',role:'member',org:'바바그라운드'},
+  {id:'test1',name:'테스트',email:'test1',pw:'0000',role:'member',org:'바바그라운드'},
+  {id:'bbgg',name:'소현',email:'bbgg',pw:'0000',role:'member',org:'bbgg'},
 ];
 let _mfUser=null;
 
@@ -5539,7 +5535,7 @@ function renderDashGoalDetail(){
 function renderDashboard(){
   normalizeProjectsData(); // 버그 수정: 목표 현재값이 숫자가 아니면(예전 데이터) NaN%로 뜨던 문제 방지 (진행률 탭 제거로 홈 대시보드가 이 역할을 대신함)
   const projId=document.getElementById('dash-proj-sel')?.value||'all';
-  const projs=projId==='all'?S.projects:S.projects.filter(p=>p.id===projId);
+  const projs=projId==='all'?getVisibleProjects():S.projects.filter(p=>p.id===projId);
 
   // 날짜
   const today=new Date();
@@ -5738,12 +5734,49 @@ function goSettings(){
 
 function renderSettings(){
   _drawSettingsProjList();
+  renderTeamAccountsTable();
+}
+// 팀원 계정 표를 MF_USERS에서 직접 그려서, 계정이 추가/변경돼도 화면과 실제 계정 목록이 항상 일치하게 함
+// (예전에는 이 표가 코드에 손으로 박아둔 값이라 실제 계정 목록과 따로 놀 위험이 있었음).
+// juju(서비스 최고 관리자)만 모든 회사(조직)의 계정을 다 볼 수 있고, 일반 회원은 자기 회사 계정만 보임.
+function renderTeamAccountsTable(){
+  const el=document.getElementById('settings-team-accounts');if(!el)return;
+  const isAdmin=_mfUser?.role==='admin';
+  const users=isAdmin?MF_USERS:MF_USERS.filter(u=>u.org===_mfUser?.org);
+  const byOrg={};
+  users.forEach(u=>{const key=u.org||'(소속 없음)';if(!byOrg[key])byOrg[key]=[];byOrg[key].push(u);});
+  const roleBadge=u=>u.role==='admin'
+    ?'<span style="background:var(--lmbg);color:var(--lm);padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700">최고 관리자</span>'
+    :'<span style="background:var(--surf3);color:var(--t2);padding:1px 7px;border-radius:10px;font-size:10px">멤버</span>';
+  const rowsHtml=us=>us.map((u,i)=>`<tr style="${i<us.length-1?'border-bottom:1px solid var(--b)':''}">
+      <td style="padding:9px 12px">${u.id}</td>
+      <td style="padding:9px 12px">${u.role==='admin'?'<b>'+u.name+'</b>':u.name}</td>
+      <td style="padding:9px 12px">${u.org||'—'}</td>
+      <td style="padding:9px 12px">${roleBadge(u)}</td>
+    </tr>`).join('');
+  const tableHead=`<tr style="background:var(--surf2)">
+      <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--t3);border-bottom:1px solid var(--b)">아이디</th>
+      <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--t3);border-bottom:1px solid var(--b)">이름</th>
+      <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--t3);border-bottom:1px solid var(--b)">소속</th>
+      <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--t3);border-bottom:1px solid var(--b)">권한</th>
+    </tr>`;
+  if(!isAdmin){
+    el.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:11px">${tableHead}${rowsHtml(users)}</table>`;
+    return;
+  }
+  // 최고 관리자(juju)는 회사(조직)별로 묶어서 전체 계정을 다 봄
+  el.innerHTML=`<div style="font-size:11px;color:var(--t3);margin-bottom:10px">🔑 최고 관리자 전용 — 등록된 모든 회사와 계정을 볼 수 있어요</div>`+
+    Object.entries(byOrg).map(([org,us])=>`
+      <div style="margin-bottom:14px">
+        <div style="font-size:12px;font-weight:700;margin-bottom:6px">🏢 ${org}</div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px">${tableHead}${rowsHtml(us)}</table>
+      </div>`).join('');
 }
 
 function _drawSettingsProjList(){
   const list=document.getElementById('settings-proj-list');
   if(!list)return;
-  if(!S.projects||!S.projects.length){
+  if(!getVisibleProjects().length){
     list.innerHTML='<div style="text-align:center;padding:32px;color:var(--t3)"><div style="font-size:28px;margin-bottom:8px">📋</div><div style="font-size:12px">아직 프로젝트가 없어요<br>오른쪽 위 + 새 프로젝트로 추가해봐요</div></div>';
     return;
   }
@@ -5754,7 +5787,7 @@ function _drawSettingsProjList(){
       <th style="padding:9px 12px;text-align:center;font-weight:700;color:var(--t3);font-size:10px;width:60px">상태</th>
       <th style="padding:9px 12px;text-align:right;font-weight:700;color:var(--t3);font-size:10px;width:120px">관리</th>
     </tr></thead>
-    <tbody>${S.projects.map(p=>{
+    <tbody>${getVisibleProjects().map(p=>{
       const tc=Object.values(p.tasks||{}).reduce((s,ts)=>s+ts.length,0);
       const dc=Object.values(p.tasks||{}).reduce((s,ts)=>s+ts.filter(t=>t.done).length,0);
       const pct=tc?Math.round(dc/tc*100):0;
@@ -5809,7 +5842,7 @@ function confirmDeleteProj(id, name){
   if(!confirm('"' + name + '" 프로젝트를 삭제할까요?\n이 작업은 되돌릴 수 없어요.')) return;
   S.projects = S.projects.filter(p=>p.id!==id);
   S.products = (S.products||[]).filter(p=>p.projId!==id);
-  if(S.curProjId===id) S.curProjId = S.projects.length ? S.projects[0].id : null;
+  if(S.curProjId===id) S.curProjId = getVisibleProjects().length ? getVisibleProjects()[0].id : null;
   save();
   refreshProjSelects();
   if(typeof _drawSettingsProjList==="function")_drawSettingsProjList();
@@ -5818,8 +5851,18 @@ function confirmDeleteProj(id, name){
 
 async function resetAllData(){
   if(!confirm('정말 모든 데이터를 초기화할까요?\n프로젝트, 일정, 회의록이 모두 삭제됩니다.')) return;
-  S.projects=[]; S.curProjId=null; S.meetings=[]; S.products=[]; S.influencers=[];
-  S.revEntries=[]; S.utmEntries=[]; S.personalNotes={}; S.mtgFolders=[];
+  // 여러 회사(조직)가 하나의 저장공간을 함께 쓰고 있으므로, 무작정 전체를 지우면 다른 회사의 데이터까지 사라짐 —
+  // 반드시 로그인한 내 회사(org)에 속한 데이터만 지우고, 다른 회사 데이터는 절대 건드리지 않음
+  const myOrg=_mfUser?.org;
+  S.projects=(S.projects||[]).filter(p=>p.org!==myOrg);
+  S.meetings=(S.meetings||[]).filter(m=>m.org!==myOrg);
+  S.products=(S.products||[]).filter(x=>x.org!==myOrg);
+  S.influencers=(S.influencers||[]).filter(x=>x.org!==myOrg);
+  S.mtgFolders=(S.mtgFolders||[]).filter(f=>f.org!==myOrg);
+  S.revEntries=(S.revEntries||[]).filter(e=>e.org!==myOrg);
+  S.utmEntries=(S.utmEntries||[]).filter(e=>e.org!==myOrg);
+  S.curProjId=null;
+  if(_mfUser&&S.personalNotes)delete S.personalNotes[_mfUser.id]; // 내 개인 기록장만 초기화(다른 사람 기록장은 그대로 둠)
   // 로컬스토리지 초기화
   try{localStorage.removeItem('nnb-v8');localStorage.removeItem('nnb-v9');}catch(e){}
   // window.storage 초기화
@@ -5841,9 +5884,10 @@ async function resetAllData(){
 
 function renderRevenue(){
   const psel=document.getElementById('rev-proj-sel');
-  if(psel){const cur=psel.value;psel.innerHTML='<option value="all">전체 프로젝트</option>'+S.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');psel.value=cur;}
+  if(psel){const cur=psel.value;psel.innerHTML='<option value="all">전체 프로젝트</option>'+getVisibleProjects().map(p=>`<option value="${p.id}">${p.name}</option>`).join('');psel.value=cur;}
   const projId=document.getElementById('rev-proj-sel')?.value||'all';
-  const revData=(S.revEntries||[]).filter(e=>projId==='all'||e.projId===projId);
+  const visProjIds=new Set(getVisibleProjects().map(p=>p.id));
+  const revData=(S.revEntries||[]).filter(e=>projId==='all'?visProjIds.has(e.projId):e.projId===projId);
 
   if(!revData.length){
     ['rev-kpi-grid','rev-roas-compare','rev-channel-contrib'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML='<div style="text-align:center;padding:20px;color:var(--t3);font-size:11px">아직 데이터가 없어요<br>+ 매출 입력 버튼으로 시작해봐요</div>';});
@@ -5939,7 +5983,7 @@ function openRevInputModal(){
   document.getElementById('rim-channel').value='전체';
   document.getElementById('rim-roas-preview').style.display='none';
   const psel=document.getElementById('rim-proj');
-  if(psel){psel.innerHTML='<option value="">없음</option>'+S.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');if(S.curProjId)psel.value=S.curProjId;}
+  if(psel){psel.innerHTML='<option value="">없음</option>'+getVisibleProjects().map(p=>`<option value="${p.id}">${p.name}</option>`).join('');if(S.curProjId)psel.value=S.curProjId;}
   const updateRoas=()=>{const r=parseFloat(document.getElementById('rim-revenue')?.value)||0;const sp=parseFloat(document.getElementById('rim-adspend')?.value)||0;const p=document.getElementById('rim-roas-preview');if(p){if(r>0&&sp>0){p.textContent=`ROAS: ${(r/sp).toFixed(2)}x`;p.style.display='block';}else p.style.display='none';}};
   document.getElementById('rim-revenue').oninput=updateRoas;
   document.getElementById('rim-adspend').oninput=updateRoas;
@@ -5951,7 +5995,7 @@ function saveRevEntry(){
   const date=document.getElementById('rim-date').value;
   if(!date)return;
   if(!S.revEntries)S.revEntries=[];
-  S.revEntries.unshift({id:Date.now().toString(),date,projId:document.getElementById('rim-proj')?.value||'',revenue:parseFloat(document.getElementById('rim-revenue').value)||0,bookings:parseInt(document.getElementById('rim-bookings').value)||0,adspend:parseFloat(document.getElementById('rim-adspend').value)||0,channel:document.getElementById('rim-channel').value||'전체',memo:document.getElementById('rim-memo').value.trim(),createdAt:Date.now()});
+  S.revEntries.unshift({id:Date.now().toString(),date,projId:document.getElementById('rim-proj')?.value||'',revenue:parseFloat(document.getElementById('rim-revenue').value)||0,bookings:parseInt(document.getElementById('rim-bookings').value)||0,adspend:parseFloat(document.getElementById('rim-adspend').value)||0,channel:document.getElementById('rim-channel').value||'전체',memo:document.getElementById('rim-memo').value.trim(),createdAt:Date.now(),org:_mfUser?.org||''});
   save();document.getElementById('rev-input-modal').style.display='none';renderRevenue();toast('매출 데이터 저장됐어요 ✓');
 }
 
@@ -5984,7 +6028,7 @@ function saveUtmToList(){
   const urlEl=document.getElementById('utm-preview-box');
   if(!urlEl||urlEl.textContent.includes('URL을'))return;
   if(!S.utmEntries)S.utmEntries=[];
-  S.utmEntries.unshift({id:Date.now().toString(),url:urlEl.textContent,source:document.getElementById('utm-source')?.value||'',medium:document.getElementById('utm-medium')?.value||'',campaign:(document.getElementById('utm-campaign')?.value||'').trim(),content:(document.getElementById('utm-content')?.value||'').trim(),term:(document.getElementById('utm-term')?.value||'').trim(),clicks:0,sessions:0,conversions:0,revenue:0,period:'',createdAt:Date.now()});
+  S.utmEntries.unshift({id:Date.now().toString(),url:urlEl.textContent,source:document.getElementById('utm-source')?.value||'',medium:document.getElementById('utm-medium')?.value||'',campaign:(document.getElementById('utm-campaign')?.value||'').trim(),content:(document.getElementById('utm-content')?.value||'').trim(),term:(document.getElementById('utm-term')?.value||'').trim(),clicks:0,sessions:0,conversions:0,revenue:0,period:'',createdAt:Date.now(),org:_mfUser?.org||''});
   save();renderUtmView();toast('UTM 보관함에 저장됐어요 ✓');
 }
 
@@ -6016,17 +6060,28 @@ function delUtmEntry(id){S.utmEntries=(S.utmEntries||[]).filter(e=>e.id!==id);sa
 
 
 
-// 현재 유저가 볼 수 있는 프로젝트 반환
-function getVisibleProjects(){
-  if(!_mfUser)return S.projects;
-  // admin은 전체
-  if(_mfUser.role==='admin')return S.projects;
-  // 같은 org면 해당 org 프로젝트 전부
-  if(_mfUser.org){
-    return S.projects.filter(p=>!p.org||p.org===_mfUser.org);
-  }
-  // org 없으면 본인이 만든 것만 (추후 createdBy 필드 기준)
-  return S.projects;
+// 회사(조직)별 데이터 분리: 로그인한 계정의 org와 일치하는 항목만 보여줌.
+// 주의: admin(juju, 서비스 최고 관리자)도 예외 없이 자기 org(=관리자, 항상 비어있는 개인 테스트 공간) 기준으로만 필터링됨 —
+// juju는 회사/계정 목록(설정 > 팀원 계정) 같은 "관리 기능"만 전체를 보고, 다른 회사의 실제 업무 데이터는 전혀 보지 않아야 하기 때문.
+function visibleByOrg(arr){
+  if(!_mfUser)return arr||[];
+  return(arr||[]).filter(x=>x.org===_mfUser.org);
+}
+function getVisibleProjects(){return visibleByOrg(S.projects);}
+function getVisibleMeetings(){return visibleByOrg(S.meetings);}
+function getVisibleProducts(){return visibleByOrg(S.products);}
+function getVisibleInfluencers(){return visibleByOrg(S.influencers);}
+function getVisibleMtgFolders(){return visibleByOrg(S.mtgFolders);}
+// 담당자 선택지 등에 쓰이는 "같은 회사 팀원 목록" - 다른 회사 팀원에게 우리 할일을 배정할 수 없도록 항상 내 org로만 제한
+function getVisibleUsers(){if(!_mfUser)return MF_USERS;return MF_USERS.filter(u=>u.org===_mfUser.org);}
+// 예전 데이터(회사 구분이 생기기 전에 만들어진 프로젝트/회의록/상품/인플루언서/폴더)는 org 태그가 없으므로,
+// 지금까지의 실제 사용 데이터가 속해있던 "바바그라운드"로 마이그레이션해서 계속 보이게 함
+function normalizeOrgTags(){
+  (S.projects||[]).forEach(p=>{if(!p.org)p.org='바바그라운드';});
+  (S.meetings||[]).forEach(m=>{if(!m.org)m.org='바바그라운드';});
+  (S.products||[]).forEach(x=>{if(!x.org)x.org='바바그라운드';});
+  (S.influencers||[]).forEach(x=>{if(!x.org)x.org='바바그라운드';});
+  (S.mtgFolders||[]).forEach(f=>{if(!f.org)f.org='바바그라운드';});
 }
 
 function openNicknameModal(){
@@ -6085,7 +6140,7 @@ function renderDashboardPart2(projs, today, liveAds, wPct, weekTasks){
   const adRanking=[];projs.forEach(p=>(p.ads||[]).forEach(a=>{if(a.status==='live'&&a.roas)adRanking.push({name:a.name,roas:parseFloat(a.roas)||0});}));
   const sRank=(adRanking||[]).filter(a=>a.roas>=4);
   if(sRank.length)insights.push({icon:'🏆',color:'#b8860b',bg:'#fff3b0',text:'<b>'+sRank.map(a=>a.name).join(', ')+'</b> ROAS S등급 달성 🎉'});
-  const pendingCntI=(S.meetings||[]).reduce((s,m)=>s+(m.actions||[]).filter(a=>!a.done).length,0);
+  const pendingCntI=getVisibleMeetings().reduce((s,m)=>s+(m.actions||[]).filter(a=>!a.done).length,0);
   if(pendingCntI>0)insights.push({icon:'✅',color:'var(--lm)',bg:'var(--lmbg)',text:'회의록 미완료 액션 <b>'+pendingCntI+'개</b> 남아있어요'});
   if(liveAds===0&&projs.length>0)insights.push({icon:'💡',color:'var(--bl)',bg:'var(--blbg)',text:'현재 라이브 중인 광고가 없어요'});
   if(wPct>=80&&weekTasks.length>0)insights.push({icon:'🚀',color:'var(--gn)',bg:'var(--gnbg)',text:'이번 주 할 일 '+wPct+'% 완료! 훌륭해요 💪'});
@@ -6167,7 +6222,7 @@ async function supaLoad(){
         personalNotes: d.personalNotes||{},
         mtgFolders: d.mtgFolders||[]
       });
-      normalizeProjectsData();normalizePersonalNotes();
+      normalizeProjectsData();normalizePersonalNotes();normalizeOrgTags();
       console.log('☁️ Supabase 로드 완료');
       return true;
     }

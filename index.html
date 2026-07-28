@@ -4285,6 +4285,7 @@ async function init(){
 
 // ── PDF 보고서 생성 ──
 function openDashPdf(){
+  normalizeProjectsData(); // 버그 수정: 목표 current 값이 숫자가 아니면(예전 데이터) PDF 생성 중 에러로 보고서 전체가 안 뜨던 문제 방지
   const projId=document.getElementById('dash-proj-sel')?.value||'all';
   const projs=projId==='all'?S.projects:S.projects.filter(p=>p.id===projId);
   const projLabel=projId==='all'?'전체 프로젝트':projs[0]?.name||'';
@@ -4409,7 +4410,8 @@ function openDashPdf(){
       <div style="border:1px solid #eee;border-radius:8px;padding:16px">
         <div style="font-size:11px;font-weight:700;color:#1a1917;margin-bottom:12px;display:flex;align-items:center;gap:6px"><span>🎯</span> 목표 달성 현황</div>
         ${allGoals.length?allGoals.map(g=>{
-          const gpct=g.target>0?Math.min(Math.round(g.current/g.target*100),100):0;
+          const gCur=parseFloat(g.current)||0;
+          const gpct=g.target>0?Math.min(Math.round(gCur/g.target*100),100):0;
           const gc=gpct>=100?'#1a9c5a':gpct>=60?'#1a78c2':gpct>=30?'#c25a00':'#c22020';
           return`<div style="margin-bottom:10px">
             <div style="display:flex;justify-content:space-between;margin-bottom:4px">
@@ -4419,7 +4421,7 @@ function openDashPdf(){
             <div style="height:6px;background:#f0efec;border-radius:3px;overflow:hidden">
               <div style="height:100%;width:${gpct}%;background:${gc};border-radius:3px"></div>
             </div>
-            <div style="font-size:9px;color:#aaa;margin-top:2px">${g.current.toLocaleString()} / ${g.target.toLocaleString()}${g.unit}</div>
+            <div style="font-size:9px;color:#aaa;margin-top:2px">${gCur.toLocaleString()} / ${g.target.toLocaleString()}${g.unit}</div>
           </div>`;
         }).join(''):'<div style="font-size:11px;color:#aaa">등록된 목표 없음</div>'}
       </div>
@@ -4677,6 +4679,24 @@ function toggleDashGoalDetail(){
   el.style.display=_dashGoalDetailOpen?'block':'none';
   if(_dashGoalDetailOpen)renderDashGoalDetail();
 }
+// 버그 수정: 목표 현재값을 입력하는 즉시(글자 하나 칠 때마다) %와 KPI 카드의 전체 목표 달성률이
+// 실시간으로 바뀌도록 함. 단, 전체 화면(innerHTML)을 다시 그리면 입력 중이던 커서/포커스가
+// 날아가버리므로, 값 저장(updateGoalCurrent)과는 별개로 % 텍스트만 직접 갱신함.
+function livePreviewGoalPct(projId,goalId,val){
+  const goals=window._dashAllGoals||[];
+  const g=goals.find(x=>x._projId===projId&&x.id===goalId);
+  if(!g)return;
+  const num=parseFloat(val)||0;
+  g.current=num; // 화면 미리보기용 임시 반영(실제 데이터 저장은 onchange의 updateGoalCurrent에서 처리)
+  const pct=g.target>0?Math.min(Math.round(num/g.target*100),999):0;
+  const pctEl=document.getElementById('goal-pct-'+goalId);
+  if(pctEl){pctEl.textContent=pct+'%';pctEl.style.color=goalBarColor(pct);}
+  const avgEl=document.getElementById('dash-kpi-val-goal');
+  if(avgEl&&goals.length){
+    const avg=Math.round(goals.reduce((s,x)=>s+(x.target>0?(parseFloat(x.current)||0)/x.target:0),0)/goals.length*100);
+    avgEl.textContent=avg+'%';
+  }
+}
 function renderDashGoalDetail(){
   const el=document.getElementById('dash-goal-detail');if(!el)return;
   const goals=window._dashAllGoals||[];
@@ -4690,9 +4710,9 @@ function renderDashGoalDetail(){
           <div style="font-size:11px;font-weight:600">${g.name}<span style="color:var(--t3);font-weight:400"> · ${g._projName}</span></div>
           <div style="font-size:10px;color:var(--t3)">목표 ${g.target.toLocaleString()}${g.unit}</div>
         </div>
-        <input class="goal-update-inp" type="number" value="${g.current}" onchange="updateGoalCurrent('${g._projId}','${g.id}',this.value)" style="width:70px">
+        <input class="goal-update-inp" type="number" value="${g.current}" oninput="livePreviewGoalPct('${g._projId}','${g.id}',this.value)" onchange="updateGoalCurrent('${g._projId}','${g.id}',this.value)" style="width:70px">
         <span style="font-size:10px;color:var(--t3);width:14px">${g.unit}</span>
-        <span style="font-size:12px;font-weight:700;color:${barColor};width:38px;text-align:right">${gpct}%</span>
+        <span id="goal-pct-${g.id}" style="font-size:12px;font-weight:700;color:${barColor};width:38px;text-align:right">${gpct}%</span>
       </div>`;
     }).join('');
 }
@@ -4746,7 +4766,7 @@ function renderDashboard(){
         <div style="width:32px;height:32px;border-radius:8px;background:${k.bg};display:flex;align-items:center;justify-content:center;font-size:16px">${k.icon}</div>
         <span style="font-size:11px;color:var(--t2)">${k.label}</span>
       </div>
-      <div style="font-size:22px;font-weight:800;color:${k.c};line-height:1">${k.val}</div>
+      <div ${k.clickable?'id="dash-kpi-val-goal"':''} style="font-size:22px;font-weight:800;color:${k.c};line-height:1">${k.val}</div>
       <div style="font-size:10px;color:var(--t3);margin-top:3px">${k.sub}</div>
     </div>`).join('');
   // 진행률 탭 대체: 목표 달성률 카드를 펼쳤을 때 보여줄 목표별 현재값 입력 목록도 같이 갱신해둠(펼쳐진 상태면 바로 반영)

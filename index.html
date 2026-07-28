@@ -2047,20 +2047,7 @@ function switchProj(){
   if(delBtn)delBtn.style.display=S.curProjId?'block':'none';
   const proj=getCurProj();
   loadPlanInputFromProj(proj);renderProjSummary();
-
-  // 채널 체크박스 상태 복원
-  document.querySelectorAll('#ch-chips input[type=checkbox]').forEach(cb=>cb.checked=false);
-  if(proj?.plan?.groups){
-    const TN_R={'Meta':'Meta 광고','CRM':'카카오 CRM','인플루언서':'인플루언서/블로그','네이버':'네이버 검색','유튜브':'유튜브','당근':'당근마켓'};
-    proj.plan.groups.forEach(g=>{
-      const ch=g._ch||(TN_R[g.name])||null;
-      if(ch){const el=document.querySelector('#ch-chips input[data-ch="'+ch+'"]');if(el)el.checked=true;}
-    });
-  } else {
-    ['Meta 광고','카카오 CRM','인플루언서/블로그'].forEach(ch=>{
-      const el=document.querySelector('#ch-chips input[data-ch="'+ch+'"]');if(el)el.checked=true;
-    });
-  }
+  // 채널(항목) 체크박스 상태 복원은 loadPlanInputFromProj → restoreChannelSelection()에서 처리됨(커스텀 항목 포함)
 if(proj&&proj.plan){S._pendingPlan=JSON.parse(JSON.stringify(proj.plan));renderPlanResult(proj.plan,false);}
   else{S._pendingPlan=null;resetPlanOutput();}renderQuickAddGroups();updatePlanButtons();
   updatePlanCalHint();renderMiniCal();
@@ -2310,31 +2297,70 @@ function loadPlanInputFromProj(proj){
   set('p-memo', proj.memo||proj.planMemo);
   renderPlanGoals(proj);
   renderQuickAddGroups();
+  // 프로젝트 전환/로드 시: 왼쪽 항목선택 체크박스(커스텀 항목 포함) + 예산 입력값 복원
+  restoreChannelSelection(proj);
   loadChBudgetInputs(proj);
+  // 예전에 예산만 입력해두고 예산탭에 아직 반영 안된 데이터 자가치유(자동 재동기화)
+  if(proj){applyChBudgetsToProject(proj);save();}
 }
 document.querySelectorAll('#ch-chips .chip').forEach(c=>c.addEventListener('click',()=>{c.classList.toggle('on');renderProjSummary();}));
 function getChs(){return[...document.querySelectorAll('#ch-chips .chip.sel')].map(c=>c.dataset.ch)}
-function addCustomChannel(){
-  const inp=document.getElementById('ch-custom-inp');const val=inp.value.trim();if(!val)return;
-  const exists=[...document.querySelectorAll('#ch-chips input[type=checkbox]')].some(c=>c.dataset.ch===val);if(exists){inp.value='';return;}
+// 기본 제공 6개 항목(이 외에는 사용자가 직접 추가한 커스텀 항목으로 취급)
+const DEFAULT_CHS=['Meta 광고','네이버 검색','인플루언서/블로그','카카오 CRM','유튜브','당근마켓'];
+// 체크박스+예산입력 한 행(row) DOM 생성 (기본 제공 항목 외에 커스텀 항목 추가/복원 시 공통으로 사용)
+function createChannelRow(ch,checked){
   const row=document.createElement('div');
   row.style.cssText='display:flex;align-items:center;gap:6px';
   const label=document.createElement('label');
   label.style.cssText='display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1';
   const cb=document.createElement('input');
-  cb.type='checkbox';cb.dataset.ch=val;cb.checked=true;cb.style.cssText='width:14px;height:14px;accent-color:#8bc34a;cursor:pointer';
+  cb.type='checkbox';cb.dataset.ch=ch;cb.checked=!!checked;cb.style.cssText='width:14px;height:14px;accent-color:#8bc34a;cursor:pointer';
   cb.addEventListener('change',syncPlanGroups);
-  const span=document.createElement('span');span.textContent=val;
+  const span=document.createElement('span');span.textContent=ch;
   const del=document.createElement('span');del.textContent='✕';del.style.cssText='font-size:10px;color:var(--t3);cursor:pointer;margin-left:2px';
   del.onclick=function(){row.remove();syncPlanGroups();};
   label.appendChild(cb);label.appendChild(span);label.appendChild(del);
   const budgetInp=document.createElement('input');
-  budgetInp.type='number';budgetInp.className='ch-budget-inp';budgetInp.dataset.ch=val;budgetInp.placeholder='예산';budgetInp.min='0';
+  budgetInp.type='number';budgetInp.className='ch-budget-inp';budgetInp.dataset.ch=ch;budgetInp.placeholder='예산';budgetInp.min='0';
   budgetInp.style.cssText='width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit';
   budgetInp.addEventListener('change',()=>updateChBudget(budgetInp));
   row.appendChild(label);row.appendChild(budgetInp);
-  document.getElementById('ch-chips').appendChild(row);
+  return row;
+}
+function addCustomChannel(){
+  const inp=document.getElementById('ch-custom-inp');const val=inp.value.trim();if(!val)return;
+  const exists=[...document.querySelectorAll('#ch-chips input[type=checkbox]')].some(c=>c.dataset.ch===val);if(exists){inp.value='';return;}
+  document.getElementById('ch-chips').appendChild(createChannelRow(val,true));
   inp.value='';inp.focus();syncPlanGroups();
+}
+
+// 프로젝트의 플랜 그룹을 기준으로 왼쪽 항목선택 체크박스 상태 복원.
+// 기본 6개 항목은 체크만 갱신하고, 커스텀 항목은 DOM에 없으면 새로 만들어서 복원한다.
+// (버그 수정: 커스텀 항목 행이 새로고침/프로젝트 전환 후 사라지던 문제)
+function restoreChannelSelection(proj){
+  // 이전 프로젝트에서 추가됐던 커스텀 항목 행은 프로젝트마다 다르므로 정리하고 다시 생성
+  document.querySelectorAll('#ch-chips input[type=checkbox]').forEach(cb=>{
+    if(!DEFAULT_CHS.includes(cb.dataset.ch)){
+      const row=cb.closest('div');
+      if(row)row.remove();
+    } else {
+      cb.checked=false;
+    }
+  });
+  if(proj?.plan?.groups){
+    const TN_R={'Meta':'Meta 광고','CRM':'카카오 CRM','인플루언서':'인플루언서/블로그','네이버':'네이버 검색','유튜브':'유튜브','당근':'당근마켓'};
+    proj.plan.groups.forEach(g=>{
+      const ch=g._ch||(TN_R[g.name])||null;
+      if(!ch)return;
+      const el=document.querySelector('#ch-chips input[data-ch="'+ch+'"]');
+      if(el){el.checked=true;}
+      else{document.getElementById('ch-chips').appendChild(createChannelRow(ch,true));}
+    });
+  } else {
+    ['Meta 광고','카카오 CRM','인플루언서/블로그'].forEach(ch=>{
+      const el=document.querySelector('#ch-chips input[data-ch="'+ch+'"]');if(el)el.checked=true;
+    });
+  }
 }
 
 // 항목(채널)별 계획 예산 저장 + 플랜 그룹 & 예산 탭에 동기화

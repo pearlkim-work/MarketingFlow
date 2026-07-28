@@ -667,6 +667,7 @@ select:focus{border-color:var(--lm);outline:none}
     <span style="font-size:9px;color:var(--t3);font-weight:600;padding:0 3px;letter-spacing:.04em;white-space:nowrap">기록</span>
     <button class="nav-tab" onclick="showView('meeting',this)" title="회의록">🗣 회의록</button>
     <button class="nav-tab" onclick="showView('report',this)" title="리포트 생성">📑 리포트</button>
+    <button class="nav-tab" onclick="showView('mynote',this)" title="나만의 기록장">📝 <span id="nav-mynote-label">내 기록장</span></button>
   </div>
   <div class="nav-right" id="pdf-hide" style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0">
     <select class="proj-sel" id="proj-sel" onchange="switchProj()" style="max-width:130px">
@@ -1690,6 +1691,19 @@ select:focus{border-color:var(--lm);outline:none}
   </div>
 </div>
 
+<!-- ══ 나만의 기록장 (로그인한 사람만의 개인 메모장) ══ -->
+<div class="view" id="view-mynote">
+  <div style="max-width:640px;margin:0 auto;padding:24px 16px">
+    <div style="font-size:15px;font-weight:700;margin-bottom:4px">📝 <span id="mynote-title-name">내</span>님의 기록장</div>
+    <div style="font-size:12px;color:var(--t2);margin-bottom:16px">나만 보는 개인 메모장이에요. 팀 데이터와 같이 저장되지만, 화면엔 로그인한 본인 메모만 보여요.</div>
+    <div class="memo-write" style="margin-bottom:16px">
+      <textarea class="memo-textarea" id="mynote-inp" rows="4" placeholder="오늘 할 일, 아이디어, 메모 등 자유롭게 적어봐요..."></textarea>
+      <div class="memo-write-row"><button class="btn-memo-post" onclick="postMyNote()">기록 추가</button></div>
+    </div>
+    <div class="memo-list" id="mynote-list"></div>
+  </div>
+</div>
+
 <!-- ══ PRODUCTS VIEW ══ -->
 <div class="view" id="view-products">
   <div style="flex:1;overflow-y:auto;padding:22px 28px">
@@ -1956,7 +1970,7 @@ function projColor(idx){return PROJ_COLORS[idx%PROJ_COLORS.length]}
 
 // ── STATE ──
 let S={
-  projects:[],curProjId:null,meetings:[],products:[],influencers:[],
+  projects:[],curProjId:null,meetings:[],products:[],influencers:[],personalNotes:{},
   planCalY:new Date().getFullYear(),planCalM:new Date().getMonth(),
   fullCalY:new Date().getFullYear(),fullCalM:new Date().getMonth(),
   selDate:null,planSelDate:null,editAdId:null,editProdId:null,
@@ -1976,7 +1990,7 @@ function scheduleSupa(){
   if(typeof supaSync==='function'){clearTimeout(_syncTimer);_syncTimer=setTimeout(supaSync,1500);}
 }
 async function save(){try{if(window.storage){await window.storage.set('nnb-v8',JSON.stringify(S));}else{localStorage.setItem('nnb-v8',JSON.stringify(S));}}catch(e){try{localStorage.setItem('nnb-v8',JSON.stringify(S));}catch(e2){}}scheduleSupa();}
-async function load(){try{let data=null;if(window.storage){const r=await window.storage.get('nnb-v8');if(r&&r.value)data=JSON.parse(r.value);}if(!data){const ls=localStorage.getItem('nnb-v8');if(ls)data=JSON.parse(ls);}if(data)Object.assign(S,{projects:data.projects||[],curProjId:data.curProjId||null,meetings:data.meetings||[],products:data.products||[],influencers:data.influencers||[]});normalizeProjectsData();}catch(e){}}
+async function load(){try{let data=null;if(window.storage){const r=await window.storage.get('nnb-v8');if(r&&r.value)data=JSON.parse(r.value);}if(!data){const ls=localStorage.getItem('nnb-v8');if(ls)data=JSON.parse(ls);}if(data)Object.assign(S,{projects:data.projects||[],curProjId:data.curProjId||null,meetings:data.meetings||[],products:data.products||[],influencers:data.influencers||[],personalNotes:data.personalNotes||{}});normalizeProjectsData();}catch(e){}}
 
 // ── VIEWS ──
 function showView(v,btn){
@@ -1995,6 +2009,7 @@ function showView(v,btn){
   if(v==='calendar'){updateCalProjFilter();updateAssigneeFilter();renderCalView();renderFullDayTasks(S.selDate);updateCalProgress();updateSidebarAssignees();}
   if(v==='plan'){const p=getCurProj();loadPlanInputFromProj(p);if(p?.plan)renderPlanResult(p.plan);renderQuickAddGroups();updatePlanButtons();}
   if(v==='meeting')renderMtgList();
+  if(v==='mynote')renderMyNotes();
   if(v==='experiment')loadExpIframe();
   if(v==='products')renderProducts();
   if(v==='budget'){btRefreshProjSel();btLoadProject();}
@@ -2099,10 +2114,16 @@ function resetPlanOutput(){
 function refreshProjSelects(){
   const opts='<option value="">선택</option>'+S.projects.map(p=>`<option value="${p.id}" ${p.id===S.curProjId?'selected':''}>${p.name}</option>`).join('');
   document.getElementById('proj-sel').innerHTML=opts;
-  document.getElementById('am-proj').innerHTML=S.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
-  document.getElementById('full-task-proj').innerHTML=S.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  // 버그 수정: 아래 셀렉트들은 값을 보존하지 않고 통째로 innerHTML을 다시 그려서, 회의록 모달에서
+  // "+ 새 프로젝트"로 만든 프로젝트를 방금 선택해놔도 30초 자동동기화 등으로 refreshProjSelects()가
+  // 다시 호출되면 선택값이 "없음"으로 초기화되어 버렸음(회의는 저장되지만 프로젝트 연결이 풀림).
+  // 다른 셀렉트(prod-proj-filter)처럼 기존 선택값을 보존하도록 통일함.
+  const amProj=document.getElementById('am-proj');
+  if(amProj){const cur=amProj.value;amProj.innerHTML=S.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');if(cur)amProj.value=cur;}
+  const fullTaskProj=document.getElementById('full-task-proj');
+  if(fullTaskProj){const cur=fullTaskProj.value;fullTaskProj.innerHTML=S.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');if(cur)fullTaskProj.value=cur;}
   const mmProj=document.getElementById('mm-proj');
-  if(mmProj)mmProj.innerHTML='<option value="">없음</option>'+S.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  if(mmProj){const cur=mmProj.value;mmProj.innerHTML='<option value="">없음</option>'+S.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');if(cur)mmProj.value=cur;}
   const ppf=document.getElementById('prod-proj-filter');
   if(ppf){const cur=ppf.value;ppf.innerHTML='<option value="">전체 프로젝트</option>'+S.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');if(cur)ppf.value=cur;}
   btRefreshProjSel();qtRefreshProj();rpRefreshProjSel();
@@ -3282,6 +3303,40 @@ function renderMemos(){
   document.getElementById('memo-list').innerHTML=memos.map(m=>{const replies=(m.replies||[]);return`<div class="memo-item"><div class="memo-body"><div class="memo-header"><span class="memo-ts">🕐 ${fmtTs(m.ts)}</span><button class="memo-del" onclick="delMemo('${m.id}')">✕</button></div><div class="memo-text">${m.text.replace(/\n/g,'<br>')}</div><div class="memo-actions"><button class="memo-reply-btn" onclick="toggleReplyForm('${m.id}')">↩ 답글</button><span style="font-size:10px;color:var(--t3)">${replies.length?`답글 ${replies.length}개`:''}</span></div></div>${replies.length?`<div class="memo-replies">${replies.map(r=>`<div class="reply-item"><div class="reply-header"><span class="reply-ts">↩ ${fmtTs(r.ts)}</span><button class="reply-del" onclick="delReply('${m.id}','${r.id}')">✕</button></div><div class="reply-text">${r.text.replace(/\n/g,'<br>')}</div></div>`).join('')}</div>`:''}<div class="reply-form" id="rf-${m.id}" style="display:none"><input class="reply-inp" id="ri-${m.id}" placeholder="답글 입력..." onkeydown="if(event.key==='Enter')postReply('${m.id}')"><button class="btn-reply-post" onclick="postReply('${m.id}')">등록</button></div></div>`;}).join('');
 }
 
+// ── 나만의 기록장(로그인한 사람 개인 메모장) ──
+// 팀 전체가 공유하는 하나의 데이터(S)에 함께 저장/동기화되지만, personalNotes를 사용자 id로
+// 구분해서 저장하고 화면엔 로그인한 사람 자신의 기록만 보여줌(다른 사람 것과 섞이지 않게).
+function updateMyNoteLabel(){
+  const nameEl=document.getElementById('nav-mynote-label');
+  const titleEl=document.getElementById('mynote-title-name');
+  const name=_mfUser?.name||'내';
+  if(nameEl)nameEl.textContent=name+'님의 기록장';
+  if(titleEl)titleEl.textContent=name;
+}
+function postMyNote(){
+  if(!_mfUser)return;
+  const inp=document.getElementById('mynote-inp');if(!inp)return;
+  const text=inp.value.trim();if(!text)return;
+  if(!S.personalNotes)S.personalNotes={};
+  if(!S.personalNotes[_mfUser.id])S.personalNotes[_mfUser.id]=[];
+  S.personalNotes[_mfUser.id].unshift({id:Date.now().toString(),text,ts:Date.now()});
+  inp.value='';
+  save();renderMyNotes();
+}
+function delMyNote(nid){
+  if(!_mfUser||!S.personalNotes||!S.personalNotes[_mfUser.id])return;
+  S.personalNotes[_mfUser.id]=S.personalNotes[_mfUser.id].filter(n=>n.id!==nid);
+  save();renderMyNotes();
+}
+function renderMyNotes(){
+  updateMyNoteLabel();
+  const listEl=document.getElementById('mynote-list');if(!listEl)return;
+  if(!_mfUser){listEl.innerHTML='<div style="font-size:11px;color:var(--t3);text-align:center;padding:16px 0">로그인 후 이용할 수 있어요</div>';return;}
+  const notes=(S.personalNotes&&S.personalNotes[_mfUser.id])||[];
+  if(!notes.length){listEl.innerHTML='<div style="font-size:11px;color:var(--t3);text-align:center;padding:16px 0">아직 기록이 없어요. 위에서 첫 기록을 남겨봐요 ✍️</div>';return;}
+  listEl.innerHTML=notes.map(n=>`<div class="memo-item"><div class="memo-body"><div class="memo-header"><span class="memo-ts">🕐 ${fmtTs(n.ts)}</span><button class="memo-del" onclick="delMyNote('${n.id}')">✕</button></div><div class="memo-text">${n.text.replace(/\n/g,'<br>')}</div></div></div>`).join('');
+}
+
 // ── MEETINGS ──
 let _curMtgId=null;
 function getMtg(id){return(S.meetings||[]).find(m=>m.id===id)}
@@ -4295,7 +4350,7 @@ async function init(){
   }catch(e){ console.warn('cloud load skip:', e); }
 
   // 세션 복원
-  try{const saved=localStorage.getItem('mf_user');if(saved){_mfUser=JSON.parse(saved);document.getElementById('login-screen').style.display='none';document.getElementById('dashboard-body').style.display='block';const n=document.getElementById('dash-user-name');const a=document.getElementById('dash-user-avatar');if(n)n.textContent=_mfUser.name;if(a)a.textContent=_mfUser.name[0];const og=document.getElementById('dash-user-org');if(og)og.textContent=_mfUser.org||'';}}catch(e){}
+  try{const saved=localStorage.getItem('mf_user');if(saved){_mfUser=JSON.parse(saved);document.getElementById('login-screen').style.display='none';document.getElementById('dashboard-body').style.display='block';const n=document.getElementById('dash-user-name');const a=document.getElementById('dash-user-avatar');if(n)n.textContent=_mfUser.name;if(a)a.textContent=_mfUser.name[0];const og=document.getElementById('dash-user-org');if(og)og.textContent=_mfUser.org||'';updateMyNoteLabel();}}catch(e){}
   refreshProjSelects();updatePlanCalHint();renderDashboard();const _db=document.getElementById('btn-del-proj');if(_db&&S.curProjId)_db.style.display='block';updateMemoHint();renderMiniCal();qtRefreshProj();qtAddRow();renderProjSummary();btRefreshProjSel();rpRefreshProjSel();
   if(S.curProjId){const proj=getCurProj();if(proj&&proj.plan){S._pendingPlan=JSON.parse(JSON.stringify(proj.plan));renderPlanResult(proj.plan,false);}renderQuickAddGroups();loadPlanInputFromProj(proj);}
 }
@@ -4678,6 +4733,7 @@ function doLogin(){
   if(nameEl)nameEl.textContent=user.name;
   if(avatarEl)avatarEl.textContent=user.name[0];
   if(orgEl)orgEl.textContent=user.org||'';
+  updateMyNoteLabel();
   renderDashboard();
 }
 
@@ -5018,7 +5074,7 @@ function confirmDeleteProj(id, name){
 async function resetAllData(){
   if(!confirm('정말 모든 데이터를 초기화할까요?\n프로젝트, 일정, 회의록이 모두 삭제됩니다.')) return;
   S.projects=[]; S.curProjId=null; S.meetings=[]; S.products=[]; S.influencers=[];
-  S.revEntries=[]; S.utmEntries=[];
+  S.revEntries=[]; S.utmEntries=[]; S.personalNotes={};
   // 로컬스토리지 초기화
   try{localStorage.removeItem('nnb-v8');localStorage.removeItem('nnb-v9');}catch(e){}
   // window.storage 초기화
@@ -5362,7 +5418,8 @@ async function supaLoad(){
         products: d.products||[],
         influencers: d.influencers||[],
         revEntries: d.revEntries||[],
-        utmEntries: d.utmEntries||[]
+        utmEntries: d.utmEntries||[],
+        personalNotes: d.personalNotes||{}
       });
       normalizeProjectsData();
       console.log('☁️ Supabase 로드 완료');
@@ -5394,7 +5451,8 @@ async function supaSyncInner(){
         products: S.products||[],
         influencers: S.influencers||[],
         revEntries: S.revEntries||[],
-        utmEntries: S.utmEntries||[]
+        utmEntries: S.utmEntries||[],
+        personalNotes: S.personalNotes||{}
       },
       updated_at: new Date().toISOString()
     };

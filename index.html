@@ -357,14 +357,18 @@ input::placeholder,textarea::placeholder{color:var(--t3)}
 .item-del:hover{border-color:var(--red);color:var(--red)}
 .mtg-notes-area{background:var(--surf2);border:1px solid var(--b2);border-radius:var(--r-sm);color:var(--t);padding:12px;width:100%;font-size:12px;line-height:1.8;min-height:120px;resize:vertical;outline:none;font-family:inherit}
 .mtg-notes-area:focus{border-color:var(--lm)}
-.action-item{display:grid;grid-template-columns:16px 1fr 72px 88px 18px;align-items:center;gap:8px;padding:8px 10px;background:var(--surf2);border-radius:var(--r-sm);border:1px solid var(--b)}
+.action-item{display:flex;flex-direction:column;gap:6px;padding:8px 10px;background:var(--surf2);border-radius:var(--r-sm);border:1px solid var(--b)}
+.ai-row1{display:grid;grid-template-columns:16px 1fr 84px 88px 18px;align-items:center;gap:8px}
+.ai-row2{display:flex;align-items:center;gap:6px;padding-left:24px;flex-wrap:wrap}
 .ai-chk{width:15px;height:15px;border-radius:3px;border:1.5px solid var(--b3);flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .ai-chk.done{background:var(--lm);border-color:var(--lm)}
 .ai-chk.done::after{content:'✓';font-size:8px;color:#fff;font-weight:700}
 .ai-text{font-size:12px;background:transparent;border:none;color:var(--t);outline:none;font-family:inherit;width:100%}
 .ai-text.done-txt{text-decoration:line-through;color:var(--t3)}
-.ai-who{font-size:11px;background:transparent;border:none;color:var(--t2);outline:none;font-family:inherit;text-align:center;width:100%}
+.ai-who{font-size:10px;background:var(--surf3);border:1px solid var(--b2);border-radius:4px;color:var(--t2);outline:none;font-family:inherit;padding:3px 4px;width:100%}
 .ai-due{font-size:10px;background:transparent;border:none;color:var(--t3);outline:none;font-family:inherit;width:100%}
+.ai-proj,.ai-group{font-size:10px;background:var(--surf3);border:1px solid var(--b2);border-radius:4px;color:var(--t3);outline:none;font-family:inherit;padding:3px 6px}
+.ai-linked-badge{font-size:9px;color:var(--lm);white-space:nowrap}
 .mtg-empty-search{color:var(--t3);font-size:12px;text-align:center;padding:20px 0}
 .action-item-done-row{opacity:.6}
 .pick-item{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surf2);border-radius:6px;border:1px solid var(--b);cursor:pointer}
@@ -2926,7 +2930,15 @@ function updatePTDate(gi,ti,date){const p=getCurProj();if(!p||!p.plan)return;con
 function addPT(gi){const g=getPG();if(!g)return;if(!g[gi].tasks)g[gi].tasks=[];g[gi].tasks.push({text:'',done:false,date:'',assignee:''});save();renderPlanResult(getCurProj().plan);}
 function deletePT(gi,ti){const p=getCurProj();if(!p||!p.plan)return;const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(t?.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}g[gi].tasks.splice(ti,1);_reindexPlanRefsAfterTaskDelete(p,gi,ti);save();renderPlanResult(p.plan);renderFullCal();renderQuickAddGroups();}
 function addGroup(){const p=getCurProj();if(!p||!p.plan)return;if(!p.plan.groups)p.plan.groups=[];p.plan.groups.push({id:'g-'+Date.now(),name:'새 그룹',color:'var(--lm)',tasks:[]});save();renderPlanResult(p.plan);renderQuickAddGroups();setTimeout(()=>{const inputs=document.querySelectorAll('[onchange*="updatePT"]');if(inputs.length)inputs[inputs.length-1].select();},50);}
-function deleteGroup(gi){const p=getCurProj();if(!p||!p.plan?.groups)return;(p.plan.groups[gi]?.tasks||[]).forEach((t,ti)=>{if(t.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}});p.plan.groups.splice(gi,1);_reindexPlanRefsAfterGroupDelete(p,gi);save();renderPlanResult(p.plan);renderFullCal();}
+function deleteGroup(gi){const p=getCurProj();if(!p||!p.plan?.groups)return;(p.plan.groups[gi]?.tasks||[]).forEach((t,ti)=>{if(t.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}});
+  // 이 항목(그룹)에 연동돼있던 회의록 액션 아이템은 연동이 끊기므로, 사라지기 전 마지막 값을 로컬로 되돌려 보존하고 연동 해제
+  (S.meetings||[]).forEach(m=>(m.actions||[]).forEach(a=>{
+    if(a&&a._planRef&&a._linkProjId===p.id){
+      const agi=Number(a._planRef.split('-')[0]);
+      if(agi===gi){_mtgActionRefreshCache(a);a._planRef=null;a._linkProjId=null;a._linkGroupId=null;a.projId='';a.groupId='';}
+    }
+  }));
+  p.plan.groups.splice(gi,1);_reindexPlanRefsAfterGroupDelete(p,gi);save();renderPlanResult(p.plan);renderFullCal();}
 function togglePlanTask(ch, taskIdx){
   const proj=getCurProj();
   if(!proj||!proj.plan)return;
@@ -2996,12 +3008,25 @@ function _reindexPlanRefsAfterTaskDelete(p,gi,removedTi){
       if(xgi===gi&&xti>removedTi)x._planRef=xgi+'-'+(xti-1);
     }
   }));
+  // 회의록 액션 아이템이 이 플랜 할일에 연동돼 있었다면, 인덱스가 밀린 만큼 참조도 같이 보정
+  (S.meetings||[]).forEach(m=>(m.actions||[]).forEach(a=>{
+    if(a&&a._planRef&&a._linkProjId===p.id){
+      const parts=a._planRef.split('-');const xgi=Number(parts[0]),xti=Number(parts[1]);
+      if(xgi===gi&&xti>removedTi)a._planRef=xgi+'-'+(xti-1);
+    }
+  }));
 }
 function _reindexPlanRefsAfterGroupDelete(p,removedGi){
   Object.values(p.tasks||{}).forEach(arr=>(arr||[]).forEach(x=>{
     if(x&&x._planRef){
       const parts=x._planRef.split('-');const xgi=Number(parts[0]);
       if(xgi>removedGi)x._planRef=(xgi-1)+'-'+parts[1];
+    }
+  }));
+  (S.meetings||[]).forEach(m=>(m.actions||[]).forEach(a=>{
+    if(a&&a._planRef&&a._linkProjId===p.id){
+      const parts=a._planRef.split('-');const xgi=Number(parts[0]);
+      if(xgi>removedGi)a._planRef=(xgi-1)+'-'+parts[1];
     }
   }));
 }
@@ -3523,7 +3548,34 @@ function renderMtgDetail(id){
   _curMtgId=id;renderMtgList();const mtg=getMtg(id);if(!mtg)return;
   const proj=mtg.projId?getProj(mtg.projId):null;const membersStr=(mtg.members||[]).length?mtg.members.join(', '):'참석자 없음';const prevMtg=mtg.carryFrom?getMtg(mtg.carryFrom):null;
   const agendaHtml=(mtg.agenda||[]).map((a,i)=>`<div class="agenda-item"><span class="agenda-num">${i+1}.</span><input class="agenda-text" value="${a.text}" placeholder="아젠다 입력..." oninput="updateAgenda('${id}',${i},this.value)"><button class="item-del" onclick="delAgenda('${id}',${i})">✕</button></div>`).join('');
-  const actionHtml=(mtg.actions||[]).map((a,i)=>`<div class="action-item${a.done?' action-item-done-row':''}"><div class="ai-chk${a.done?' done':''}" onclick="toggleAction('${id}',${i})"></div><input class="ai-text${a.done?' done-txt':''}" value="${a.text}" placeholder="액션 아이템..." oninput="updateAction('${id}',${i},'text',this.value)"><input class="ai-who" value="${a.who||''}" placeholder="담당자" oninput="updateAction('${id}',${i},'who',this.value)"><input class="ai-due" type="date" value="${a.due||''}" onchange="updateAction('${id}',${i},'due',this.value)"><button class="item-del" onclick="delAction('${id}',${i})">✕</button></div>`).join('');
+  const actionHtml=(mtg.actions||[]).map((a,i)=>{
+    const av=getMtgActionView(a); // 연동돼 있으면 플랜/캘린더의 실시간 값을 그대로 보여줌(따로 저장한 값이 오래됐을 수 있으므로)
+    const linkedProj=a.projId?getProj(a.projId):null;
+    const groupOpts=linkedProj?(linkedProj.plan?.groups||[]):[];
+    return`<div class="action-item${av.done?' action-item-done-row':''}">
+      <div class="ai-row1">
+        <div class="ai-chk${av.done?' done':''}" onclick="toggleAction('${id}',${i})"></div>
+        <input class="ai-text${av.done?' done-txt':''}" value="${(av.text||'').replace(/"/g,'&quot;')}" placeholder="액션 아이템..." oninput="updateAction('${id}',${i},'text',this.value)">
+        <select class="ai-who" onchange="updateAction('${id}',${i},'who',this.value)">
+          <option value="">담당자</option>
+          ${MF_USERS.map(u=>`<option value="${u.name}"${av.who===u.name?' selected':''}>${u.name}</option>`).join('')}
+        </select>
+        <input class="ai-due" type="date" value="${av.due||''}" onchange="updateAction('${id}',${i},'due',this.value)">
+        <button class="item-del" onclick="delAction('${id}',${i})">✕</button>
+      </div>
+      <div class="ai-row2">
+        <select class="ai-proj" onchange="updateAction('${id}',${i},'projId',this.value)">
+          <option value="">🔗 프로젝트 연동 안 함</option>
+          ${S.projects.map(p=>`<option value="${p.id}"${a.projId===p.id?' selected':''}>${p.name}</option>`).join('')}
+        </select>
+        ${a.projId?`<select class="ai-group" onchange="updateAction('${id}',${i},'groupId',this.value)">
+          <option value="">항목 선택</option>
+          ${groupOpts.map(g=>`<option value="${g.id}"${a.groupId===g.id?' selected':''}>${g.name}</option>`).join('')}
+        </select>`:''}
+        ${a._planRef?`<span class="ai-linked-badge">📅 플랜·캘린더 연동됨</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
   document.getElementById('mtg-detail').innerHTML=`<div class="mtg-doc"><div class="mtg-doc-header"><div style="flex:1;min-width:0"><input class="mtg-doc-title-inp" value="${mtg.title}" placeholder="회의 제목" oninput="updateMtgField('${id}','title',this.value)"><div class="mtg-meta"><span>📅 ${mtg.date||'날짜 미정'}${mtg.time?' '+mtg.time:''}</span><span>👥 ${membersStr}</span>${proj?`<span>📁 ${proj.name}</span>`:''}${mtg.shared?`<span style="color:var(--lm)">🔗 공유중</span>`:''}${prevMtg?`<span style="cursor:pointer;color:var(--blue)" onclick="renderMtgDetail('${prevMtg.id}')">↩ ${prevMtg.date} 에서 이어짐</span>`:''}</div></div><div class="mtg-header-btns"><button class="btn-mtg-act" onclick="toggleShareMtg('${id}')">${mtg.shared?'🔓 공유해제':'🔗 공유'}</button>${mtg.shared?`<button class="btn-mtg-act" onclick="copyShareLink('mtg','${mtg.shareId}')">링크복사</button>`:''}<button class="btn-mtg-act" onclick="duplicateMtg('${id}')">복사</button><button class="btn-mtg-act" onclick="openMtgModal('${id}')">수정</button><button class="btn-mtg-act" onclick="window.print()">🖨 PDF</button><button class="btn-mtg-act del" onclick="delMtg('${id}')">삭제</button></div></div><div class="mtg-section"><div class="mtg-section-header"><div class="mtg-section-title">📌 아젠다</div><button class="btn-add-item" onclick="addAgenda('${id}')">+ 추가</button></div><div class="agenda-list" id="agenda-list-${id}">${agendaHtml||'<div style="font-size:11px;color:var(--t3)">아젠다를 추가해봐요</div>'}</div></div><div class="mtg-section">
         <div class="mtg-section-title" style="margin-bottom:6px">📝 회의 노트</div>
         ${notesToolbarHtml('ned-'+id)}
@@ -3538,10 +3590,96 @@ function updateMtgField(id,field,val){const m=getMtg(id);if(m){m[field]=val;save
 function addAgenda(id){const m=getMtg(id);if(!m)return;if(!m.agenda)m.agenda=[];m.agenda.push({text:''});save();renderMtgDetail(id);}
 function updateAgenda(id,i,val){const m=getMtg(id);if(m&&m.agenda[i]!==undefined){m.agenda[i].text=val;save();}}
 function delAgenda(id,i){const m=getMtg(id);if(m){m.agenda.splice(i,1);save();renderMtgDetail(id);}}
-function addAction(id){const m=getMtg(id);if(!m)return;if(!m.actions)m.actions=[];m.actions.push({text:'',who:'',due:'',done:false});save();renderMtgDetail(id);}
-function updateAction(id,i,field,val){const m=getMtg(id);if(m&&m.actions[i]!==undefined){m.actions[i][field]=val;save();}}
-function toggleAction(id,i){const m=getMtg(id);if(m&&m.actions[i]!==undefined){m.actions[i].done=!m.actions[i].done;save();renderMtgDetail(id);}}
-function delAction(id,i){const m=getMtg(id);if(m){m.actions.splice(i,1);save();renderMtgDetail(id);}}
+function addAction(id){const m=getMtg(id);if(!m)return;if(!m.actions)m.actions=[];m.actions.push({id:'a-'+Date.now()+Math.random().toString(36).slice(2,6),text:'',who:'',due:'',done:false,projId:'',groupId:'',_planRef:null,_linkProjId:null,_linkGroupId:null});save();renderMtgDetail(id);}
+// 액션 아이템이 플랜/캘린더에 연동돼 있으면(=_planRef가 있으면) 그 연동된 할일이 진짜 원본이므로,
+// 다른 곳(플랜탭/캘린더)에서 먼저 바뀌었을 수 있는 최신 값을 로컬 캐시(a.text 등)로 끌어온 뒤에 편집을 적용함
+// (안 그러면 오래된 캐시 값 위에 체크/수정을 하다가 방금 외부에서 바뀐 내용을 덮어써버리는 문제가 생김)
+function _mtgActionRefreshCache(a){if(a._planRef){const v=getMtgActionView(a);a.text=v.text;a.who=v.who;a.due=v.due;a.done=v.done;}}
+function getMtgActionView(a){
+  if(a&&a._planRef&&a._linkProjId){
+    const proj=getProj(a._linkProjId);
+    if(proj){const parts=a._planRef.split('-');const gi=Number(parts[0]),ti=Number(parts[1]);const t=proj.plan?.groups?.[gi]?.tasks?.[ti];if(t)return{text:t.text||'',who:t.assignee||'',due:t.date||'',done:!!t.done};}
+  }
+  return{text:a?.text||'',who:a?.who||'',due:a?.due||'',done:!!a?.done};
+}
+// 액션 아이템의 프로젝트/항목(플랜 그룹)/날짜가 모두 선택되면 실제 플랜 할일 + 캘린더 일정으로 연동(생성/이동/갱신)하고,
+// 연동 대상이 바뀌거나 해제되면 기존에 만들어둔 플랜/캘린더 쪽 할일을 정리함
+function mtgActionSync(mtgId,actionIdx){
+  const m=getMtg(mtgId);if(!m||!m.actions)return;const a=m.actions[actionIdx];if(!a)return;
+  // 1) 기존 연동 대상(프로젝트/항목)이 바뀌었으면 예전 연동은 해제
+  if(a._planRef&&(a.projId!==a._linkProjId||a.groupId!==a._linkGroupId)){
+    const oldProj=getProj(a._linkProjId);
+    if(oldProj){
+      const parts=a._planRef.split('-');const ogi=Number(parts[0]),oti=Number(parts[1]);
+      const oldTask=oldProj.plan?.groups?.[ogi]?.tasks?.[oti];const oldDate=oldTask?oldTask.date:null;
+      if(oldDate&&oldProj.tasks?.[oldDate]){oldProj.tasks[oldDate]=oldProj.tasks[oldDate].filter(c=>c._planRef!==a._planRef);if(!oldProj.tasks[oldDate].length)delete oldProj.tasks[oldDate];}
+      if(oldProj.plan?.groups?.[ogi]?.tasks){oldProj.plan.groups[ogi].tasks.splice(oti,1);_reindexPlanRefsAfterTaskDelete(oldProj,ogi,oti);}
+    }
+    a._planRef=null;a._linkProjId=null;a._linkGroupId=null;
+  }
+  const wantLink=!!(a.projId&&a.groupId&&a.due);
+  if(!wantLink){save();return;}
+  const proj=getProj(a.projId);if(!proj){save();return;}
+  if(!proj.plan)proj.plan={name:proj.name,groups:[],createdAt:Date.now()};
+  if(!proj.plan.groups)proj.plan.groups=[];
+  const gi=proj.plan.groups.findIndex(g=>g.id===a.groupId);
+  if(gi===-1){save();return;}
+  const group=proj.plan.groups[gi];if(!group.tasks)group.tasks=[];
+  if(!proj.tasks)proj.tasks={};
+  if(a._planRef&&a._linkProjId===a.projId&&a._linkGroupId===a.groupId){
+    // 이미 같은 프로젝트/항목에 연동된 상태 - 내용/날짜만 최신화
+    const parts=a._planRef.split('-');const ti=Number(parts[1]);
+    const t=group.tasks[ti];if(!t){save();return;}
+    const prevDate=t.date;
+    t.text=a.text||'(제목 없음)';t.done=!!a.done;t.assignee=a.who||'';t.date=a.due;
+    if(prevDate!==a.due){
+      if(prevDate&&proj.tasks[prevDate]){proj.tasks[prevDate]=proj.tasks[prevDate].filter(c=>c._planRef!==a._planRef);if(!proj.tasks[prevDate].length)delete proj.tasks[prevDate];}
+      if(!proj.tasks[a.due])proj.tasks[a.due]=[];
+      proj.tasks[a.due].push({text:t.text,type:'meet',done:t.done,assignee:t.assignee,_planRef:a._planRef,_fromPlan:true,_mtgId:mtgId});
+    }else{
+      const ct=(proj.tasks[a.due]||[]).find(c=>c._planRef===a._planRef);
+      if(ct){ct.text=t.text;ct.done=t.done;ct.assignee=t.assignee;}
+      else{if(!proj.tasks[a.due])proj.tasks[a.due]=[];proj.tasks[a.due].push({text:t.text,type:'meet',done:t.done,assignee:t.assignee,_planRef:a._planRef,_fromPlan:true,_mtgId:mtgId});}
+    }
+  }else{
+    // 새로 연동: 플랜 그룹에 할일 생성 + 캘린더에도 동일하게 생성(기존 _planRef 방식 그대로 재사용)
+    group.tasks.push({text:a.text||'(제목 없음)',done:!!a.done,date:a.due,assignee:a.who||''});
+    const ti=group.tasks.length-1;
+    a._planRef=gi+'-'+ti;a._linkProjId=a.projId;a._linkGroupId=a.groupId;
+    if(!proj.tasks[a.due])proj.tasks[a.due]=[];
+    proj.tasks[a.due].push({text:a.text||'(제목 없음)',type:'meet',done:!!a.done,assignee:a.who||'',_planRef:a._planRef,_fromPlan:true,_mtgId:mtgId});
+  }
+  save();
+}
+function updateAction(id,i,field,val){
+  const m=getMtg(id);if(!m||!m.actions||m.actions[i]===undefined)return;
+  const a=m.actions[i];_mtgActionRefreshCache(a);
+  a[field]=val;
+  if(field==='projId')a.groupId=''; // 프로젝트를 바꾸면 이전 프로젝트의 항목 선택은 무효이므로 초기화
+  mtgActionSync(id,i);
+  if(field==='projId'||field==='groupId')renderMtgDetail(id); // 항목 선택지 갱신 + 연동 상태 표시를 위해 다시 그림
+}
+function toggleAction(id,i){
+  const m=getMtg(id);if(!m||!m.actions||m.actions[i]===undefined)return;
+  const a=m.actions[i];_mtgActionRefreshCache(a);
+  a.done=!a.done;
+  mtgActionSync(id,i);
+  renderMtgDetail(id);
+}
+function delAction(id,i){
+  const m=getMtg(id);if(!m||!m.actions)return;
+  const a=m.actions[i];
+  if(a&&a._planRef&&a._linkProjId){
+    const proj=getProj(a._linkProjId);
+    if(proj){
+      const parts=a._planRef.split('-');const gi=Number(parts[0]),ti=Number(parts[1]);
+      const t=proj.plan?.groups?.[gi]?.tasks?.[ti];const d=t?t.date:null;
+      if(d&&proj.tasks?.[d]){proj.tasks[d]=proj.tasks[d].filter(c=>c._planRef!==a._planRef);if(!proj.tasks[d].length)delete proj.tasks[d];}
+      if(proj.plan?.groups?.[gi]?.tasks){proj.plan.groups[gi].tasks.splice(ti,1);_reindexPlanRefsAfterTaskDelete(proj,gi,ti);}
+    }
+  }
+  m.actions.splice(i,1);save();renderMtgDetail(id);
+}
 
 // ── PRODUCTS ──
 function refreshProdProjFilter(){const sel=document.getElementById('prod-proj-filter');if(!sel)return;const cur=sel.value;sel.innerHTML='<option value="">전체 프로젝트</option>'+S.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');if(cur)sel.value=cur;}
@@ -4867,7 +5005,7 @@ function renderPublicShareView(sharedParam){
     const m=found.item;
     const proj=m.projId?getProj(m.projId):null;
     const agendaHtml=(m.agenda||[]).filter(a=>a.text).map((a,i)=>`<div style="padding:4px 0;font-size:13px">${i+1}. ${a.text}</div>`).join('')||'<div style="font-size:12px;color:#999">없음</div>';
-    const actionHtml=(m.actions||[]).filter(a=>a.text).map(a=>`<div style="padding:4px 0;font-size:13px">${a.done?'✅':'⬜'} ${a.text}${a.who?' ('+a.who+')':''}</div>`).join('')||'<div style="font-size:12px;color:#999">없음</div>';
+    const actionHtml=(m.actions||[]).map(a=>getMtgActionView(a)).filter(av=>av.text).map(av=>`<div style="padding:4px 0;font-size:13px">${av.done?'✅':'⬜'} ${av.text}${av.who?' ('+av.who+')':''}</div>`).join('')||'<div style="font-size:12px;color:#999">없음</div>';
     bodyHtml=`<div style="font-size:11px;color:#999;margin-bottom:14px">🔗 공유된 회의록 (읽기 전용)</div>
       <div style="font-size:20px;font-weight:700;margin-bottom:6px">${m.title}</div>
       <div style="font-size:12px;color:#888;margin-bottom:22px">📅 ${m.date||'날짜 미정'}${m.time?' '+m.time:''}${proj?' · 📁 '+proj.name:''}</div>
@@ -4891,7 +5029,12 @@ function duplicateMtg(id){
   copy.title=m.title+' (복사본)';
   copy.shared=false;copy.shareId=null; // 공유 링크는 복사되지 않고, 필요하면 새로 만들어야 함(원본과 링크를 같이 쓰면 안 되므로)
   copy.createdAt=Date.now();
-  copy.actions=(copy.actions||[]).map(a=>({...a,id:Date.now().toString()+Math.random().toString(36).slice(2,6)}));
+  // 복사본의 액션 아이템은 원본과 같은 플랜/캘린더 할일을 공유하면 안 되므로(하나를 고치면 둘 다 바뀌게 됨),
+  // 연동돼있던 항목은 현재 값을 그대로 스냅샷으로 떼어와 독립적인(연동 안 된) 액션 아이템으로 만듦
+  copy.actions=(m.actions||[]).map(a=>{
+    const av=getMtgActionView(a);
+    return{id:Date.now().toString()+Math.random().toString(36).slice(2,6),text:av.text,who:av.who,due:av.due,done:av.done,projId:'',groupId:'',_planRef:null,_linkProjId:null,_linkGroupId:null};
+  });
   if(!S.meetings)S.meetings=[];
   S.meetings.unshift(copy);
   _curMtgId=copy.id;
@@ -4913,14 +5056,16 @@ function loadActionImportItems(){
   const wrap=document.getElementById('ai-picks');
   if(!srcId){wrap.innerHTML='';return;}
   const src=getMtg(srcId);
-  const actions=(src?.actions||[]).filter(a=>!a.done&&a.text);
-  wrap.innerHTML=actions.length?actions.map(a=>`<div class="pick-item" onclick="togglePick(this)" data-text="${(a.text||'').replace(/"/g,'&quot;')}" data-who="${(a.who||'').replace(/"/g,'&quot;')}" data-due="${a.due||''}"><div class="pick-chk"></div><div class="pick-text">${a.text}</div>${a.who?`<span class="pick-badge action">${a.who}</span>`:''}</div>`).join(''):'<div style="font-size:11px;color:var(--t3)">미완료 액션 아이템이 없어요</div>';
+  const actions=(src?.actions||[]).map(a=>getMtgActionView(a)).filter(av=>!av.done&&av.text);
+  wrap.innerHTML=actions.length?actions.map(av=>`<div class="pick-item" onclick="togglePick(this)" data-text="${(av.text||'').replace(/"/g,'&quot;')}" data-who="${(av.who||'').replace(/"/g,'&quot;')}" data-due="${av.due||''}"><div class="pick-chk"></div><div class="pick-text">${av.text}</div>${av.who?`<span class="pick-badge action">${av.who}</span>`:''}</div>`).join(''):'<div style="font-size:11px;color:var(--t3)">미완료 액션 아이템이 없어요</div>';
 }
 function confirmActionImport(){
   const m=getMtg(_actionImportTargetMtgId);if(!m)return;
   if(!m.actions)m.actions=[];
+  // 다른 회의에서 가져온 액션 아이템은 그 회의의 플랜/캘린더 연동과는 무관한, 이 회의만의 새 항목으로 시작함
+  // (가져온 시점의 텍스트/담당자/날짜만 복사하고, 여기서 다시 프로젝트/항목을 선택해 새로 연동할 수 있음)
   document.querySelectorAll('#ai-picks .pick-item.picked').forEach(el=>{
-    m.actions.push({text:el.dataset.text,who:el.dataset.who||'',due:el.dataset.due||'',done:false,id:Date.now().toString()+Math.random().toString(36).slice(2,6)});
+    m.actions.push({text:el.dataset.text,who:el.dataset.who||'',due:el.dataset.due||'',done:false,id:Date.now().toString()+Math.random().toString(36).slice(2,6),projId:'',groupId:'',_planRef:null,_linkProjId:null,_linkGroupId:null});
   });
   save();closeActionImportModal();renderMtgDetail(_actionImportTargetMtgId);
 }

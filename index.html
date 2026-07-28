@@ -5084,7 +5084,7 @@ async function init(){
   if(sharedParam){ renderPublicShareView(sharedParam); return; }
 
   // 세션 복원
-  try{const saved=localStorage.getItem('mf_user');if(saved){_mfUser=JSON.parse(saved);document.getElementById('login-screen').style.display='none';document.getElementById('dashboard-body').style.display='block';const n=document.getElementById('dash-user-name');const a=document.getElementById('dash-user-avatar');if(n)n.textContent=_mfUser.name;if(a)a.textContent=_mfUser.name[0];const og=document.getElementById('dash-user-org');if(og)og.textContent=_mfUser.org||'';updateMyNoteLabel();}}catch(e){}
+  restoreMfSession();
   refreshProjSelects();updatePlanCalHint();renderDashboard();const _db=document.getElementById('btn-del-proj');if(_db&&S.curProjId)_db.style.display='block';updateMemoHint();renderMiniCal();qtRefreshProj();qtAddRow();renderProjSummary();btRefreshProjSel();rpRefreshProjSel();
   if(S.curProjId){const proj=getCurProj();if(proj&&proj.plan){S._pendingPlan=JSON.parse(JSON.stringify(proj.plan));renderPlanResult(proj.plan,false);}renderQuickAddGroups();loadPlanInputFromProj(proj);}
 }
@@ -5454,6 +5454,27 @@ const MF_USERS=[
   {id:'bbgg',name:'소현',email:'bbgg',pw:'0000',role:'member',org:'bbgg'},
 ];
 let _mfUser=null;
+// 버그 수정: 예전엔 localStorage에 저장해둔 계정 스냅샷을 새로고침할 때 그대로 믿고 썼는데, 그 사이 코드에서
+// 계정 정보(org/role 등, 예: juju의 org를 바바그라운드→관리자로 변경하거나 test1/bbgg 계정을 새로 추가하는 등)가 바뀌어도
+// 브라우저에 남아있는 옛날 스냅샷이 그대로 적용돼서 "로그인했더니 예전 소속 데이터가 그대로 보이는" 문제가 있었음.
+// 그래서 복원할 때 반드시 지금 코드의 MF_USERS 최신 정의를 기준으로 다시 맞춰줌(닉네임처럼 사용자가 직접 바꾼 값은 보존).
+function restoreMfSession(){
+  try{
+    const saved=localStorage.getItem('mf_user');
+    if(!saved)return false;
+    const savedUser=JSON.parse(saved);
+    const freshUser=MF_USERS.find(u=>u.id===savedUser.id);
+    _mfUser=freshUser?{...freshUser,name:savedUser.name||freshUser.name}:savedUser;
+    try{localStorage.setItem('mf_user',JSON.stringify(_mfUser));}catch(e2){}
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('dashboard-body').style.display='block';
+    const n=document.getElementById('dash-user-name');const a=document.getElementById('dash-user-avatar');
+    if(n)n.textContent=_mfUser.name;if(a)a.textContent=_mfUser.name[0];
+    const og=document.getElementById('dash-user-org');if(og)og.textContent=_mfUser.org||'';
+    updateMyNoteLabel();
+    return true;
+  }catch(e){return false;}
+}
 
 function doLogin(){
   const email=document.getElementById('login-email').value.trim().toLowerCase();

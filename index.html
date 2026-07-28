@@ -2067,6 +2067,8 @@ if(proj&&proj.plan){S._pendingPlan=JSON.parse(JSON.stringify(proj.plan));renderP
   else{S._pendingPlan=null;resetPlanOutput();}renderQuickAddGroups();updatePlanButtons();
   updatePlanCalHint();renderMiniCal();
   if(_curPanelTab==='memo'){updateMemoHint();renderMemos();}
+  // 버그 수정: 상단에서 프로젝트를 바꿔도 예산탭 선택값/표가 따로 놀던 문제 방지 (자가치유)
+  if(typeof btRefreshProjSel==='function')btRefreshProjSel();
 }
 function resetPlanOutput(){
   document.getElementById('plan-output').innerHTML=`<div class="empty-plan" id="plan-empty-state"><div class="ei">📋</div><p style="margin-bottom:14px">왼쪽 정보를 채우고 플랜을 생성하거나<br>아래에서 직접 일정을 입력해봐요</p><div id="quick-timeline" style="width:100%;max-width:480px;text-align:left"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div class="sec-label" style="margin-bottom:0">빠른 타임라인 입력</div><select id="qt-proj" style="font-size:11px;padding:4px 8px;background:var(--surf2);border:1px solid var(--b2);border-radius:var(--r-sm);color:var(--t);outline:none"></select></div><div id="qt-rows" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div><div style="display:flex;gap:6px"><button onclick="qtAddRow()" class="btn-add-mini" style="font-size:11px">+ 줄 추가</button><button onclick="qtPushToCalendar()" class="btn-gen" style="padding:7px 16px;font-size:12px;width:auto">캘린더에 추가 →</button></div></div></div>`;
@@ -3689,6 +3691,9 @@ function btRefreshProjSel(){
   const cur=sel.value;
   sel.innerHTML='<option value="">프로젝트 선택</option><option value="all">📁 전체 프로젝트</option>'+S.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
   if(cur)sel.value=cur;else if(S.curProjId)sel.value=S.curProjId;
+  // 버그 수정: 드롭다운 값(예: 프로젝트 이름)만 갱신되고 실제 예산 표는 그대로 비어있던 문제 방지.
+  // 어디서 호출되든 드롭다운이 가리키는 프로젝트와 실제 표시되는 표 내용이 항상 일치하도록 자가치유.
+  if(typeof btLoadProject==='function')btLoadProject();
 }
 
 // 플랜 할일 예산 집계해서 예산 탭에 반영

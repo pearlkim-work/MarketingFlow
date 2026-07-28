@@ -2079,6 +2079,17 @@ function renderNpGoals(){
 // ── PROJECTS ──
 // 버그 수정: 예전/손상된 데이터에서 proj.budget이 배열이 아닌 경우(예: 옛날 버전에서 만들어진 프로젝트)
 // .find/.reduce 등을 호출할 때 "is not a function" 에러로 플랜생성/예산탭이 전부 멈추던 문제 방지(자가치유)
+// 버그 수정(실사용 중 발견): "총 예산" 자유 텍스트 입력칸(p-budget)과 예산 트래커의 채널별 배열이
+// 둘 다 proj.budget 이라는 같은 필드를 쓰고 있어서, 예산 트래커를 쓰면 총예산 입력칸이 "[object Object],..."로
+// 깨져 보이고, 반대로 "프로젝트 정보"의 아무 입력칸이나 수정하면 예산 트래커의 실제 데이터가 통째로 문자열로
+// 덮어써져 사라질 위험이 있었음. 배열이면 budgetRows로 옮기고 budget은 원래 용도(자유 텍스트)로 되돌림.
+function migrateBudgetField(p){
+  if(Array.isArray(p.budget)){
+    if(!Array.isArray(p.budgetRows))p.budgetRows=p.budget;
+    p.budget='';
+  }
+  if(!Array.isArray(p.budgetRows))p.budgetRows=[];
+}
 // 버그 수정: 플랜 탭 "목표 설정"에서 만든 목표는 예전엔 id 없이 {name,target,unit,done}으로 저장되어서
 // 홈 대시보드/PDF가 id로 목표를 찾지 못해 현재값을 입력해도 반영되지 않던 문제(진짜 원인).
 // 여기서 없는 id를 프로젝트+인덱스 기반으로 부여하고(재실행해도 항상 같은 값), done 필드로 저장된
@@ -2089,13 +2100,13 @@ function normalizeGoal(p,g,gi){
 }
 function normalizeProjectsData(){
   (S.projects||[]).forEach(p=>{
-    if(!Array.isArray(p.budget))p.budget=[];
+    migrateBudgetField(p);
     (p.goals||[]).forEach((g,gi)=>normalizeGoal(p,g,gi));
   });
 }
 function getProj(id){
   const p=S.projects.find(p=>p.id===id);
-  if(p&&!Array.isArray(p.budget))p.budget=[];
+  if(p)migrateBudgetField(p);
   if(p)(p.goals||[]).forEach((g,gi)=>normalizeGoal(p,g,gi));
   return p;
 }
@@ -2496,7 +2507,7 @@ function genPlan(){
 function applyChBudgetsToProject(p){
   if(!p||!p.plan?.groups)return;
   const chBudgets=p.chBudgets||{};
-  if(!Array.isArray(p.budget))p.budget=[];
+  if(!Array.isArray(p.budgetRows))p.budgetRows=[];
   // 예전에 만들어진 그룹은 _ch가 없을 수 있어서 이름으로도 매칭(하위호환)
   const TN={'Meta 광고':'Meta','카카오 CRM':'CRM','인플루언서/블로그':'인플루언서','네이버 검색':'네이버','유튜브':'유튜브','당근마켓':'당근'};
   Object.keys(chBudgets).forEach(ch=>{
@@ -2507,10 +2518,10 @@ function applyChBudgetsToProject(p){
     if(!group)return; // 선택 해제된 항목이면 예산탭에도 반영 안 함
     if(!group._ch)group._ch=ch; // 다음부터는 바로 매칭되도록 보강
     group.budget=val;
-    let row=p.budget.find(r=>r._ch===ch);
-    if(!row)row=p.budget.find(r=>r.channel===group.name&&!r._ch);
+    let row=p.budgetRows.find(r=>r._ch===ch);
+    if(!row)row=p.budgetRows.find(r=>r.channel===group.name&&!r._ch);
     if(row){row.planTotal=val;row._ch=ch;}
-    else if(val>0){p.budget.push({id:'ch-'+ch,channel:group.name,cat:'플랜',planTotal:val,monthly:{},planMonthly:{},_ch:ch});}
+    else if(val>0){p.budgetRows.push({id:'ch-'+ch,channel:group.name,cat:'플랜',planTotal:val,monthly:{},planMonthly:{},_ch:ch});}
   });
 }
 
@@ -4298,7 +4309,7 @@ function btLoadProject(){
   }
   const proj=getProj(projId);
   if(!proj){document.getElementById('bt-content').innerHTML='<div class="empty-plan"><div class="ei">💰</div><p style="font-weight:700;color:var(--t);margin-bottom:4px">예산 트래커</p><p style="font-size:12px">위에서 프로젝트를 선택하면<br>채널별 예산을 관리할 수 있어요</p></div>';if(planBudgetEl)planBudgetEl.style.display='none';const fEl=document.getElementById('bt-forecast-section');if(fEl)fEl.style.display='none';return;}
-  if(!Array.isArray(proj.budget))proj.budget=[];
+  if(!Array.isArray(proj.budgetRows))proj.budgetRows=[];
   renderBudgetTracker(proj);
 
   renderPlanBudgetSection(proj);
@@ -4367,7 +4378,7 @@ function renderBudgetForecastSection(){
 // ── 전체 프로젝트 예산 비교 뷰 ──
 function renderAllProjectsBudget(){
   const container=document.getElementById('bt-content');
-  const projs=getVisibleProjects().filter(p=>(p.budget||[]).length);
+  const projs=getVisibleProjects().filter(p=>(p.budgetRows||[]).length);
   if(!projs.length){
     container.innerHTML='<div class="empty-plan"><div class="ei">💰</div><p style="font-weight:700;color:var(--t);margin-bottom:4px">아직 예산 데이터가 없어요</p><p style="font-size:12px">각 프로젝트를 선택해서 항목을 추가해봐요</p></div>';
     return;
@@ -4375,7 +4386,7 @@ function renderAllProjectsBudget(){
   const PC=['#eaf4ff','#eafaf0','#fdf3e3','#f5eefc','#fdeaea','#eafcf6'];
   let grandPlan=0,grandActual=0;
   const rowsHtml=projs.map((p,pi)=>{
-    const rows=p.budget||[];
+    const rows=p.budgetRows||[];
     const planTot=rows.reduce((s,r)=>s+(parseFloat(r.planTotal)||0),0);
     const actualTot=rows.reduce((s,r)=>s+Object.values(r.monthly||{}).reduce((a,b)=>a+(parseFloat(b)||0),0),0);
     const remTot=planTot-actualTot;
@@ -4432,7 +4443,7 @@ function renderAllProjectsBudget(){
           <td colspan="2" style="font-size:11px;font-weight:700">전체 합계</td>
           <td style="text-align:right;font-weight:700">${grandPlan.toLocaleString()}</td>
           <td class="bt-col-rem" style="text-align:right;font-weight:700;background:#fff3b0">${grandRem>=0?'':'-'}${Math.abs(grandRem).toLocaleString()}</td>
-          ${MONTHS.map((m,mi)=>{const mk=String(mi+1).padStart(2,'0');const sum=projs.reduce((s,p)=>s+(p.budget||[]).reduce((s2,r)=>s2+(parseFloat((r.monthly||{})[mk])||0),0),0);return`<td style="text-align:right;font-weight:700;color:var(--lm2)">${sum?sum.toLocaleString():''}</td>`;}).join('')}
+          ${MONTHS.map((m,mi)=>{const mk=String(mi+1).padStart(2,'0');const sum=projs.reduce((s,p)=>s+(p.budgetRows||[]).reduce((s2,r)=>s2+(parseFloat((r.monthly||{})[mk])||0),0),0);return`<td style="text-align:right;font-weight:700;color:var(--lm2)">${sum?sum.toLocaleString():''}</td>`;}).join('')}
           <td style="text-align:right;font-weight:700;color:var(--lm)">${grandActual.toLocaleString()}</td>
           <td style="text-align:right;font-weight:700;color:${grandBurn>100?'var(--red)':'var(--t2)'}">${grandBurn}%</td>
         </tr>
@@ -4468,7 +4479,7 @@ function getProjectedSpendForMonth(proj,monthKey,channelName){
   return sum;
 }
 function renderBudgetTracker(proj){
-  const rows=proj.budget||[];
+  const rows=proj.budgetRows||[];
   const now=new Date();
   const curMonthKey=String(now.getMonth()+1).padStart(2,'0');
   const nextMonthKey=String((now.getMonth()+1)%12+1).padStart(2,'0');
@@ -4567,16 +4578,16 @@ function renderBudgetTracker(proj){
   document.getElementById('bt-content').innerHTML=summaryHtml+tableHtml;
 }
 function btSelectMonth(m){_btCurMonth=m;const projId=document.getElementById('bt-proj-sel')?.value;const proj=getProj(projId);if(proj)renderBudgetTracker(proj);}
-function btUpdateActual(projId,ri,month,val){const proj=getProj(projId);if(!proj||!proj.budget[ri])return;if(!proj.budget[ri].monthly)proj.budget[ri].monthly={};proj.budget[ri].monthly[month]=parseFloat(val)||0;save();renderBudgetTracker(proj);}
-function btUpdatePlanMonthly(projId,ri,month,val){const proj=getProj(projId);if(!proj||!proj.budget[ri])return;if(!proj.budget[ri].planMonthly)proj.budget[ri].planMonthly={};proj.budget[ri].planMonthly[month]=parseFloat(val)||0;save();renderBudgetTracker(proj);}
-function btDeleteRow(projId,ri){const proj=getProj(projId);if(!proj)return;proj.budget.splice(ri,1);save();renderBudgetTracker(proj);}
+function btUpdateActual(projId,ri,month,val){const proj=getProj(projId);if(!proj||!proj.budgetRows[ri])return;if(!proj.budgetRows[ri].monthly)proj.budgetRows[ri].monthly={};proj.budgetRows[ri].monthly[month]=parseFloat(val)||0;save();renderBudgetTracker(proj);}
+function btUpdatePlanMonthly(projId,ri,month,val){const proj=getProj(projId);if(!proj||!proj.budgetRows[ri])return;if(!proj.budgetRows[ri].planMonthly)proj.budgetRows[ri].planMonthly={};proj.budgetRows[ri].planMonthly[month]=parseFloat(val)||0;save();renderBudgetTracker(proj);}
+function btDeleteRow(projId,ri){const proj=getProj(projId);if(!proj)return;proj.budgetRows.splice(ri,1);save();renderBudgetTracker(proj);}
 function btOpenAddRowModal(){document.getElementById('bt-add-modal').style.display='flex';document.getElementById('bam-channel').focus();}
 function btCloseAddRowModal(){document.getElementById('bt-add-modal').style.display='none';}
 function btSaveNewRow(){
   const channel=document.getElementById('bam-channel').value.trim();if(!channel)return;
   const projId=document.getElementById('bt-proj-sel')?.value;const proj=getProj(projId);if(!proj){alert('프로젝트를 먼저 선택해주세요');return;}
-  if(!Array.isArray(proj.budget))proj.budget=[];
-  proj.budget.push({id:Date.now().toString(),channel,cat:document.getElementById('bam-cat').value,planTotal:parseFloat(document.getElementById('bam-plan-total').value)||0,memo:document.getElementById('bam-memo').value,monthly:{},planMonthly:{}});
+  if(!Array.isArray(proj.budgetRows))proj.budgetRows=[];
+  proj.budgetRows.push({id:Date.now().toString(),channel,cat:document.getElementById('bam-cat').value,planTotal:parseFloat(document.getElementById('bam-plan-total').value)||0,memo:document.getElementById('bam-memo').value,monthly:{},planMonthly:{}});
   save();btCloseAddRowModal();renderBudgetTracker(proj);
   ['bam-channel','bam-plan-total','bam-memo'].forEach(id=>document.getElementById(id).value='');
 }
@@ -4665,7 +4676,7 @@ async function genReport(){
   const pct=tot?Math.round(done/tot*100):0;
   const ads=proj.ads||[];const liveN=ads.filter(a=>a.status==='live').length;
   const goals=proj.goals||[];
-  const budgetRows=proj.budget||[];
+  const budgetRows=proj.budgetRows||[];
   const totalPlan=budgetRows.reduce((s,r)=>s+(parseFloat(r.planTotal)||0),0);
   const totalActual=budgetRows.reduce((s,r)=>s+Object.values(r.monthly||{}).reduce((a,b)=>a+(parseFloat(b)||0),0),0);
   const typeNames={weekly:'주간 리포트',monthly:'월간 리포트',campaign:'캠페인 중간 결산',final:'최종 결산 리포트'};
@@ -5187,7 +5198,7 @@ function openDashPdf(){
   projs.forEach(proj=>{
     Object.values(proj.tasks||{}).forEach(ts=>ts.forEach(t=>{totTasks++;if(t.done)doneTasks++;}));
     (proj.ads||[]).forEach(a=>{if(a.status==='live')liveAds++;});
-    (Array.isArray(proj.budget)?proj.budget:[]).forEach(b=>{totalBudget+=(parseFloat(b.planTotal)||0);spentBudget+=Object.values(b.monthly||{}).reduce((s,v)=>s+(parseFloat(v)||0),0);});
+    (Array.isArray(proj.budgetRows)?proj.budgetRows:[]).forEach(b=>{totalBudget+=(parseFloat(b.planTotal)||0);spentBudget+=Object.values(b.monthly||{}).reduce((s,v)=>s+(parseFloat(v)||0),0);});
   });
   const completePct=totTasks?Math.round(doneTasks/totTasks*100):0;
   const burnRate=totalBudget?Math.round(spentBudget/totalBudget*100):0;
@@ -5417,7 +5428,7 @@ async function runAiInsight(){
   const avgRoas=roasAds.length?roasAds.reduce((s,a)=>s+a.roas,0)/roasAds.length:0;
 
   let totalBudget=0,spentBudget=0;
-  projs.forEach(p=>(p.budget||[]).forEach(b=>{totalBudget+=parseFloat(b.planTotal)||0;spentBudget+=Object.values(b.monthly||{}).reduce((s,v)=>s+(parseFloat(v)||0),0);}));
+  projs.forEach(p=>(p.budgetRows||[]).forEach(b=>{totalBudget+=parseFloat(b.planTotal)||0;spentBudget+=Object.values(b.monthly||{}).reduce((s,v)=>s+(parseFloat(v)||0),0);}));
   const burnRate=totalBudget?Math.round(spentBudget/totalBudget*100):0;
 
   const allGoals=[];projs.forEach(p=>(p.goals||[]).forEach(g=>allGoals.push({...g,projName:p.name})));
@@ -5438,7 +5449,7 @@ async function runAiInsight(){
 
   // 채널별 예산
   const chBudget={};
-  projs.forEach(p=>(p.budget||[]).forEach(b=>{const ch=b.channel||'기타';if(!chBudget[ch])chBudget[ch]={plan:0,actual:0};chBudget[ch].plan+=parseFloat(b.planTotal)||0;chBudget[ch].actual+=Object.values(b.monthly||{}).reduce((s,v)=>s+(parseFloat(v)||0),0);}));
+  projs.forEach(p=>(p.budgetRows||[]).forEach(b=>{const ch=b.channel||'기타';if(!chBudget[ch])chBudget[ch]={plan:0,actual:0};chBudget[ch].plan+=parseFloat(b.planTotal)||0;chBudget[ch].actual+=Object.values(b.monthly||{}).reduce((s,v)=>s+(parseFloat(v)||0),0);}));
   const chBudgetStr=Object.entries(chBudget).map(([ch,d])=>`${ch}: 계획 ${d.plan}만/집행 ${d.actual}만(${d.plan>0?Math.round(d.actual/d.plan*100):0}%)`).join(', ');
 
   const today=new Date();
@@ -5663,7 +5674,7 @@ function renderDashboard(){
   projs.forEach(proj=>{
     Object.values(proj.tasks||{}).forEach(ts=>ts.forEach(t=>{totTasks++;if(t.done)doneTasks++;}));
     (proj.ads||[]).forEach(a=>{if(a.status==='live')liveAds++;});
-    (Array.isArray(proj.budget)?proj.budget:[]).forEach(b=>{totalBudget+=(parseFloat(b.planTotal)||0);spentBudget+=Object.values(b.monthly||{}).reduce((s,v)=>s+(parseFloat(v)||0),0);});
+    (Array.isArray(proj.budgetRows)?proj.budgetRows:[]).forEach(b=>{totalBudget+=(parseFloat(b.planTotal)||0);spentBudget+=Object.values(b.monthly||{}).reduce((s,v)=>s+(parseFloat(v)||0),0);});
   });
   const completePct=totTasks?Math.round(doneTasks/totTasks*100):0;
   const burnRate=totalBudget?Math.round(spentBudget/totalBudget*100):0;
@@ -5752,8 +5763,8 @@ function renderDashboard(){
       </div>
     </div>`).join(''):'<div style="font-size:11px;color:var(--t3);text-align:center;padding:20px 0">ROAS가 입력된 광고가 없어요</div>';
 
-  // 채널별 예산 vs 집행 — proj.budget[].planTotal(계획) vs monthly 합계(집행 실적) 기준
-  const chBudgetMap={};projs.forEach(p=>(Array.isArray(p.budget)?p.budget:[]).forEach(b=>{const ch=b.channel||'기타';if(!chBudgetMap[ch])chBudgetMap[ch]={plan:0,actual:0};chBudgetMap[ch].plan+=parseFloat(b.planTotal)||0;chBudgetMap[ch].actual+=Object.values(b.monthly||{}).reduce((s,v)=>s+(parseFloat(v)||0),0);}));
+  // 채널별 예산 vs 집행 — proj.budgetRows[].planTotal(계획) vs monthly 합계(집행 실적) 기준
+  const chBudgetMap={};projs.forEach(p=>(Array.isArray(p.budgetRows)?p.budgetRows:[]).forEach(b=>{const ch=b.channel||'기타';if(!chBudgetMap[ch])chBudgetMap[ch]={plan:0,actual:0};chBudgetMap[ch].plan+=parseFloat(b.planTotal)||0;chBudgetMap[ch].actual+=Object.values(b.monthly||{}).reduce((s,v)=>s+(parseFloat(v)||0),0);}));
   const chBudgetArr=Object.entries(chBudgetMap).map(([ch,d])=>({ch,...d,pct:d.plan>0?Math.round(d.actual/d.plan*100):0}));
   const budgetVsEl=document.getElementById('dash-budget-vs');
   if(budgetVsEl)budgetVsEl.innerHTML=chBudgetArr.length?chBudgetArr.map(c=>`
@@ -6236,7 +6247,7 @@ function openUtmCreateModal(){updateUtmPreview();document.getElementById('utm-ur
 function renderDashboardPart2(projs, today, liveAds, wPct, weekTasks){
   // ── 마케터 인사이트 ──
   const insights=[];
-  const _bArr=[];projs.forEach(p=>(Array.isArray(p.budget)?p.budget:[]).forEach(b=>{const plan=parseFloat(b.planTotal)||0;const actual=Object.values(b.monthly||{}).reduce((s,v)=>s+(parseFloat(v)||0),0);if(plan>0)_bArr.push({ch:b.channel||'기타',plan,actual});}));
+  const _bArr=[];projs.forEach(p=>(Array.isArray(p.budgetRows)?p.budgetRows:[]).forEach(b=>{const plan=parseFloat(b.planTotal)||0;const actual=Object.values(b.monthly||{}).reduce((s,v)=>s+(parseFloat(v)||0),0);if(plan>0)_bArr.push({ch:b.channel||'기타',plan,actual});}));
   const overBudget=_bArr.filter(b=>b.actual>b.plan);
   if(overBudget.length)insights.push({icon:'⚠️',color:'var(--rd)',bg:'var(--rdbg)',text:'<b>'+overBudget.map(b=>b.ch).join(', ')+'</b> 채널 예산 초과 집행 중'});
   const nearEnd=projs.filter(p=>{if(!p.end)return false;const diff=(new Date(p.end)-today)/(1000*60*60*24);return diff>=0&&diff<=7;});

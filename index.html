@@ -3987,8 +3987,30 @@ function renderAllProjectsBudget(){
     </table>
   </div>`;
 }
+// 버그/기능 추가: 할일(플랜)에 이미 넣어둔 예산을 이번 달/다음 달 "예상 소진 예산"으로 미리 볼 수 있게 함.
+// 지난 달(이미 끝난 달)은 수기로 입력한 실집행 금액이 확정값이라 여기선 손대지 않고,
+// 이번 달(아직 안 끝남)/다음 달처럼 아직 실집행을 입력 안 한 달만 할일 예산 합계로 미리 보여줌.
+function getProjectedSpendForMonth(proj,monthKey,channelName){
+  if(!proj||!proj.plan?.groups)return 0;
+  let sum=0;
+  proj.plan.groups.forEach(g=>{
+    if(channelName&&g.name!==channelName)return;
+    (g.tasks||[]).forEach(t=>{
+      if(!t.budget||!t.date)return;
+      if(t.date.split('-')[1]===monthKey)sum+=parseFloat(t.budget)||0;
+    });
+  });
+  return sum;
+}
 function renderBudgetTracker(proj){
   const rows=proj.budget||[];
+  const now=new Date();
+  const curMonthKey=String(now.getMonth()+1).padStart(2,'0');
+  const nextMonthKey=String((now.getMonth()+1)%12+1).padStart(2,'0');
+  const curMonthLabel=MONTHS[now.getMonth()];
+  const nextMonthLabel=MONTHS[(now.getMonth()+1)%12];
+  const curMonthProjected=getProjectedSpendForMonth(proj,curMonthKey);
+  const nextMonthProjected=getProjectedSpendForMonth(proj,nextMonthKey);
   // 요약 카드
   const totalPlan=rows.reduce((s,r)=>s+(parseFloat(r.planTotal)||0),0);
   const totalActual=rows.reduce((s,r)=>{const monthly=r.monthly||{};return s+Object.values(monthly).reduce((a,b)=>a+(parseFloat(b)||0),0);},0);
@@ -3999,6 +4021,8 @@ function renderBudgetTracker(proj){
     <div class="bt-sum-card"><div class="bt-sum-label">총 실제 집행</div><div class="bt-sum-val" style="color:var(--lm)">${totalActual.toLocaleString()}만원</div><div class="bt-sum-sub">누적 소진액</div></div>
     <div class="bt-sum-card"><div class="bt-sum-label">잔여 예산</div><div class="bt-sum-val" style="color:${remaining>=0?'var(--blue)':'var(--red)'}">${remaining>=0?'':'▲'}${Math.abs(remaining).toLocaleString()}만원</div><div class="bt-sum-sub">${remaining<0?'초과 집행':''}</div></div>
     <div class="bt-sum-card"><div class="bt-sum-label">소진율</div><div class="bt-sum-val" style="color:${burnRate>100?'var(--red)':burnRate>80?'var(--orange)':'var(--lm)'}">${burnRate}%</div><div class="bt-sum-sub">계획 대비</div></div>
+    <div class="bt-sum-card"><div class="bt-sum-label">${curMonthLabel} 예상 소진 (할일 기준)</div><div class="bt-sum-val" style="color:var(--orange)">${curMonthProjected.toLocaleString()}만원</div><div class="bt-sum-sub">할일에 넣어둔 예산 합계 · 아직 미확정</div></div>
+    <div class="bt-sum-card"><div class="bt-sum-label">${nextMonthLabel} 예상 소진 (할일 기준)</div><div class="bt-sum-val" style="color:var(--blue)">${nextMonthProjected.toLocaleString()}만원</div><div class="bt-sum-sub">할일에 넣어둔 예산 합계 · 아직 미확정</div></div>
   </div>`;
 
   // 테이블 — 전체 달을 한 행에 나란히 (스프레드시트 형태)
@@ -4028,7 +4052,11 @@ function renderBudgetTracker(proj){
             ${MONTHS.map((m,mi)=>{
               const mk=String(mi+1).padStart(2,'0');
               const v=(r.monthly||{})[mk]||'';
-              return`<td style="text-align:right"><input class="bt-inp" type="number" value="${v}" placeholder="" min="0" onchange="btUpdateActual('${proj.id}',${ri},'${mk}',this.value)"></td>`;
+              // 이번 달/다음 달처럼 아직 안 끝난 달인데 실집행이 비어있으면, 할일에 넣어둔 예산 합계를 "예상"으로 살짝 보여줌
+              const isCurOrFuture=mi>=now.getMonth();
+              const projected=isCurOrFuture?getProjectedSpendForMonth(proj,mk,r.channel):0;
+              const showHint=isCurOrFuture&&!v&&projected>0;
+              return`<td style="text-align:right"><input class="bt-inp" type="number" value="${v}" placeholder="" min="0" onchange="btUpdateActual('${proj.id}',${ri},'${mk}',this.value)">${showHint?`<div style="font-size:9px;color:var(--orange);margin-top:2px;white-space:nowrap">예상 ${projected.toLocaleString()}</div>`:''}</td>`;
             }).join('')}
             <td style="text-align:right;font-weight:600;color:var(--lm)">${totalActR.toLocaleString()}</td>
             <td><button class="task-del" onclick="btDeleteRow('${proj.id}',${ri})">✕</button></td>

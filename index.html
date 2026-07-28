@@ -2023,17 +2023,24 @@ function renderNpGoals(){
 // ── PROJECTS ──
 // 버그 수정: 예전/손상된 데이터에서 proj.budget이 배열이 아닌 경우(예: 옛날 버전에서 만들어진 프로젝트)
 // .find/.reduce 등을 호출할 때 "is not a function" 에러로 플랜생성/예산탭이 전부 멈추던 문제 방지(자가치유)
+// 버그 수정: 플랜 탭 "목표 설정"에서 만든 목표는 예전엔 id 없이 {name,target,unit,done}으로 저장되어서
+// 홈 대시보드/PDF가 id로 목표를 찾지 못해 현재값을 입력해도 반영되지 않던 문제(진짜 원인).
+// 여기서 없는 id를 프로젝트+인덱스 기반으로 부여하고(재실행해도 항상 같은 값), done 필드로 저장된
+// 예전 값도 current로 이어받아 화면에 정상적으로 뜨도록 함.
+function normalizeGoal(p,g,gi){
+  if(!g.id)g.id='g_'+p.id+'_'+gi;
+  if(typeof g.current!=='number'||isNaN(g.current))g.current=parseFloat(g.current)||parseFloat(g.done)||0;
+}
 function normalizeProjectsData(){
   (S.projects||[]).forEach(p=>{
     if(!Array.isArray(p.budget))p.budget=[];
-    // 버그 수정: 목표(goals)의 현재값이 없거나 숫자가 아니면(예전 데이터) NaN%로 뜨던 문제 방지
-    (p.goals||[]).forEach(g=>{ if(typeof g.current!=='number'||isNaN(g.current))g.current=parseFloat(g.current)||0; });
+    (p.goals||[]).forEach((g,gi)=>normalizeGoal(p,g,gi));
   });
 }
 function getProj(id){
   const p=S.projects.find(p=>p.id===id);
   if(p&&!Array.isArray(p.budget))p.budget=[];
-  if(p)(p.goals||[]).forEach(g=>{ if(typeof g.current!=='number'||isNaN(g.current))g.current=parseFloat(g.current)||0; });
+  if(p)(p.goals||[]).forEach((g,gi)=>normalizeGoal(p,g,gi));
   return p;
 }
 function getCurProj(){return getProj(S.curProjId)}
@@ -2274,7 +2281,10 @@ function addPlanGoal(){
   const unit=document.getElementById('p-goal-unit')?.value||'건';
   if(!name||!val)return;
   if(!p.goals)p.goals=[];
-  p.goals.push({name,target:val,unit,done:0});
+  // 버그 수정: 예전엔 id 없이 {name,target,unit,done}으로 저장되어 홈 대시보드/PDF에서
+  // id로 목표를 못 찾아 현재값 입력이 반영되지 않던 문제. 다른 목표 생성 경로(npAddGoal 등)와
+  // 동일한 스키마({id,name,target,unit,current})로 통일함.
+  p.goals.push({id:Date.now().toString()+Math.floor(Math.random()*1000),name,target:parseFloat(val)||0,unit,current:0});
   document.getElementById('p-goal-name').value='';
   document.getElementById('p-goal-val').value='';
   save();renderPlanGoals(p);
@@ -4800,6 +4810,69 @@ function renderDashboard(){
     ${weekTasks.slice(0,6).map(t=>{const[,m,d]=t.date.split('-');return`<div style="display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid var(--b)"><div style="width:26px;font-size:10px;color:var(--t3);flex-shrink:0;text-align:center">${parseInt(m)}/${parseInt(d)}</div><div style="width:3px;height:26px;border-radius:2px;background:${t.pc};flex-shrink:0"></div><div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:500;${t.done?'text-decoration:line-through;color:var(--t3)':''};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.text}</div><div style="font-size:9px;color:var(--t3);margin-top:1px">${t.projName} · <span style="color:${typeColor[t.type]||'var(--t3)'}">${typeLabel[t.type]||t.type||'일반'}</span></div></div>${t.done?'<span style="font-size:10px;color:var(--gn)">✓</span>':'<div style="width:6px;height:6px;border-radius:50%;background:var(--or);flex-shrink:0"></div>'}</div>`;}).join('')}
     ${weekTasks.length>6?`<div style="font-size:10px;color:var(--t3);text-align:center;padding:6px 0">+${weekTasks.length-6}개 더</div>`:''}
   `:'<div style="font-size:11px;color:var(--t3);text-align:center;padding:20px 0">이번 주 일정이 없어요</div>';
+
+  // 버그 수정: 아래 4개 카드(광고 성과 랭킹/채널별 ROAS 분석/채널별 예산 vs 집행/프로젝트 진행률)는
+  // 컨테이너만 있고 실제로 채워주는 코드가 없어서 항상 빈 화면이었음. 실제 데이터로 렌더링함.
+  const allAdsForRank=[];projs.forEach(p=>(p.ads||[]).forEach(a=>allAdsForRank.push({...a,projName:p.name})));
+
+  // 광고 성과 랭킹 (ROAS 기준)
+  const rankedAds=allAdsForRank.filter(a=>(parseFloat(a.roas)||0)>0).sort((a,b)=>(parseFloat(b.roas)||0)-(parseFloat(a.roas)||0));
+  const adRankEl=document.getElementById('dash-ad-ranking');
+  if(adRankEl)adRankEl.innerHTML=rankedAds.length?rankedAds.slice(0,5).map((a,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--b)">
+      <div style="width:16px;font-size:11px;font-weight:800;color:${i===0?'#b8860b':'var(--t3)'};flex-shrink:0">${i+1}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.name}</div>
+        <div style="font-size:9px;color:var(--t3)">${a.channel||'채널 미지정'} · ${a.projName}</div>
+      </div>
+      <div style="font-size:13px;font-weight:800;color:var(--lm);flex-shrink:0">${(parseFloat(a.roas)||0).toFixed(1)}x</div>
+    </div>`).join(''):'<div style="font-size:11px;color:var(--t3);text-align:center;padding:20px 0">ROAS가 입력된 광고가 없어요</div>';
+
+  // 채널별 ROAS 분석
+  const chRoasMap={};allAdsForRank.filter(a=>(parseFloat(a.roas)||0)>0).forEach(a=>{const ch=a.channel||'기타';if(!chRoasMap[ch])chRoasMap[ch]=[];chRoasMap[ch].push(parseFloat(a.roas)||0);});
+  const chRoasArr=Object.entries(chRoasMap).map(([ch,rs])=>({ch,avg:rs.reduce((s,r)=>s+r,0)/rs.length})).sort((a,b)=>b.avg-a.avg);
+  const maxRoas=chRoasArr.length?Math.max(...chRoasArr.map(c=>c.avg),1):1;
+  const roasChartEl=document.getElementById('dash-roas-chart');
+  if(roasChartEl)roasChartEl.innerHTML=chRoasArr.length?chRoasArr.map(c=>`
+    <div style="margin-bottom:9px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+        <div style="font-size:11px;font-weight:600">${c.ch}</div>
+        <div style="font-size:11px;font-weight:700;color:var(--lm)">${c.avg.toFixed(1)}x</div>
+      </div>
+      <div style="height:6px;background:var(--surf3);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${Math.min(c.avg/maxRoas*100,100)}%;background:var(--lm);border-radius:3px"></div>
+      </div>
+    </div>`).join(''):'<div style="font-size:11px;color:var(--t3);text-align:center;padding:20px 0">ROAS가 입력된 광고가 없어요</div>';
+
+  // 채널별 예산 vs 집행 — proj.budget[].planTotal(계획) vs monthly 합계(집행 실적) 기준
+  const chBudgetMap={};projs.forEach(p=>(Array.isArray(p.budget)?p.budget:[]).forEach(b=>{const ch=b.channel||'기타';if(!chBudgetMap[ch])chBudgetMap[ch]={plan:0,actual:0};chBudgetMap[ch].plan+=parseFloat(b.planTotal)||0;chBudgetMap[ch].actual+=Object.values(b.monthly||{}).reduce((s,v)=>s+(parseFloat(v)||0),0);}));
+  const chBudgetArr=Object.entries(chBudgetMap).map(([ch,d])=>({ch,...d,pct:d.plan>0?Math.round(d.actual/d.plan*100):0}));
+  const budgetVsEl=document.getElementById('dash-budget-vs');
+  if(budgetVsEl)budgetVsEl.innerHTML=chBudgetArr.length?chBudgetArr.map(c=>`
+    <div style="margin-bottom:9px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+        <div style="font-size:11px;font-weight:600">${c.ch}</div>
+        <div style="font-size:10px;color:var(--t3)">${c.actual.toLocaleString()} / ${c.plan.toLocaleString()}만원 (${c.pct}%)</div>
+      </div>
+      <div style="height:6px;background:var(--surf3);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${Math.min(c.pct,100)}%;background:${c.pct>100?'var(--rd)':c.pct>80?'var(--or)':'var(--bl)'};border-radius:3px"></div>
+      </div>
+    </div>`).join(''):'<div style="font-size:11px;color:var(--t3);text-align:center;padding:20px 0">등록된 채널 예산이 없어요(예산 탭/플랜 항목별 예산에서 입력)</div>';
+
+  // 프로젝트 진행률
+  const projStatsArr=projs.map(p=>{let pt=0,pd=0;Object.values(p.tasks||{}).forEach(ts=>ts.forEach(t=>{pt++;if(t.done)pd++;}));return{name:p.name,pt,pd,pct:pt?Math.round(pd/pt*100):0};});
+  const projListEl=document.getElementById('dash-proj-list');
+  if(projListEl)projListEl.innerHTML=projStatsArr.length?projStatsArr.map(p=>`
+    <div style="margin-bottom:9px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+        <div style="font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px">${p.name}</div>
+        <div style="font-size:11px;font-weight:700;color:${p.pct>=70?'var(--gn)':p.pct>=40?'var(--or)':'var(--t3)'}">${p.pct}%</div>
+      </div>
+      <div style="height:6px;background:var(--surf3);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${p.pct}%;background:var(--lm);border-radius:3px"></div>
+      </div>
+      <div style="font-size:9px;color:var(--t3);margin-top:2px">${p.pd}/${p.pt} 완료</div>
+    </div>`).join(''):'<div style="font-size:11px;color:var(--t3);text-align:center;padding:20px 0">프로젝트가 없어요</div>';
 
   renderDashboardPart2(projs, today, liveAds, wPct, weekTasks);
 }

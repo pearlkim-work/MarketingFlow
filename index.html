@@ -246,6 +246,8 @@ input::placeholder,textarea::placeholder{color:var(--t3)}
 .sidebar-task{display:flex;align-items:flex-start;gap:7px;padding:8px 9px;background:var(--surf2);border-radius:var(--r-sm);border:1px solid var(--b)}
 .stask-chk{width:15px;height:15px;border-radius:3px;border:1.5px solid var(--b3);flex-shrink:0;margin-top:1px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .12s}
 .stask-chk.done{background:var(--lm);border-color:var(--lm)}
+.full-task-text-inp{outline:none}
+.full-task-text-inp:focus{background:var(--surf3);border-radius:3px}
 .stask-chk.done::after{content:'✓';font-size:8px;color:#fff;font-weight:700}
 .stask-body{flex:1;min-width:0}
 .stask-text{font-size:12px;line-height:1.4}
@@ -391,6 +393,8 @@ input::placeholder,textarea::placeholder{color:var(--t3)}
 
 /* DRAG DROP */
 .cal-cell.drag-over{background:rgba(124,75,194,.1);outline:2px dashed rgba(124,75,194,.4);outline-offset:-2px}
+/* 사용자 요청: 주(week) 보기에서도 할일을 마우스로 끌어서 다른 날로 옮길 수 있어야 함 */
+.week-daycol.drag-over{background:rgba(124,75,194,.1)!important;outline:2px dashed rgba(124,75,194,.4);outline-offset:-2px}
 
 /* EXPERIMENT */
 .exp-menu-item{padding:6px 10px;border-radius:var(--r-sm);cursor:pointer;font-size:12px;color:var(--t2);transition:all .12s;margin-bottom:1px}
@@ -2878,16 +2882,19 @@ function renderWeekCal(){
     const pct=total?Math.round(done/total*100):0;
     const taskHtml=tasks.map(t=>{
       const c=TC[t.type]||'var(--t3)';
-      return`<div style="margin-bottom:3px;padding:4px 6px;background:var(--surf);border-left:2px solid ${c};border-radius:3px;border-top:1px solid var(--b);border-right:1px solid var(--b);border-bottom:1px solid var(--b)">
+      // 사용자 요청: 주 보기 할일도 목록에서 바로 수정(제목)/삭제할 수 있어야 하고,
+      // 마우스로 끌어서 다른 날로 옮길 수 있어야 함(드래그는 월 보기와 동일한 calDragStart/calDrop 재사용)
+      return`<div draggable="true" ondragstart="event.stopPropagation();calDragStart(event,'${t._projId}','${ds}',${t._taskIdx})" ondragend="calDragEnd(event)" style="margin-bottom:3px;padding:4px 6px;background:var(--surf);border-left:2px solid ${c};border-radius:3px;border-top:1px solid var(--b);border-right:1px solid var(--b);border-bottom:1px solid var(--b)">
         <div style="display:flex;align-items:flex-start;gap:4px">
           <div onclick="event.stopPropagation();toggleTaskInline(this,'${ds}','${t._projId}',${t._taskIdx})" style="width:11px;height:11px;border-radius:2px;border:1.5px solid ${t.done?c:'var(--b3)'};background:${t.done?c:'transparent'};flex-shrink:0;margin-top:1px;cursor:pointer"></div>
-          <div style="font-size:11px;${t.done?'text-decoration:line-through;color:var(--t3)':'color:var(--t)'};line-height:1.3;word-break:keep-all">${t.text||'(제목 없음)'}</div>
+          <input class="full-task-text-inp" value="${(t.text||'').replace(/"/g,'&quot;')}" oninput="fullEditTaskText('${t._projId}','${ds}',${t._taskIdx},this.value)" onclick="event.stopPropagation()" style="flex:1;min-width:0;border:none;background:transparent;padding:0;font-family:inherit;font-size:11px;${t.done?'text-decoration:line-through;color:var(--t3)':'color:var(--t)'};line-height:1.3">
+          <button class="task-del" title="삭제" onclick="event.stopPropagation();fullDel('${t._projId}','${ds}',${t._taskIdx})" style="flex-shrink:0;width:14px;height:14px">✕</button>
         </div>
         ${t.assignee?`<div style="font-size:9px;color:var(--t3);padding-left:15px">👤 ${t.assignee}</div>`:''}
         <div style="font-size:9px;color:var(--t3);padding-left:15px">${t._projName}</div>
       </div>`;
     }).join('');
-    return`<div style="border-right:1px solid var(--b);${i===6?'border-right:none':''}background:${isToday?'rgba(200,240,100,.04)':'var(--surf)'}">
+    return`<div class="week-daycol" ondragover="calDragOver(event)" ondragleave="calDragLeave(event)" ondrop="calDrop(event,'${ds}')" style="border-right:1px solid var(--b);${i===6?'border-right:none':''}background:${isToday?'rgba(200,240,100,.04)':'var(--surf)'}">
       <div style="padding:6px 8px;border-bottom:1px solid var(--b);background:${isToday?'rgba(200,240,100,.12)':'var(--surf2)'};position:sticky;top:0;z-index:1">
         <div style="display:flex;align-items:center;justify-content:space-between">
           <div>
@@ -3124,8 +3131,15 @@ function calDrop(e,toDate){
   e.preventDefault();e.currentTarget.classList.remove('drag-over');if(!toDate||!_drag.projId)return;if(_drag.fromDate===toDate){_drag={};return;}
   const proj=getProj(_drag.projId);if(!proj)return;
   const task=proj.tasks[_drag.fromDate]?.splice(_drag.taskIdx,1)[0];if(!task)return;
-  if(!proj.tasks[toDate])proj.tasks[toDate]=[];proj.tasks[toDate].push(task);_drag={};
-  save();renderFullCal();if(S.selDate)renderFullDayTasks(S.selDate);
+  if(!proj.tasks[toDate])proj.tasks[toDate]=[];proj.tasks[toDate].push(task);
+  // 버그 수정: 플랜에서 만들어진 할일(_planRef)을 드래그로 다른 날로 옮기면 플랜 쪽 날짜도 같이
+  // 바뀌어야 하는데, 예전엔 캘린더 쪽 날짜만 바뀌고 플랜은 원래 날짜에 그대로 남아서 서로 어긋났음
+  if(task._planRef&&proj.plan?.groups){
+    const[gi,ti]=task._planRef.split('-').map(Number);
+    if(proj.plan.groups[gi]?.tasks?.[ti])proj.plan.groups[gi].tasks[ti].date=toDate;
+  }
+  _drag={};
+  save();renderCalView();if(S.selDate)renderFullDayTasks(S.selDate);if(proj.plan)renderPlanResult(proj.plan);
 }
 function fullSelectDate(ds){S.selDate=ds;renderFullCal();renderFullDayTasks(ds);}
 
@@ -3173,14 +3187,15 @@ function renderFullDayTasks(ds){
         <span style="font-size:10px;${c.done?'text-decoration:line-through;color:var(--t3)':'color:var(--t2)'}">${c.text}</span>
       </div>`).join('');
 
-    return`<div style="background:var(--surf2);border-radius:var(--rs);border:1px solid var(--b);border-left:3px solid ${color};padding:9px 10px;margin-bottom:5px">
+    return`<div style="background:var(--surf2);border-radius:var(--rs);border:1px solid var(--b);border-left:3px solid ${color};padding:9px 10px;margin-bottom:5px" draggable="true" ondragstart="calDragStart(event,'${t.projId}','${ds}',${t.taskIdx})" ondragend="calDragEnd(event)">
       <div style="display:flex;align-items:flex-start;gap:7px">
         <!-- 버그 수정: getAllTasksForDate()가 만드는 필드명은 밑줄 없는 projId/taskIdx인데
              여기서는 밑줄 붙은 _projId/_taskIdx를 읽고 있어서 항상 undefined였고,
              그래서 toggleTask()의 getProj(undefined) 조회가 실패해 체크 표시가 전혀 반영되지 않았음 -->
         <div onclick="toggleTask(this,'${ds}','${t.projId}',${t.taskIdx})" class="stask-chk${t.done?' done':''}"></div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:11px;font-weight:500;${t.done?'text-decoration:line-through;color:var(--t3)':'color:var(--t)'}">${t.text}</div>
+          <!-- 사용자 요청: 목록에서 바로 수정(제목 편집)/삭제할 수 있어야 하고, 플랜에서 만든 할일이면 플랜 쪽도 함께 반영되어야 함 -->
+          <input class="full-task-text-inp" value="${(t.text||'').replace(/"/g,'&quot;')}" oninput="fullEditTaskText('${t.projId}','${ds}',${t.taskIdx},this.value)" style="width:100%;border:none;background:transparent;padding:0;font-family:inherit;font-size:11px;font-weight:500;${t.done?'text-decoration:line-through;color:var(--t3)':'color:var(--t)'}">
           <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:4px">
             ${t.assignee?`<span style="font-size:9px;color:var(--t3)">👤 ${t.assignee}</span>`:''}
             ${t.budget?`<span style="font-size:9px;color:var(--t3)">💰 ${t.budget}</span>`:''}
@@ -3190,6 +3205,7 @@ function renderFullDayTasks(ds){
           ${t.memo?`<div style="font-size:10px;color:var(--t2);margin-top:4px;padding:4px 6px;background:var(--surf3);border-radius:4px;line-height:1.5">${t.memo}</div>`:''}
           ${clItems?`<div style="margin-top:5px">${clItems}</div>`:''}
         </div>
+        <button class="task-del" title="삭제" onclick="fullDel('${t.projId}','${ds}',${t.taskIdx})" style="flex-shrink:0">✕</button>
       </div>
     </div>`;
   }).join('')
@@ -3203,8 +3219,31 @@ function toggleSubTask(ds, projId, taskIdx, subIdx){
   if(sub&&sub[subIdx])sub[subIdx].done=!sub[subIdx].done;
   save();renderFullDayTasks(ds);
 }
-function fullToggle(pid,ds,i){const p=getProj(pid);if(p&&p.tasks[ds]&&p.tasks[ds][i]!==undefined){p.tasks[ds][i].done=!p.tasks[ds][i].done;save();renderFullCal();renderFullDayTasks(ds);}}
-function fullDel(pid,ds,i){const p=getProj(pid);if(p&&p.tasks[ds]){p.tasks[ds].splice(i,1);save();renderFullCal();renderFullDayTasks(ds);}}
+function fullToggle(pid,ds,i){const p=getProj(pid);if(p&&p.tasks[ds]&&p.tasks[ds][i]!==undefined){p.tasks[ds][i].done=!p.tasks[ds][i].done;save();renderCalView();renderFullDayTasks(ds);}}
+// 사용자 요청: 캘린더 할일 목록에서 바로 삭제할 수 있어야 하고, 플랜에서 만들어진 할일(_planRef)이면
+// 플랜 쪽 데이터도 함께 삭제되어야 함(안 그러면 캘린더에선 지워졌는데 플랜엔 남아있는 불일치가 생김)
+function fullDel(pid,ds,i){
+  const p=getProj(pid);if(!p||!p.tasks[ds]||!p.tasks[ds][i])return;
+  if(!confirm('이 할 일을 삭제할까요?'))return;
+  const t=p.tasks[ds][i];
+  if(t._planRef&&p.plan?.groups){
+    const[gi,ti]=t._planRef.split('-').map(Number);
+    if(p.plan.groups[gi]?.tasks){p.plan.groups[gi].tasks.splice(ti,1);_reindexPlanRefsAfterTaskDelete(p,gi,ti);}
+  }
+  p.tasks[ds].splice(i,1);
+  save();renderCalView();renderFullDayTasks(ds);if(p.plan)renderPlanResult(p.plan);renderQuickAddGroups();
+}
+// 사용자 요청: 할일 내용도 목록에서 바로 수정 가능해야 하고, 플랜 쪽 텍스트도 같이 바뀌어야 함
+function fullEditTaskText(pid,ds,i,val){
+  const p=getProj(pid);if(!p||!p.tasks[ds]||!p.tasks[ds][i])return;
+  const text=(val||'').trim();if(!text)return;
+  const t=p.tasks[ds][i];t.text=text;
+  if(t._planRef&&p.plan?.groups){
+    const[gi,ti]=t._planRef.split('-').map(Number);
+    if(p.plan.groups[gi]?.tasks?.[ti])p.plan.groups[gi].tasks[ti].text=text;
+  }
+  save();if(p.plan)renderPlanResult(p.plan);
+}
 function fullAddTask(){
   const text=document.getElementById('full-task-inp')?.value.trim();
   if(!text||!S.selDate)return;
@@ -3233,14 +3272,19 @@ function fullAddTask(){
   };
 
   // 플랜 그룹 연동
+  // 버그 수정: _planRef는 다른 모든 곳(togglePT/updatePTDate/deletePT/planToggleTask 등)에서
+  // "그룹의 숫자 인덱스(gi)-할일 인덱스(ti)" 형식으로 읽고 쓰는데, 여기서만 그룹의 id 문자열(g.id)을
+  // 그대로 써서(예: "g-1234567890-3") split('-')이 여러 조각으로 쪼개져 gi가 NaN이 되고,
+  // 그 결과 캘린더 사이드바에서 플랜 그룹을 연결해 만든 할일은 체크/삭제/수정이 플랜 쪽에 전혀 반영되지 않았음
   if(planGroupId&&proj.plan?.groups){
-    const g=proj.plan.groups.find(g=>g.id===planGroupId);
-    if(g){
+    const gi=proj.plan.groups.findIndex(g=>g.id===planGroupId);
+    if(gi!==-1){
+      const g=proj.plan.groups[gi];
       if(!g.tasks)g.tasks=[];
       const ti=g.tasks.length;
       g.tasks.push({text,done:false,date:S.selDate,assignee});
       task._fromPlan=true;
-      task._planRef=planGroupId+'-'+ti;
+      task._planRef=gi+'-'+ti;
     }
   }
 

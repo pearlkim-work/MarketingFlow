@@ -658,7 +658,6 @@ select:focus{border-color:var(--lm);outline:none}
     <button class="nav-tab" onclick="showView('ads',this)" title="광고 현황">📣 광고</button>
     <button class="nav-tab" onclick="showView('budget',this)" title="예산 트래킹">💰 예산</button>
     <button class="nav-tab" onclick="showView('influencer',this)" title="인플루언서 DB">✨ 인플루언서</button>
-    <button class="nav-tab" onclick="showView('progress',this)" title="진행률">📊 진행률</button>
     <div class="nav-divider"></div>
     <span style="font-size:9px;color:var(--t3);font-weight:600;padding:0 3px;letter-spacing:.04em;white-space:nowrap">분석</span>
     <button class="nav-tab" onclick="showView('revenue',this)" title="매출 분석">📈 매출</button>
@@ -730,7 +729,9 @@ select:focus{border-color:var(--lm);outline:none}
       </div>
 
       <!-- ── KPI 카드 4개 ── -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px" id="dash-kpi-grid"></div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:8px" id="dash-kpi-grid"></div>
+      <!-- ── 목표 달성률 카드 클릭 시 펼쳐지는 목표별 현재값 입력 영역 (진행률 탭 대체) ── -->
+      <div id="dash-goal-detail" style="display:none;background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:12px 16px;margin-bottom:16px"></div>
 
       <!-- ── Row 1: 이번주 체크리스트 + 광고 성과 랭킹 ── -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
@@ -1061,11 +1062,6 @@ select:focus{border-color:var(--lm);outline:none}
     <div class="section-header"><div><div class="section-title">📣 광고 라이브</div><div class="section-sub">캠페인 상태를 클릭해서 라이브·정지 전환</div></div><button class="btn-primary" onclick="openAdModal()">+ 광고 추가</button></div>
     <div class="ad-cards" id="ad-cards"></div>
   </div>
-</div>
-
-<!-- ══ PROGRESS VIEW ══ -->
-<div class="view" id="view-progress">
-  <div class="prog-wrap" id="prog-wrap"></div>
 </div>
 
 <!-- ══ BUDGET TRACKER VIEW ══ -->
@@ -1992,7 +1988,6 @@ function showView(v,btn){
   if(v==='utm')renderUtmView();
   if(v==='calendar'){updateCalProjFilter();updateAssigneeFilter();renderCalView();renderFullDayTasks(S.selDate);updateCalProgress();updateSidebarAssignees();}
   if(v==='plan'){const p=getCurProj();loadPlanInputFromProj(p);if(p?.plan)renderPlanResult(p.plan);renderQuickAddGroups();updatePlanButtons();}
-  if(v==='progress')renderProgress();
   if(v==='meeting')renderMtgList();
   if(v==='experiment')loadExpIframe();
   if(v==='products')renderProducts();
@@ -3210,7 +3205,7 @@ function saveAd(){
   proj.ads.push(ad);save();closeAdModal();renderAds();
 }
 function delAd(id){S.projects.forEach(p=>{p.ads=p.ads.filter(a=>a.id!==id);});save();renderAds();}
-function toggleAdStatus(id){S.projects.forEach(p=>{const a=p.ads.find(a=>a.id===id);if(a){const c=['scheduled','live','paused'];a.status=c[(c.indexOf(a.status)+1)%3];}});save();renderAds();renderProgress();}
+function toggleAdStatus(id){S.projects.forEach(p=>{const a=p.ads.find(a=>a.id===id);if(a){const c=['scheduled','live','paused'];a.status=c[(c.indexOf(a.status)+1)%3];}});save();renderAds();if(typeof renderDashboard==='function')renderDashboard();}
 function renderAds(){
   const statusL={live:'🔴 라이브',paused:'⏸ 일시정지',scheduled:'🗓 예정'};let html='';
   S.projects.forEach((proj,pi)=>{(proj.ads||[]).forEach(ad=>{html+=`<div class="ad-card"><div class="ad-card-top"><div><div class="ad-name">${ad.name}</div><div class="ad-proj-nm"><div class="pcd" style="background:${projColor(pi)}"></div>${proj.name}</div></div><button class="live-badge ${ad.status}" onclick="toggleAdStatus('${ad.id}')">${statusL[ad.status]}</button></div><div class="ad-info"><span>📺 ${ad.channel}</span>${ad.budget?`<span>💰 ${ad.budget}</span>`:''} ${ad.start?`<span>📅 ${ad.start}${ad.end?' ~ '+ad.end:''}</span>`:''}</div><div class="ad-card-btns"><button class="ad-card-btn" onclick="openAdModal('${ad.id}')">수정</button><button class="ad-card-btn del" onclick="delAd('${ad.id}')">삭제</button></div></div>`;});});
@@ -3218,15 +3213,16 @@ function renderAds(){
 }
 
 // ── PROGRESS ──
-function updateGoalCurrent(projId,goalId,val){const proj=getProj(projId);if(!proj)return;const goal=proj.goals.find(g=>g.id===goalId);if(!goal)return;goal.current=parseFloat(val)||0;save();renderProgress();}
-function delGoal(projId,goalId){const proj=getProj(projId);if(!proj)return;proj.goals=proj.goals.filter(g=>g.id!==goalId);save();renderProgress();}
+function updateGoalCurrent(projId,goalId,val){const proj=getProj(projId);if(!proj)return;const goal=proj.goals.find(g=>g.id===goalId);if(!goal)return;goal.current=parseFloat(val)||0;save();if(typeof renderDashboard==='function')renderDashboard();}
+function delGoal(projId,goalId){const proj=getProj(projId);if(!proj)return;proj.goals=proj.goals.filter(g=>g.id!==goalId);save();if(typeof renderDashboard==='function')renderDashboard();}
 function addGoalToProj(projId){
   const nameEl=document.getElementById('pg-goal-name-'+projId);const targetEl=document.getElementById('pg-goal-target-'+projId);const unitEl=document.getElementById('pg-goal-unit-'+projId);
   if(!nameEl||!targetEl)return;const name=nameEl.value.trim(),target=targetEl.value.trim();if(!name||!target)return;
-  const proj=getProj(projId);if(!proj.goals)proj.goals=[];proj.goals.push({id:Date.now().toString(),name,target:parseFloat(target)||0,unit:unitEl.value,current:0});save();renderProgress();
+  const proj=getProj(projId);if(!proj.goals)proj.goals=[];proj.goals.push({id:Date.now().toString(),name,target:parseFloat(target)||0,unit:unitEl.value,current:0});save();if(typeof renderDashboard==='function')renderDashboard();
 }
 function goalBarColor(pct){if(pct>=100)return'var(--green)';if(pct>=60)return'var(--blue)';if(pct>=30)return'var(--orange)';return'var(--red)';}
 function renderProgress(){
+  if(!document.getElementById('prog-wrap'))return; // 진행률 탭 제거됨 (홈 대시보드로 이전)
   if(!S.projects.length){document.getElementById('prog-wrap').innerHTML='<div class="prog-empty">프로젝트가 없어요</div>';return;}
   let html='<div class="section-title" style="margin-bottom:4px">📊 프로젝트 진행률</div>';
   normalizeProjectsData(); // 버그 수정: 목표 현재값이 숫자가 아니면(예전 데이터) NaN%로 뜨던 문제 방지
@@ -4671,7 +4667,37 @@ function doLogout(){
   document.getElementById('dashboard-body').style.display='none';
 }
 
+// 진행률 탭을 없애고, 홈 대시보드의 "목표 달성률" 카드를 눌렀을 때 그 자리에서 바로
+// 목표별 현재값을 입력할 수 있게 함(기존 updateGoalCurrent 재사용).
+let _dashGoalDetailOpen=false;
+function toggleDashGoalDetail(){
+  _dashGoalDetailOpen=!_dashGoalDetailOpen;
+  const el=document.getElementById('dash-goal-detail');
+  if(!el)return;
+  el.style.display=_dashGoalDetailOpen?'block':'none';
+  if(_dashGoalDetailOpen)renderDashGoalDetail();
+}
+function renderDashGoalDetail(){
+  const el=document.getElementById('dash-goal-detail');if(!el)return;
+  const goals=window._dashAllGoals||[];
+  if(!goals.length){el.innerHTML='<div style="font-size:11px;color:var(--t3);text-align:center;padding:8px 0">아직 등록된 목표가 없어요. 플랜 탭에서 목표를 추가해봐요.</div>';return;}
+  el.innerHTML='<div style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:8px">🎯 목표별 현재값 입력</div>'+
+    goals.map(g=>{
+      const gpct=g.target>0?Math.min(Math.round((parseFloat(g.current)||0)/g.target*100),999):0;
+      const barColor=goalBarColor(gpct);
+      return`<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--b)">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:11px;font-weight:600">${g.name}<span style="color:var(--t3);font-weight:400"> · ${g._projName}</span></div>
+          <div style="font-size:10px;color:var(--t3)">목표 ${g.target.toLocaleString()}${g.unit}</div>
+        </div>
+        <input class="goal-update-inp" type="number" value="${g.current}" onchange="updateGoalCurrent('${g._projId}','${g.id}',this.value)" style="width:70px">
+        <span style="font-size:10px;color:var(--t3);width:14px">${g.unit}</span>
+        <span style="font-size:12px;font-weight:700;color:${barColor};width:38px;text-align:right">${gpct}%</span>
+      </div>`;
+    }).join('');
+}
 function renderDashboard(){
+  normalizeProjectsData(); // 버그 수정: 목표 현재값이 숫자가 아니면(예전 데이터) NaN%로 뜨던 문제 방지 (진행률 탭 제거로 홈 대시보드가 이 역할을 대신함)
   const projId=document.getElementById('dash-proj-sel')?.value||'all';
   const projs=projId==='all'?S.projects:S.projects.filter(p=>p.id===projId);
 
@@ -4704,18 +4730,18 @@ function renderDashboard(){
   const completePct=totTasks?Math.round(doneTasks/totTasks*100):0;
   const burnRate=totalBudget?Math.round(spentBudget/totalBudget*100):0;
   const remaining=totalBudget-spentBudget;
-  const allGoals=[];projs.forEach(p=>(p.goals||[]).forEach(g=>allGoals.push({...g})));
+  const allGoals=[];projs.forEach(p=>(p.goals||[]).forEach(g=>allGoals.push({...g,_projId:p.id,_projName:p.name})));
   const goalAvg=allGoals.length?Math.round(allGoals.reduce((s,g)=>s+(g.target>0?g.current/g.target:0),0)/allGoals.length*100):0;
 
   const kpis=[
     {icon:'✅',label:'할 일 완료율',val:`${completePct}%`,sub:`${doneTasks}/${totTasks}건 완료`,c:'var(--lm)',bg:'var(--lmbg)'},
     {icon:'📣',label:'광고 라이브',val:`${liveAds}개`,sub:`전체 ${projs.reduce((s,p)=>s+(p.ads||[]).length,0)}개 중`,c:'var(--rd)',bg:'var(--rdbg)'},
     {icon:'💰',label:'예산 소진율',val:`${burnRate}%`,sub:`잔여 ${remaining.toLocaleString()}만원`,c:burnRate>90?'var(--rd)':burnRate>60?'var(--or)':'var(--bl)',bg:burnRate>90?'var(--rdbg)':burnRate>60?'var(--orbg)':'var(--blbg)'},
-    {icon:'🎯',label:'목표 달성률',val:`${goalAvg}%`,sub:`${allGoals.length}개 목표 기준`,c:goalAvg>=80?'var(--gn)':goalAvg>=50?'var(--or)':'var(--rd)',bg:goalAvg>=80?'var(--gnbg)':goalAvg>=50?'var(--orbg)':'var(--rdbg)'},
+    {icon:'🎯',label:'목표 달성률',val:`${goalAvg}%`,sub:`${allGoals.length}개 목표 기준 · 클릭해서 현재값 입력`,c:goalAvg>=80?'var(--gn)':goalAvg>=50?'var(--or)':'var(--rd)',bg:goalAvg>=80?'var(--gnbg)':goalAvg>=50?'var(--orbg)':'var(--rdbg)',clickable:true},
   ];
   const kpiEl=document.getElementById('dash-kpi-grid');
   if(kpiEl)kpiEl.innerHTML=kpis.map(k=>`
-    <div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:14px 16px">
+    <div ${k.clickable?'onclick="toggleDashGoalDetail()"':''} style="background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:14px 16px${k.clickable?';cursor:pointer':''}">
       <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px">
         <div style="width:32px;height:32px;border-radius:8px;background:${k.bg};display:flex;align-items:center;justify-content:center;font-size:16px">${k.icon}</div>
         <span style="font-size:11px;color:var(--t2)">${k.label}</span>
@@ -4723,6 +4749,9 @@ function renderDashboard(){
       <div style="font-size:22px;font-weight:800;color:${k.c};line-height:1">${k.val}</div>
       <div style="font-size:10px;color:var(--t3);margin-top:3px">${k.sub}</div>
     </div>`).join('');
+  // 진행률 탭 대체: 목표 달성률 카드를 펼쳤을 때 보여줄 목표별 현재값 입력 목록도 같이 갱신해둠(펼쳐진 상태면 바로 반영)
+  window._dashAllGoals = allGoals;
+  if(_dashGoalDetailOpen) renderDashGoalDetail();
 
   // ── 이번 주 할 일 체크리스트 ──
   const dow=today.getDay();

@@ -5969,11 +5969,13 @@ async function resetAllData(){
   try{localStorage.removeItem('nnb-v8');localStorage.removeItem('nnb-v9');}catch(e){}
   // window.storage 초기화
   try{if(window.storage){await window.storage.delete('nnb-v8');await window.storage.delete('nnb-v9');}}catch(e){}
-  // Supabase 초기화
+  // Supabase 초기화 (버그 수정: 예전엔 회사별 행 분리가 안 돼있어 이 삭제가 다른 회사 데이터까지 지울 위험이 있었음 —
+  // 이제는 getSupaId()가 내 회사 행만 가리키므로 안전하게 내 회사 행만 삭제됨)
   try{
-    await fetch(SUPA_URL+'/rest/v1/mf_data?id=eq.'+encodeURIComponent(SUPA_ID),{
+    const bearer = await getSupaAuthBearer();
+    await fetch(SUPA_URL+'/rest/v1/mf_data?id=eq.'+encodeURIComponent(getSupaId()),{
       method:'DELETE',
-      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY}
+      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+bearer}
     });
   }catch(e){console.warn('Supabase 초기화 실패:',e);}
   refreshProjSelects();
@@ -6288,8 +6290,46 @@ function renderUtmView(){
 // ════════════════════════════════════════
 const SUPA_URL = 'https://vwibsowtpdgtqcenncxt.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3aWJzb3d0cGRndHFjZW5uY3h0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3NzY1NTYsImV4cCI6MjEwMDM1MjU1Nn0.RkPQ08a0KBQ77j1Ph1ThfrCajsWnDlZ4tWKYRZjB5Dw';
-const SUPA_ORG = '바바그라운드';
-const SUPA_ID  = 'mf-' + SUPA_ORG;
+// 사용자 요청(보안): 회사(org)마다 Supabase 데이터 행을 완전히 분리하고, anon key 대신
+// 회사별 전용 계정으로 로그인해서 받은 토큰으로만 접근하도록 함(RLS가 그 토큰의 회사만 허용).
+// 아래 3개 계정은 사람이 로그인하는 계정이 아니라, "이 회사 데이터에만 접근 가능한 통로" 역할의 서비스 계정.
+const SUPA_ORG_CREDS = {
+  '바바그라운드': { email: 'svc-babaground@marketingflow.internal', password: 'ajyoxqtNdybUxhaLAtpq6GIY' },
+  'bbgg': { email: 'svc-bbgg@marketingflow.internal', password: 'Cw1S3cNjrGBpQol1VyX8DLN9' },
+  '관리자': { email: 'svc-admin@marketingflow.internal', password: 'xR6UPwgHjrJo5zUHO5G0b328' }
+};
+function getSupaOrg(){ return (_mfUser&&_mfUser.org)||'바바그라운드'; }
+function getSupaId(){ return 'mf-'+getSupaOrg(); }
+let _supaTokenCache = {}; // org -> {token, exp}
+// Supabase Auth 로그인해서 그 회사 전용 토큰을 받아옴(RLS가 이 토큰 기준으로 자기 회사 행만 허용).
+// 아직 Supabase 쪽에서 서비스 계정/RLS 설정이 안 돼있으면 조용히 실패하고, 이 경우 호출부에서 anon key로 대체함(하위 호환).
+async function getSupaAuthToken(){
+  const org = getSupaOrg();
+  const cached = _supaTokenCache[org];
+  if(cached && cached.exp > Date.now()) return cached.token;
+  const creds = SUPA_ORG_CREDS[org];
+  if(!creds) return null;
+  try{
+    const res = await fetch(`${SUPA_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'apikey': SUPA_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: creds.email, password: creds.password })
+    });
+    if(!res.ok) return null;
+    const j = await res.json();
+    if(j && j.access_token){
+      _supaTokenCache[org] = { token: j.access_token, exp: Date.now() + ((j.expires_in||3600)-60)*1000 };
+      return j.access_token;
+    }
+  }catch(e){ /* 서비스 계정이 아직 없거나 네트워크 실패 시 조용히 무시(아래에서 anon key로 대체) */ }
+  return null;
+}
+// 실제 fetch에 쓸 Authorization 값 — 회사 전용 토큰이 있으면 그걸, 없으면(마이그레이션 전/실패 시) anon key로 대체
+async function getSupaAuthBearer(){
+  const token = await getSupaAuthToken();
+  return token || SUPA_KEY;
+}
 
 let _syncTimer = null;
 let _lastSyncAt = 0;
@@ -6299,12 +6339,13 @@ async function supaLoad(){
   // 여기서 서버 데이터로 통째로 덮어쓰면 방금 한 작업이 사라지므로, 업로드가 끝날 때까지 건너뜀
   if(_pendingSupaSync)return false;
   try{
-    const res = await fetch(`${SUPA_URL}/rest/v1/mf_data?id=eq.${encodeURIComponent(SUPA_ID)}&select=data`, {
+    const bearer = await getSupaAuthBearer();
+    const res = await fetch(`${SUPA_URL}/rest/v1/mf_data?id=eq.${encodeURIComponent(getSupaId())}&select=data`, {
       method: 'GET',
       mode: 'cors',
       headers: {
         'apikey': SUPA_KEY,
-        'Authorization': 'Bearer ' + SUPA_KEY,
+        'Authorization': 'Bearer ' + bearer,
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       }
@@ -6345,8 +6386,8 @@ async function supaSync(){
 async function supaSyncInner(){
   try{
     const payload = {
-      id: SUPA_ID,
-      org: SUPA_ORG,
+      id: getSupaId(),
+      org: getSupaOrg(),
       data: {
         projects: S.projects,
         curProjId: S.curProjId,
@@ -6360,12 +6401,13 @@ async function supaSyncInner(){
       },
       updated_at: new Date().toISOString()
     };
+    const bearer = await getSupaAuthBearer();
     const res = await fetch(`${SUPA_URL}/rest/v1/mf_data`, {
       method: 'POST',
       mode: 'cors',
       headers: {
         'apikey': SUPA_KEY,
-        'Authorization': 'Bearer ' + SUPA_KEY,
+        'Authorization': 'Bearer ' + bearer,
         'Content-Type': 'application/json',
         'Prefer': 'resolution=merge-duplicates',
         'Accept': 'application/json'

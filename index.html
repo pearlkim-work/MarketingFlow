@@ -1010,7 +1010,7 @@ select:focus{border-color:var(--lm);outline:none}
         </select>
 
         <!-- 플랜 그룹 연동 -->
-        <select id="full-task-plan-group" style="font-size:11px;font-family:inherit;display:none">
+        <select id="full-task-plan-group" onchange="syncTaskTypeFromPlanGroup()" style="font-size:11px;font-family:inherit;display:none">
           <option value="">🗂 플랜 그룹 (선택)</option>
         </select>
 
@@ -2694,21 +2694,39 @@ function updateSidebarAssignees(){
 }
 
 // 사이드바 플랜 그룹 옵션 업데이트
+// 개선: 프로젝트에 플랜 그룹이 있으면 "일반/Meta/CRM..." 채널 선택은 숨기고 플랜 그룹만 고르면 되게 함
+// (채널 색상/타입은 선택한 플랜 그룹 기준으로 자동 연동됨). 플랜이 없는 프로젝트는 예전처럼 채널 선택만 보임.
 function updateSidebarPlanGroups(){
   const projSel=document.getElementById('full-task-proj');
   const groupSel=document.getElementById('full-task-plan-group');
+  const typeSel=document.getElementById('full-task-type');
   if(!groupSel)return;
   const pid=projSel?.value;
   const proj=getProj(pid);
   const groups=proj?.plan?.groups||[];
   if(groups.length>0){
     groupSel.style.display='block';
-    groupSel.innerHTML='<option value="">🗂 플랜 그룹 (선택)</option>'+
+    groupSel.innerHTML='<option value="">🗂 플랜 그룹 선택</option>'+
       groups.map(g=>`<option value="${g.id}">${g.name}</option>`).join('');
+    if(typeSel)typeSel.style.display='none';
+    syncTaskTypeFromPlanGroup();
   } else {
     groupSel.style.display='none';
     groupSel.innerHTML='<option value="">🗂 플랜 그룹 없음</option>';
+    if(typeSel)typeSel.style.display='';
   }
+}
+// 선택된 플랜 그룹의 채널(_ch)에 맞춰 캘린더 색상/타입을 자동으로 맞춰줌 (숨겨진 채널 선택값을 대신 채워줌)
+const CH_TO_TASK_TYPE={'Meta 광고':'meta','카카오 CRM':'crm','인플루언서/블로그':'inf','네이버 검색':'content','유튜브':'content','당근마켓':'content'};
+function syncTaskTypeFromPlanGroup(){
+  const pid=document.getElementById('full-task-proj')?.value;
+  const proj=getProj(pid);
+  const groupSel=document.getElementById('full-task-plan-group');
+  const typeSel=document.getElementById('full-task-type');
+  if(!proj||!groupSel||!typeSel)return;
+  const g=(proj.plan?.groups||[]).find(x=>x.id===groupSel.value);
+  if(!g){typeSel.value='ops';return;}
+  typeSel.value=g._ch?(CH_TO_TASK_TYPE[g._ch]||'content'):'ops';
 }
 
 // 캘린더 날짜 선택 시 사이드바 업데이트 (기존 함수 보완)
@@ -2988,8 +3006,25 @@ function calFilterClick(btn){
   btn.classList.add('on','on-'+_calFilter);
   renderFullCal();
 }
-function fullCalMove(d){S.fullCalM+=d;if(S.fullCalM>11){S.fullCalM=0;S.fullCalY++;}if(S.fullCalM<0){S.fullCalM=11;S.fullCalY--;}renderFullCal();}
-function goToday(){const n=new Date();S.fullCalY=n.getFullYear();S.fullCalM=n.getMonth();S.selDate=`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;renderFullCal();renderFullDayTasks(S.selDate);}
+// 버그 수정: 캘린더가 "주" 보기 모드일 때 ‹/› 버튼을 눌러도 다음/이전 주로 안 넘어가던 문제.
+// 예전엔 이 함수가 항상 월(month) 기준으로만 이동해서, 주 보기 상태에서 눌러도 반영이 안 됐음.
+function fullCalMove(d){
+  if(_calMode==='week'){
+    if(S.weekOffset===undefined)S.weekOffset=0;
+    S.weekOffset+=d;
+    renderCalView();
+    return;
+  }
+  S.fullCalM+=d;if(S.fullCalM>11){S.fullCalM=0;S.fullCalY++;}if(S.fullCalM<0){S.fullCalM=11;S.fullCalY--;}renderFullCal();
+}
+function goToday(){
+  const n=new Date();
+  S.fullCalY=n.getFullYear();S.fullCalM=n.getMonth();
+  S.weekOffset=0; // 주 보기 모드에서 "오늘" 눌렀을 때도 이번 주로 정상 복귀되도록
+  S.selDate=`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
+  renderCalView();
+  renderFullDayTasks(S.selDate);
+}
 function getAllTasksForDate(ds){
   const r=[];S.projects.forEach((p,pi)=>(p.tasks[ds]||[]).forEach((t,ti)=>r.push({...t,projId:p.id,projName:p.name,projColor:projColor(pi),taskIdx:ti})));return r;
 }

@@ -2002,7 +2002,7 @@ function projColor(idx){return PROJ_COLORS[idx%PROJ_COLORS.length]}
 
 // ── STATE ──
 let S={
-  projects:[],curProjId:null,meetings:[],products:[],influencers:[],personalNotes:{},
+  projects:[],curProjId:null,meetings:[],products:[],influencers:[],personalNotes:{},mtgFolders:[],
   planCalY:new Date().getFullYear(),planCalM:new Date().getMonth(),
   fullCalY:new Date().getFullYear(),fullCalM:new Date().getMonth(),
   selDate:null,planSelDate:null,editAdId:null,editProdId:null,
@@ -2022,7 +2022,7 @@ function scheduleSupa(){
   if(typeof supaSync==='function'){clearTimeout(_syncTimer);_syncTimer=setTimeout(supaSync,1500);}
 }
 async function save(){try{if(window.storage){await window.storage.set('nnb-v8',JSON.stringify(S));}else{localStorage.setItem('nnb-v8',JSON.stringify(S));}}catch(e){try{localStorage.setItem('nnb-v8',JSON.stringify(S));}catch(e2){}}scheduleSupa();}
-async function load(){try{let data=null;if(window.storage){const r=await window.storage.get('nnb-v8');if(r&&r.value)data=JSON.parse(r.value);}if(!data){const ls=localStorage.getItem('nnb-v8');if(ls)data=JSON.parse(ls);}if(data)Object.assign(S,{projects:data.projects||[],curProjId:data.curProjId||null,meetings:data.meetings||[],products:data.products||[],influencers:data.influencers||[],personalNotes:data.personalNotes||{}});normalizeProjectsData();normalizePersonalNotes();}catch(e){}}
+async function load(){try{let data=null;if(window.storage){const r=await window.storage.get('nnb-v8');if(r&&r.value)data=JSON.parse(r.value);}if(!data){const ls=localStorage.getItem('nnb-v8');if(ls)data=JSON.parse(ls);}if(data)Object.assign(S,{projects:data.projects||[],curProjId:data.curProjId||null,meetings:data.meetings||[],products:data.products||[],influencers:data.influencers||[],personalNotes:data.personalNotes||{},mtgFolders:data.mtgFolders||[]});normalizeProjectsData();normalizePersonalNotes();}catch(e){}}
 
 // ── VIEWS ──
 function showView(v,btn){
@@ -3474,9 +3474,10 @@ function getMtg(id){return(S.meetings||[]).find(m=>m.id===id)}
 function openMtgModal(id){
   _curMtgId=id||null;
   const sel=document.getElementById('mm-proj');sel.innerHTML='<option value="">없음</option>'+S.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  const folderSel=document.getElementById('mm-folder');if(folderSel)folderSel.innerHTML='<option value="">폴더 없음</option>'+(S.mtgFolders||[]).map(f=>`<option value="${f.id}">${f.name}</option>`).join('');
   const carryWrap=document.getElementById('mm-carryover-wrap');const prevSel=document.getElementById('mm-prev-sel');
-  if(id){const mtg=getMtg(id);if(mtg){document.getElementById('mm-title').value=mtg.title;document.getElementById('mm-date').value=mtg.date||'';document.getElementById('mm-time').value=mtg.time||'';document.getElementById('mm-members').value=(mtg.members||[]).join(', ');document.getElementById('mm-proj').value=mtg.projId||'';}document.getElementById('mtg-modal-title').textContent='회의 수정';carryWrap.style.display='none';document.querySelector('#mtg-modal .btn-confirm').textContent='저장';}
-  else{const n=new Date();document.getElementById('mm-date').value=`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;document.getElementById('mm-time').value=`${String(n.getHours()).padStart(2,'0')}:00`;document.getElementById('mm-title').value='';document.getElementById('mm-members').value='';document.getElementById('mm-proj').value='';document.getElementById('mtg-modal-title').textContent='새 회의';document.querySelector('#mtg-modal .btn-confirm').textContent='만들기';const meetings=S.meetings||[];if(meetings.length){carryWrap.style.display='block';prevSel.innerHTML='<option value="">이전 회의 선택...</option>'+meetings.map(m=>`<option value="${m.id}">${m.date||''} ${m.title}</option>`).join('');document.getElementById('mm-carryover-items').style.display='none';}else{carryWrap.style.display='none';}}
+  if(id){const mtg=getMtg(id);if(mtg){document.getElementById('mm-title').value=mtg.title;document.getElementById('mm-date').value=mtg.date||'';document.getElementById('mm-time').value=mtg.time||'';document.getElementById('mm-members').value=(mtg.members||[]).join(', ');document.getElementById('mm-proj').value=mtg.projId||'';if(folderSel)folderSel.value=mtg.folderId||'';}document.getElementById('mtg-modal-title').textContent='회의 수정';carryWrap.style.display='none';document.querySelector('#mtg-modal .btn-confirm').textContent='저장';}
+  else{const n=new Date();document.getElementById('mm-date').value=`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;document.getElementById('mm-time').value=`${String(n.getHours()).padStart(2,'0')}:00`;document.getElementById('mm-title').value='';document.getElementById('mm-members').value='';document.getElementById('mm-proj').value='';if(folderSel)folderSel.value='';document.getElementById('mtg-modal-title').textContent='새 회의';document.querySelector('#mtg-modal .btn-confirm').textContent='만들기';const meetings=S.meetings||[];if(meetings.length){carryWrap.style.display='block';prevSel.innerHTML='<option value="">이전 회의 선택...</option>'+meetings.map(m=>`<option value="${m.id}">${m.date||''} ${m.title}</option>`).join('');document.getElementById('mm-carryover-items').style.display='none';}else{carryWrap.style.display='none';}}
   document.getElementById('mtg-modal').style.display='flex';
 }
 function closeMtgModal(){document.getElementById('mtg-modal').style.display='none';}
@@ -3484,12 +3485,40 @@ function loadPrevMtgItems(){const prevId=document.getElementById('mm-prev-sel').
 function togglePick(el){el.classList.toggle('picked');}
 function saveMtg(){
   const title=document.getElementById('mm-title').value.trim()||'(제목 없음)';if(!S.meetings)S.meetings=[];
-  if(_curMtgId){const mtg=getMtg(_curMtgId);if(mtg){mtg.title=title;mtg.date=document.getElementById('mm-date').value;mtg.time=document.getElementById('mm-time').value;mtg.members=document.getElementById('mm-members').value.split(',').map(s=>s.trim()).filter(Boolean);mtg.projId=document.getElementById('mm-proj').value;}}
-  else{const pickedAgendas=[];const pickedActions=[];document.querySelectorAll('.pick-item.picked').forEach(el=>{if(el.dataset.type==='agenda')pickedAgendas.push({text:el.dataset.text});if(el.dataset.type==='action')pickedActions.push({text:el.dataset.text,who:el.dataset.who||'',due:el.dataset.due||'',done:false,id:Date.now().toString()+Math.random()});});const mtg={id:Date.now().toString(),title,date:document.getElementById('mm-date').value,time:document.getElementById('mm-time').value,members:document.getElementById('mm-members').value.split(',').map(s=>s.trim()).filter(Boolean),projId:document.getElementById('mm-proj').value,agenda:pickedAgendas,notes:'',actions:pickedActions,carryFrom:document.getElementById('mm-prev-sel').value||null,createdAt:Date.now()};S.meetings.unshift(mtg);_curMtgId=mtg.id;}
+  const folderVal=document.getElementById('mm-folder')?document.getElementById('mm-folder').value:'';
+  if(_curMtgId){const mtg=getMtg(_curMtgId);if(mtg){mtg.title=title;mtg.date=document.getElementById('mm-date').value;mtg.time=document.getElementById('mm-time').value;mtg.members=document.getElementById('mm-members').value.split(',').map(s=>s.trim()).filter(Boolean);mtg.projId=document.getElementById('mm-proj').value;if(folderVal)mtg.folderId=folderVal;else delete mtg.folderId;}}
+  else{const pickedAgendas=[];const pickedActions=[];document.querySelectorAll('.pick-item.picked').forEach(el=>{if(el.dataset.type==='agenda')pickedAgendas.push({text:el.dataset.text});if(el.dataset.type==='action')pickedActions.push({text:el.dataset.text,who:el.dataset.who||'',due:el.dataset.due||'',done:false,id:Date.now().toString()+Math.random()});});const mtg={id:Date.now().toString(),title,date:document.getElementById('mm-date').value,time:document.getElementById('mm-time').value,members:document.getElementById('mm-members').value.split(',').map(s=>s.trim()).filter(Boolean),projId:document.getElementById('mm-proj').value,folderId:folderVal||null,agenda:pickedAgendas,notes:'',actions:pickedActions,carryFrom:document.getElementById('mm-prev-sel').value||null,createdAt:Date.now()};if(!mtg.folderId)delete mtg.folderId;S.meetings.unshift(mtg);_curMtgId=mtg.id;}
   save();closeMtgModal();renderMtgList();if(_curMtgId)renderMtgDetail(_curMtgId);
 }
 function delMtg(id){if(!confirm('삭제할까요?'))return;S.meetings=(S.meetings||[]).filter(m=>m.id!==id);if(_curMtgId===id){_curMtgId=null;document.getElementById('mtg-detail').innerHTML='<div class="empty-plan"><div class="ei">🗣</div><p>회의를 선택하거나 새로 만들어봐요</p></div>';}save();renderMtgList();}
-function renderMtgList(){const q=(document.getElementById('mtg-search').value||'').toLowerCase();const meetings=(S.meetings||[]).filter(m=>!q||m.title.toLowerCase().includes(q)||m.date.includes(q));if(!meetings.length){document.getElementById('mtg-list').innerHTML=`<div class="mtg-empty-search">${q?'검색 결과 없음':'아직 회의록이 없어요'}</div>`;return;}document.getElementById('mtg-list').innerHTML=meetings.map(m=>{const proj=m.projId?getProj(m.projId):null;return`<div class="mtg-list-item${_curMtgId===m.id?' active':''}" onclick="renderMtgDetail('${m.id}')"><div class="mli-date">${m.date||'날짜 미정'}${m.time?' '+m.time:''}</div><div class="mli-title">${m.title}</div>${proj?`<div class="mli-proj">📁 ${proj.name}</div>`:''}</div>`;}).join('');}
+function renderMtgList(){
+  const q=(document.getElementById('mtg-search').value||'').toLowerCase();
+  const all=(S.meetings||[]).filter(m=>!q||m.title.toLowerCase().includes(q)||m.date.includes(q));
+  const listEl=document.getElementById('mtg-list');
+  if(!all.length){listEl.innerHTML=`<div class="mtg-empty-search">${q?'검색 결과 없음':'아직 회의록이 없어요'}</div>`;return;}
+  const folders=S.mtgFolders||[];
+  const ungrouped=all.filter(m=>!m.folderId||!folders.some(f=>f.id===m.folderId));
+  let html='';
+  folders.forEach(f=>{
+    const items=all.filter(m=>m.folderId===f.id);
+    html+=`<div class="mtg-folder-block">
+      <div class="mtg-folder-header" style="display:flex;align-items:center;gap:6px;padding:6px 4px;cursor:pointer" onclick="toggleFolderOpen('${f.id}')">
+        <span id="farr-${f.id}" class="folder-arrow${f.open?' open':''}">▶</span>
+        <span style="width:9px;height:9px;border-radius:50%;background:${f.color};flex-shrink:0"></span>
+        <span style="flex:1;font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</span>
+        <span style="font-size:10px;color:var(--t3)">${items.length}</span>
+        <button onclick="event.stopPropagation();deleteMtgFolder('${f.id}')" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:11px;padding:0 3px" title="폴더 삭제">✕</button>
+      </div>
+      <div id="fblock-${f.id}" style="display:${f.open?'block':'none'}">
+        ${items.length?items.map(m=>mtgListItem(m)).join(''):'<div style="font-size:10px;color:var(--t3);padding:4px 4px 8px 22px">폴더가 비어있어요</div>'}
+      </div>
+    </div>`;
+  });
+  if(ungrouped.length){
+    html+= folders.length ? `<div class="mtg-folder-block"><div style="font-size:10px;color:var(--t3);padding:8px 4px 4px 4px">📄 폴더 없음</div>${ungrouped.map(m=>mtgListItem(m)).join('')}</div>` : ungrouped.map(m=>mtgListItem(m)).join('');
+  }
+  listEl.innerHTML=html;
+}
 function renderMtgDetail(id){
   _curMtgId=id;renderMtgList();const mtg=getMtg(id);if(!mtg)return;
   const proj=mtg.projId?getProj(mtg.projId):null;const membersStr=(mtg.members||[]).length?mtg.members.join(', '):'참석자 없음';const prevMtg=mtg.carryFrom?getMtg(mtg.carryFrom):null;
@@ -4529,7 +4558,6 @@ function expClearUTM(){if(!confirm('전체 삭제?'))return;EXP.utms=[];expSave(
 function expRenderUTMList(){const el=document.getElementById('eutm-list');if(!el)return;if(!EXP.utms.length){el.innerHTML='<div style="color:var(--t3);font-size:12px">저장된 UTM 없음</div>';return;}el.innerHTML=EXP.utms.map((u,i)=>`<div style="border:1px solid var(--b);border-radius:var(--r-sm);padding:8px 10px;margin-bottom:6px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><span style="font-size:10px;color:var(--t3)">${u.proj||'—'}</span><div style="display:flex;gap:4px"><button class="btn-ghost" style="font-size:10px;padding:3px 8px" onclick="navigator.clipboard.writeText('${u.url.replace(/'/g,"\\'")}')">복사</button><button class="btn-ghost" style="font-size:10px;color:var(--red);padding:3px 8px" onclick="EXP.utms.splice(${i},1);expSave();expRenderUTMList()">✕</button></div></div><div style="font-size:10px;font-family:monospace;color:var(--t2);word-break:break-all">${u.url}</div></div>`).join('');}
 function expRenderDashboard(){const allStats=EXP.projects.flatMap(p=>expCalcStats(p));const done=EXP.projects.filter(p=>(p.step||0)>=5).length;const ctrs=allStats.filter(s=>s.avgCTR>0);const avg=ctrs.length?ctrs.reduce((s,x)=>s+x.avgCTR,0)/ctrs.length:0;document.getElementById('exp-dash-metrics').innerHTML=`<div class="exp-metric"><div class="exp-metric-label">전체 실험</div><div class="exp-metric-val">${EXP.projects.length}</div></div><div class="exp-metric"><div class="exp-metric-label">완료</div><div class="exp-metric-val">${done}</div></div><div class="exp-metric"><div class="exp-metric-label">평균 CTR</div><div class="exp-metric-val">${avg.toFixed(2)}%</div></div><div class="exp-metric"><div class="exp-metric-label">UTM 저장</div><div class="exp-metric-val">${EXP.utms.length}</div></div>`;const chStats={};EXP.projects.forEach(p=>{const ch=(p.channels&&p.channels[0])||'미설정';if(!chStats[ch])chStats[ch]={count:0,ctrs:[]};chStats[ch].count++;expCalcStats(p).forEach(s=>{if(s.avgCTR>0)chStats[ch].ctrs.push(s.avgCTR);});});document.getElementById('exp-dash-ch').innerHTML=Object.entries(chStats).map(([ch,d])=>{const a=d.ctrs.length?d.ctrs.reduce((x,y)=>x+y,0)/d.ctrs.length:0;return`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--b);font-size:12px"><span>${ECHANNELS[ch]||ch}</span><span style="font-weight:600">${a.toFixed(2)}%</span></div>`;}).join('')||'<div style="color:var(--t3);font-size:11px">데이터 없음</div>';const vpStats={};EXP.projects.forEach(p=>{const s=expCalcStats(p);if(!s.length)return;const w=[...s].sort((a,b)=>b.avgCTR-a.avgCTR)[0];const vp=w.vp||'미입력';if(!vpStats[vp])vpStats[vp]=0;vpStats[vp]++;});document.getElementById('exp-dash-vp').innerHTML=Object.entries(vpStats).sort((a,b)=>b[1]-a[1]).map(([vp,wins])=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--b);font-size:12px"><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:8px">${vp}</span><span style="font-weight:600;color:var(--lm)">${wins}회</span></div>`).join('')||'<div style="color:var(--t3);font-size:11px">완료된 실험 없음</div>';}
 // ── 회의록 폴더링 + 서식 툴바 ──
-let _mtgFolders = []; // [{id, name, color, open}]
 let _selectedFolderColor = '#c8f064';
 
 function openCreateFolderModal(){
@@ -4545,7 +4573,9 @@ function selectFolderColor(el){
 function createMtgFolder(){
   const name=document.getElementById('folder-name-inp').value.trim();
   if(!name)return;
-  _mtgFolders.push({id:'folder-'+Date.now(),name,color:_selectedFolderColor,open:true});
+  if(!S.mtgFolders)S.mtgFolders=[];
+  S.mtgFolders.push({id:'folder-'+Date.now(),name,color:_selectedFolderColor,open:true});
+  save();
   document.getElementById('create-folder-modal').style.display='none';
   renderMtgList();
 }
@@ -4565,33 +4595,29 @@ function mtgListItem(m){
 }
 
 function toggleFolderOpen(id){
-  const f=_mtgFolders.find(f=>f.id===id);if(!f)return;
+  const f=(S.mtgFolders||[]).find(f=>f.id===id);if(!f)return;
   f.open=!f.open;
+  save();
   const el=document.getElementById('fblock-'+id);
   const arr=document.getElementById('farr-'+id);
   if(el)el.style.display=f.open?'block':'none';
   if(arr)arr.className='folder-arrow'+(f.open?' open':'');
 }
-function toggleProjGroupOpen(pid){
-  if(!_mtgFolders._projOpen)_mtgFolders._projOpen={};
-  const cur=_mtgFolders._projOpen[pid]!==false;
-  _mtgFolders._projOpen[pid]=!cur;
-  const el=document.getElementById('pblock-'+pid);
-  const arr=document.getElementById('parr-'+pid);
-  if(el)el.style.display=!cur?'block':'none';
-  if(arr)arr.className='folder-arrow'+(!cur?' open':'');
-}
 function deleteMtgFolder(id){
-  // 폴더 안 회의록들은 폴더 해제 (folderId 제거)
+  if(!confirm('폴더를 삭제할까요? (안에 있던 회의록은 삭제되지 않고 폴더 밖으로 이동합니다)'))return;
+  // 폴더 안 회의록들은 폴더 해제 (folderId 제거) - 회의록 자체는 삭제하지 않음
   (S.meetings||[]).forEach(m=>{if(m.folderId===id)delete m.folderId;});
-  _mtgFolders=_mtgFolders.filter(f=>f.id!==id);
+  S.mtgFolders=(S.mtgFolders||[]).filter(f=>f.id!==id);
+  save();
   renderMtgList();
 }
-
-// openMtgModal 업데이트 - 다중 프로젝트 체크박스 + 폴더 셀렉트
-const _origOpenMtgModal=openMtgModal;
-// saveMtg 업데이트 - 다중 프로젝트 + 폴더 저장
-const _origSaveMtg=saveMtg;
+// 회의록을 폴더로 이동/해제
+function setMtgFolder(mtgId,folderId){
+  const m=getMtg(mtgId);if(!m)return;
+  if(folderId)m.folderId=folderId;else delete m.folderId;
+  save();
+  renderMtgList();
+}
 // 노트 저장 (contenteditable)
 function saveMtgNotes(id, el){
   const m=getMtg(id);if(!m)return;
@@ -5648,7 +5674,7 @@ function confirmDeleteProj(id, name){
 async function resetAllData(){
   if(!confirm('정말 모든 데이터를 초기화할까요?\n프로젝트, 일정, 회의록이 모두 삭제됩니다.')) return;
   S.projects=[]; S.curProjId=null; S.meetings=[]; S.products=[]; S.influencers=[];
-  S.revEntries=[]; S.utmEntries=[]; S.personalNotes={};
+  S.revEntries=[]; S.utmEntries=[]; S.personalNotes={}; S.mtgFolders=[];
   // 로컬스토리지 초기화
   try{localStorage.removeItem('nnb-v8');localStorage.removeItem('nnb-v9');}catch(e){}
   // window.storage 초기화
@@ -5993,7 +6019,8 @@ async function supaLoad(){
         influencers: d.influencers||[],
         revEntries: d.revEntries||[],
         utmEntries: d.utmEntries||[],
-        personalNotes: d.personalNotes||{}
+        personalNotes: d.personalNotes||{},
+        mtgFolders: d.mtgFolders||[]
       });
       normalizeProjectsData();normalizePersonalNotes();
       console.log('☁️ Supabase 로드 완료');
@@ -6026,7 +6053,8 @@ async function supaSyncInner(){
         influencers: S.influencers||[],
         revEntries: S.revEntries||[],
         utmEntries: S.utmEntries||[],
-        personalNotes: S.personalNotes||{}
+        personalNotes: S.personalNotes||{},
+        mtgFolders: S.mtgFolders||[]
       },
       updated_at: new Date().toISOString()
     };

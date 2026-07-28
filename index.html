@@ -278,7 +278,9 @@ input::placeholder,textarea::placeholder{color:var(--t3)}
 .live-badge.live{background:var(--red-bg);color:var(--red);border:1px solid rgba(240,100,100,.25)}
 .live-badge.paused{background:var(--surf3);color:var(--t3);border:1px solid var(--b)}
 .live-badge.scheduled{background:var(--blue-bg);color:var(--blue);border:1px solid rgba(100,184,240,.2)}
+.live-badge.done{background:var(--green-bg,var(--gnbg));color:var(--green,var(--gn));border:1px solid rgba(100,200,140,.25)}
 .ad-info{display:flex;flex-wrap:wrap;gap:8px;font-size:11px;color:var(--t2);margin-bottom:10px}
+.ad-metrics{display:flex;flex-wrap:wrap;gap:8px;font-size:10px;color:var(--t3);background:var(--surf2);border-radius:var(--r-sm);padding:6px 8px;margin-bottom:10px}
 .ad-card-btns{display:flex;gap:6px}
 .ad-card-btn{flex:1;padding:6px;border-radius:var(--r-sm);border:1px solid var(--b2);background:transparent;color:var(--t2);font-size:11px;cursor:pointer}
 .ad-card-btn:hover{border-color:var(--b3);color:var(--t)}
@@ -1852,17 +1854,26 @@ select:focus{border-color:var(--lm);outline:none}
   <div class="modal">
     <div class="modal-title">광고 추가 / 수정</div>
     <div class="field-g"><label class="field-label">광고명</label><input type="text" id="am-name" placeholder="예) 여름기획전 Meta 피드"></div>
-    <div class="field-g"><label class="field-label">채널</label><select id="am-ch"><option>Meta 피드</option><option>Meta 스토리</option><option>네이버 검색</option><option>카카오 CRM</option><option>인플루언서</option><option>유튜브</option><option>당근마켓</option></select></div>
+    <div class="field-g"><label class="field-label">프로젝트</label><select id="am-proj" onchange="refreshAdChannelOptions()"></select></div>
+    <div class="field-g"><label class="field-label">채널 / 항목</label><select id="am-ch"></select></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div class="field-g"><label class="field-label">시작일</label><input type="date" id="am-start"></div>
       <div class="field-g"><label class="field-label">종료일</label><input type="date" id="am-end"></div>
     </div>
-    <div class="field-g"><label class="field-label">예산</label><input type="text" id="am-budget" placeholder="예) 80만원"></div>
-    <div class="field-g"><label class="field-label">프로젝트</label><select id="am-proj"></select></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="field-g"><label class="field-label">상태</label><select id="am-status"><option value="scheduled">예정</option><option value="live">라이브</option><option value="paused">일시정지</option></select></div>
-      <div class="field-g"><label class="field-label">ROAS (예: 3.2)</label><input type="number" id="am-roas" placeholder="예) 3.2" step="0.1" min="0"></div>
+      <div class="field-g"><label class="field-label">예산(원)</label><input type="number" id="am-budget" placeholder="예) 800000" min="0"></div>
+      <div class="field-g"><label class="field-label">상태</label><select id="am-status"><option value="scheduled">예정</option><option value="live">라이브</option><option value="paused">일시정지</option><option value="done">완료</option></select></div>
     </div>
+    <div class="field-g" style="margin-top:2px;margin-bottom:-4px"><label class="field-label" style="font-weight:700">📊 성과 지표</label></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="field-g"><label class="field-label">노출수</label><input type="number" id="am-impressions" placeholder="0" min="0"></div>
+      <div class="field-g"><label class="field-label">클릭수</label><input type="number" id="am-clicks" placeholder="0" min="0"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="field-g"><label class="field-label">전환수</label><input type="number" id="am-conversions" placeholder="0" min="0"></div>
+      <div class="field-g"><label class="field-label">매출(원)</label><input type="number" id="am-revenue" placeholder="0" min="0"></div>
+    </div>
+    <div style="font-size:10px;color:var(--t3);padding:2px 2px 4px">CTR·ROAS·CPC·CPA는 위 숫자로 자동 계산돼요(직접 입력 안 해도 됨)</div>
     <div class="modal-btns"><button class="btn-cancel" onclick="closeAdModal()">취소</button><button class="btn-confirm" onclick="saveAd()">저장</button></div>
   </div>
 </div>
@@ -3315,25 +3326,89 @@ function fullAddTask(){
 }
 
 // ── ADS ──
+// 사용자 요청: 채널을 고정 목록으로만 고르지 않고, 프로젝트의 플랜에 이미 만들어둔 항목(그룹)도 자유롭게 선택할 수 있어야 함
+const AD_FIXED_CHANNELS=['Meta 피드','Meta 스토리','네이버 검색','카카오 CRM','인플루언서','유튜브','당근마켓'];
+function refreshAdChannelOptions(presetChannel){
+  const chSel=document.getElementById('am-ch');if(!chSel)return;
+  const cur=presetChannel!==undefined?presetChannel:chSel.value;
+  const projSel=document.getElementById('am-proj');
+  const proj=projSel?getProj(projSel.value):null;
+  const planChannels=(proj?.plan?.groups||[]).map(g=>g.name).filter(Boolean);
+  const all=[...new Set([...planChannels,...AD_FIXED_CHANNELS])];
+  if(cur&&!all.includes(cur))all.unshift(cur); // 예전에 골랐던 채널이 지금은 목록에 없어져도(항목 삭제 등) 값 자체는 잃지 않도록
+  chSel.innerHTML=all.map(c=>`<option value="${c.replace(/"/g,'&quot;')}"${c===cur?' selected':''}>${c}</option>`).join('');
+}
+// 사용자 요청: 노출수/클릭수/전환수/매출만 입력하면 CTR/ROAS/CPC/CPA는 알아서 계산됨
+function calcAdCTR(ad){const imp=parseFloat(ad.impressions)||0,clk=parseFloat(ad.clicks)||0;return imp>0?(clk/imp*100):0;}
+function calcAdROAS(ad){const budget=parseFloat(ad.budget)||0,rev=parseFloat(ad.revenue)||0;return budget>0?(rev/budget):0;}
+function calcAdCPC(ad){const budget=parseFloat(ad.budget)||0,clk=parseFloat(ad.clicks)||0;return clk>0?(budget/clk):0;}
+function calcAdCPA(ad){const budget=parseFloat(ad.budget)||0,conv=parseFloat(ad.conversions)||0;return conv>0?(budget/conv):0;}
 function openAdModal(id){
   S.editAdId=id||null;
-  if(id){let ad=null;S.projects.forEach(p=>{const f=p.ads.find(a=>a.id===id);if(f)ad=f;});if(ad){document.getElementById('am-name').value=ad.name;document.getElementById('am-ch').value=ad.channel;document.getElementById('am-start').value=ad.start||'';document.getElementById('am-end').value=ad.end||'';document.getElementById('am-budget').value=ad.budget||'';document.getElementById('am-status').value=ad.status||'scheduled';document.getElementById('am-roas').value=ad.roas||'';}}
-  else{['am-name','am-start','am-end','am-budget','am-roas'].forEach(id=>document.getElementById(id).value='');document.getElementById('am-status').value='scheduled';}
+  refreshProjSelects();
+  const projSel=document.getElementById('am-proj');
+  if(id){
+    let ad=null,ownerProjId='';
+    getVisibleProjects().forEach(p=>{const f=(p.ads||[]).find(a=>a.id===id);if(f){ad=f;ownerProjId=p.id;}});
+    if(ad){
+      document.getElementById('am-name').value=ad.name;
+      if(projSel)projSel.value=ownerProjId;
+      document.getElementById('am-start').value=ad.start||'';
+      document.getElementById('am-end').value=ad.end||'';
+      document.getElementById('am-budget').value=ad.budget||'';
+      document.getElementById('am-status').value=ad.status||'scheduled';
+      document.getElementById('am-impressions').value=ad.impressions||'';
+      document.getElementById('am-clicks').value=ad.clicks||'';
+      document.getElementById('am-conversions').value=ad.conversions||'';
+      document.getElementById('am-revenue').value=ad.revenue||'';
+      refreshAdChannelOptions(ad.channel);
+    }
+  }else{
+    ['am-name','am-start','am-end','am-budget','am-impressions','am-clicks','am-conversions','am-revenue'].forEach(fid=>{const el=document.getElementById(fid);if(el)el.value='';});
+    document.getElementById('am-status').value='scheduled';
+    refreshAdChannelOptions('');
+  }
   document.getElementById('ad-modal').style.display='flex';
 }
 function closeAdModal(){document.getElementById('ad-modal').style.display='none';}
 function saveAd(){
   const name=document.getElementById('am-name').value.trim();if(!name)return;
   const pid=document.getElementById('am-proj').value;const proj=getProj(pid);if(!proj)return;
-  const ad={id:S.editAdId||Date.now().toString(),name,channel:document.getElementById('am-ch').value,start:document.getElementById('am-start').value,end:document.getElementById('am-end').value,budget:document.getElementById('am-budget').value,status:document.getElementById('am-status').value,roas:parseFloat(document.getElementById('am-roas').value)||0};
-  if(S.editAdId)S.projects.forEach(p=>{p.ads=p.ads.filter(a=>a.id!==S.editAdId);});
-  proj.ads.push(ad);save();closeAdModal();renderAds();
+  const ad={
+    id:S.editAdId||Date.now().toString(),
+    name,
+    channel:document.getElementById('am-ch').value,
+    start:document.getElementById('am-start').value,
+    end:document.getElementById('am-end').value,
+    budget:document.getElementById('am-budget').value,
+    status:document.getElementById('am-status').value,
+    impressions:parseFloat(document.getElementById('am-impressions').value)||0,
+    clicks:parseFloat(document.getElementById('am-clicks').value)||0,
+    conversions:parseFloat(document.getElementById('am-conversions').value)||0,
+    revenue:parseFloat(document.getElementById('am-revenue').value)||0,
+  };
+  ad.roas=calcAdROAS(ad); // 매출/예산으로 자동 계산해서 저장(대시보드/보고서의 ROAS 랭킹 등 기존 기능이 그대로 쓸 수 있도록)
+  if(S.editAdId)S.projects.forEach(p=>{p.ads=(p.ads||[]).filter(a=>a.id!==S.editAdId);});
+  if(!proj.ads)proj.ads=[];
+  proj.ads.push(ad);save();closeAdModal();renderAds();if(typeof renderDashboard==='function')renderDashboard();
 }
-function delAd(id){S.projects.forEach(p=>{p.ads=p.ads.filter(a=>a.id!==id);});save();renderAds();}
-function toggleAdStatus(id){S.projects.forEach(p=>{const a=p.ads.find(a=>a.id===id);if(a){const c=['scheduled','live','paused'];a.status=c[(c.indexOf(a.status)+1)%3];}});save();renderAds();if(typeof renderDashboard==='function')renderDashboard();}
+function delAd(id){S.projects.forEach(p=>{p.ads=(p.ads||[]).filter(a=>a.id!==id);});save();renderAds();}
+function toggleAdStatus(id){S.projects.forEach(p=>{const a=(p.ads||[]).find(a=>a.id===id);if(a){const c=['scheduled','live','paused','done'];a.status=c[(c.indexOf(a.status)+1)%c.length];}});save();renderAds();if(typeof renderDashboard==='function')renderDashboard();}
 function renderAds(){
-  const statusL={live:'🔴 라이브',paused:'⏸ 일시정지',scheduled:'🗓 예정'};let html='';
-  getVisibleProjects().forEach((proj,pi)=>{(proj.ads||[]).forEach(ad=>{html+=`<div class="ad-card"><div class="ad-card-top"><div><div class="ad-name">${ad.name}</div><div class="ad-proj-nm"><div class="pcd" style="background:${projColor(pi)}"></div>${proj.name}</div></div><button class="live-badge ${ad.status}" onclick="toggleAdStatus('${ad.id}')">${statusL[ad.status]}</button></div><div class="ad-info"><span>📺 ${ad.channel}</span>${ad.budget?`<span>💰 ${ad.budget}</span>`:''} ${ad.start?`<span>📅 ${ad.start}${ad.end?' ~ '+ad.end:''}</span>`:''}</div><div class="ad-card-btns"><button class="ad-card-btn" onclick="openAdModal('${ad.id}')">수정</button><button class="ad-card-btn del" onclick="delAd('${ad.id}')">삭제</button></div></div>`;});});
+  const statusL={live:'🔴 라이브',paused:'⏸ 일시정지',scheduled:'🗓 예정',done:'✅ 완료'};let html='';
+  getVisibleProjects().forEach((proj,pi)=>{(proj.ads||[]).forEach(ad=>{
+    const hasMetrics=(parseFloat(ad.impressions)||0)>0||(parseFloat(ad.clicks)||0)>0||(parseFloat(ad.conversions)||0)>0||(parseFloat(ad.revenue)||0)>0;
+    const metricsHtml=hasMetrics?`<div class="ad-metrics">
+        <span>👁 노출 ${(parseFloat(ad.impressions)||0).toLocaleString()}</span>
+        <span>🖱 클릭 ${(parseFloat(ad.clicks)||0).toLocaleString()}${(ad.impressions>0)?` (CTR ${calcAdCTR(ad).toFixed(2)}%)`:''}</span>
+        <span>🎯 전환 ${(parseFloat(ad.conversions)||0).toLocaleString()}</span>
+        <span>💵 매출 ${(parseFloat(ad.revenue)||0).toLocaleString()}</span>
+        <span>📈 ROAS ${calcAdROAS(ad).toFixed(1)}x</span>
+        ${ad.clicks>0?`<span>CPC ${Math.round(calcAdCPC(ad)).toLocaleString()}</span>`:''}
+        ${ad.conversions>0?`<span>CPA ${Math.round(calcAdCPA(ad)).toLocaleString()}</span>`:''}
+      </div>`:'';
+    html+=`<div class="ad-card"><div class="ad-card-top"><div><div class="ad-name">${ad.name}</div><div class="ad-proj-nm"><div class="pcd" style="background:${projColor(pi)}"></div>${proj.name}</div></div><button class="live-badge ${ad.status}" onclick="toggleAdStatus('${ad.id}')">${statusL[ad.status]||ad.status}</button></div><div class="ad-info"><span>📺 ${ad.channel}</span>${ad.budget?`<span>💰 ${(parseFloat(ad.budget)||0).toLocaleString()}</span>`:''} ${ad.start?`<span>📅 ${ad.start}${ad.end?' ~ '+ad.end:''}</span>`:''}</div>${metricsHtml}<div class="ad-card-btns"><button class="ad-card-btn" onclick="openAdModal('${ad.id}')">수정</button><button class="ad-card-btn del" onclick="delAd('${ad.id}')">삭제</button></div></div>`;
+  });});
   document.getElementById('ad-cards').innerHTML=html||'<div style="text-align:center;padding:40px 20px;color:var(--t3)"><div style="font-size:28px;opacity:.3;margin-bottom:8px">📣</div><p style="font-size:12px">등록된 광고가 없어요<br><span style="font-size:11px">+ 광고 추가 버튼으로 시작해봐요</span></p></div>';
 }
 
@@ -4313,7 +4388,7 @@ function renderAllProjectsBudget(){
       <td colspan="2" style="padding:8px 10px">${p.name}</td>
       <td style="text-align:right;padding:8px 10px">${planTot.toLocaleString()}</td>
       <td class="bt-col-rem" style="text-align:right;padding:8px 10px;background:#fff3b0">${remTot>=0?'':'-'}${Math.abs(remTot).toLocaleString()}</td>
-      ${MONTHS.map((m,mi)=>{const mk=String(mi+1).padStart(2,'0');const sum=rows.reduce((s,r)=>s+(parseFloat((r.monthly||{})[mk])||0),0);const planned=getProjectedSpendForMonth(p,mk);return`<td style="text-align:right;padding:8px 10px">${(planned&&!sum)?`<div style="font-size:9px;color:var(--t3);font-weight:500">계획 ${planned.toLocaleString()}</div>`:''}${sum?sum.toLocaleString():''}</td>`;}).join('')}
+      ${MONTHS.map((m,mi)=>{const mk=String(mi+1).padStart(2,'0');const sum=rows.reduce((s,r)=>s+(parseFloat((r.monthly||{})[mk])||0),0);const planned=getProjectedSpendForMonth(p,mk);return`<td style="text-align:right;padding:8px 10px">${(planned&&!sum&&!isPastBudgetMonth(mi))?`<div style="font-size:9px;color:var(--t3);font-weight:500">계획 ${planned.toLocaleString()}</div>`:''}${sum?sum.toLocaleString():''}</td>`;}).join('')}
       <td style="text-align:right;padding:8px 10px;color:var(--lm)">${actualTot.toLocaleString()}</td>
       <td style="text-align:right;padding:8px 10px;color:${burn>100?'var(--red)':burn>80?'var(--orange)':'var(--lm)'}">${burn}%</td>
     </tr>`;
@@ -4325,7 +4400,7 @@ function renderAllProjectsBudget(){
         <td style="padding-left:14px;color:var(--t2)">${r.channel}</td>
         <td style="text-align:right">${(parseFloat(r.planTotal)||0).toLocaleString()}</td>
         <td class="bt-col-rem" style="text-align:right;background:#fffbe0">${rem>=0?'':'-'}${Math.abs(rem).toLocaleString()}</td>
-        ${MONTHS.map((m,mi)=>{const mk=String(mi+1).padStart(2,'0');const v=(r.monthly||{})[mk];const planned=getProjectedSpendForMonth(p,mk,r.channel);return`<td style="text-align:right;color:var(--t2)">${(planned&&!v)?`<div style="font-size:9px;color:var(--t3)">계획 ${planned.toLocaleString()}</div>`:''}${v?parseFloat(v).toLocaleString():''}</td>`;}).join('')}
+        ${MONTHS.map((m,mi)=>{const mk=String(mi+1).padStart(2,'0');const v=(r.monthly||{})[mk];const planned=getProjectedSpendForMonth(p,mk,r.channel);return`<td style="text-align:right;color:var(--t2)">${(planned&&!v&&!isPastBudgetMonth(mi))?`<div style="font-size:9px;color:var(--t3)">계획 ${planned.toLocaleString()}</div>`:''}${v?parseFloat(v).toLocaleString():''}</td>`;}).join('')}
         <td style="text-align:right;color:var(--t2)">${totalActR?totalActR.toLocaleString():''}</td>
         <td></td>
       </tr>`;
@@ -4335,7 +4410,7 @@ function renderAllProjectsBudget(){
 
   const grandRem=grandPlan-grandActual;
   const grandBurn=grandPlan>0?Math.round(grandActual/grandPlan*100):0;
-  const grandProjectedMonthly=MONTHS.map((m,mi)=>{const mk=String(mi+1).padStart(2,'0');return projs.reduce((s,p)=>s+getProjectedSpendForMonth(p,mk),0);});
+  const grandProjectedMonthly=MONTHS.map((m,mi)=>{if(isPastBudgetMonth(mi))return 0;const mk=String(mi+1).padStart(2,'0');return projs.reduce((s,p)=>s+getProjectedSpendForMonth(p,mk),0);});
   const grandProjectedTotal=grandProjectedMonthly.reduce((a,b)=>a+b,0);
 
   container.innerHTML=`<div class="bt-table-wrap">
@@ -4376,6 +4451,10 @@ function renderAllProjectsBudget(){
 // 버그/기능 추가: 할일(플랜)에 이미 넣어둔 예산을 이번 달/다음 달 "예상 소진 예산"으로 미리 볼 수 있게 함.
 // 지난 달(이미 끝난 달)은 수기로 입력한 실집행 금액이 확정값이라 여기선 손대지 않고,
 // 이번 달(아직 안 끝남)/다음 달처럼 아직 실집행을 입력 안 한 달만 할일 예산 합계로 미리 보여줌.
+// 사용자 요청: "계획"(할일 기준 예상 금액)은 그 달이 지나면 실제값 입력 여부와 상관없이 자동으로 사라져야 함
+// (지난 달은 이미 끝났으니 예상치가 아니라 확정된 실집행 금액만 의미가 있으므로).
+// mi는 0-indexed 월(0=1월 ... 11=12월). 이번 달은 아직 안 끝났으니 "지난 달"에 포함하지 않음.
+function isPastBudgetMonth(mi){return mi<new Date().getMonth();}
 function getProjectedSpendForMonth(proj,monthKey,channelName){
   if(!proj||!proj.plan?.groups)return 0;
   let sum=0;
@@ -4404,6 +4483,7 @@ function renderBudgetTracker(proj){
   const burnRate=totalPlan>0?Math.round(totalActual/totalPlan*100):0;
   // 사용자 요청: 셀 안의 "계획" 예상금액도 월별/총 합계가 보였으면 좋겠다는 요청 → 표 아래에 예상 합계 행 추가
   const grandProjectedMonthly=MONTHS.map((m,mi)=>{
+    if(isPastBudgetMonth(mi))return 0; // 지난 달은 계획 합계에서도 제외
     const mk=String(mi+1).padStart(2,'0');
     return rows.reduce((s,r)=>s+getProjectedSpendForMonth(proj,mk,r.channel),0);
   });
@@ -4448,8 +4528,9 @@ function renderBudgetTracker(proj){
               // 작게 얹어두고 그 밑에 실제 집행 입력칸을 둬서 같은 자리에서 바로 비교할 수 있게 함
               const planned=getProjectedSpendForMonth(proj,mk,r.channel);
               // 사용자 요청: 실제 집행 금액을 수기로 채우면 그 칸의 "계획" 예상금액 표시는 사라짐(확정된 값이 우선)
+              // + 그 달이 지나버렸으면 실제값을 안 채웠어도 "계획"은 자동으로 사라짐
               return`<td style="text-align:right">
-                <div style="font-size:9px;color:var(--t3);min-height:12px;white-space:nowrap">${(planned&&!v)?'계획 '+planned.toLocaleString():''}</div>
+                <div style="font-size:9px;color:var(--t3);min-height:12px;white-space:nowrap">${(planned&&!v&&!isPastBudgetMonth(mi))?'계획 '+planned.toLocaleString():''}</div>
                 <input class="bt-inp" type="number" value="${v}" placeholder="" min="0" onchange="btUpdateActual('${proj.id}',${ri},'${mk}',this.value)">
               </td>`;
             }).join('')}

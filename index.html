@@ -414,13 +414,18 @@ input::placeholder,textarea::placeholder{color:var(--t3)}
 .bt-proj-sel{font-size:12px;padding:6px 10px;background:var(--surf2);border:1px solid var(--b2);border-radius:var(--r-sm);color:var(--t);outline:none}
 .bt-table-wrap{border:1px solid var(--b2);border-radius:var(--r);overflow-x:auto;overflow-y:visible;margin-bottom:16px}
 .bt-table{width:100%;border-collapse:collapse;font-size:12px}
+/* 버그 수정: 월별 칸이 17개 컬럼(항목/카테고리/예산/잔여/12개월/총사용) 안에서 억지로 좁아지며
+   숫자가 잘려 보이던 문제. width:100%만 있으면 표가 컨테이너 폭에 맞춰 억지로 눌리므로,
+   내용 기준 폭(min-content)을 최소로 보장해서 넘치면 .bt-table-wrap의 가로 스크롤이 대신 생기게 함 */
+.bt-table-sheet{width:max-content;min-width:100%}
 .bt-table th{background:var(--surf2);padding:9px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid var(--b2);white-space:nowrap}
 .bt-table th.right{text-align:right}
+.bt-table-sheet th.right{min-width:76px}
 .bt-table td{padding:9px 12px;border-bottom:1px solid var(--b);vertical-align:middle}
 .bt-table tr:last-child td{border-bottom:none}
 .bt-table tr:hover td{background:rgba(0,0,0,.02)}
 .bt-table tr.total-row td{background:var(--surf2);font-weight:700;border-top:2px solid var(--b2)}
-.bt-inp{background:transparent;border:none;outline:none;font-family:inherit;font-size:12px;color:var(--t);text-align:right;width:90px;padding:2px 4px;border-radius:4px}
+.bt-inp{background:transparent;border:none;outline:none;font-family:inherit;font-size:12px;color:var(--t);text-align:right;width:100%;min-width:66px;padding:2px 4px;border-radius:4px}
 .bt-inp:focus{background:var(--lmbg);color:var(--lm2)}
 .bt-bar-cell{min-width:100px}
 .bt-bar-wrap{display:flex;flex-direction:column;gap:3px}
@@ -1082,6 +1087,7 @@ select:focus{border-color:var(--lm);outline:none}
     <div id="bt-content">
       <div class="empty-plan"><div class="ei">💰</div><p style="font-weight:700;color:var(--t);margin-bottom:4px">예산 트래커</p><p style="font-size:12px">위에서 프로젝트를 선택하면<br>채널별 예산을 관리할 수 있어요</p></div>
     </div>
+    <div id="bt-forecast-section" style="margin-top:16px;background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:14px 16px;display:none"></div>
     <div id="bt-plan-budget" style="margin-top:16px;background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:14px 16px;display:none"></div>
   </div>
 </div>
@@ -3905,14 +3911,75 @@ function btLoadProject(){
   if(projId==='all'){
     if(planBudgetEl)planBudgetEl.style.display='none';
     renderAllProjectsBudget();
+    renderBudgetForecastSection();
     return;
   }
   const proj=getProj(projId);
-  if(!proj){document.getElementById('bt-content').innerHTML='<div class="empty-plan"><div class="ei">💰</div><p style="font-weight:700;color:var(--t);margin-bottom:4px">예산 트래커</p><p style="font-size:12px">위에서 프로젝트를 선택하면<br>채널별 예산을 관리할 수 있어요</p></div>';if(planBudgetEl)planBudgetEl.style.display='none';return;}
+  if(!proj){document.getElementById('bt-content').innerHTML='<div class="empty-plan"><div class="ei">💰</div><p style="font-weight:700;color:var(--t);margin-bottom:4px">예산 트래커</p><p style="font-size:12px">위에서 프로젝트를 선택하면<br>채널별 예산을 관리할 수 있어요</p></div>';if(planBudgetEl)planBudgetEl.style.display='none';const fEl=document.getElementById('bt-forecast-section');if(fEl)fEl.style.display='none';return;}
   if(!Array.isArray(proj.budget))proj.budget=[];
   renderBudgetTracker(proj);
 
   renderPlanBudgetSection(proj);
+  renderBudgetForecastSection();
+}
+
+// ── 월별 예상 소진 예산(할일 기준) 상세 — 프로젝트 선택(단일/전체)에 따라 자동으로 범위가 바뀜 ──
+// 사용자 요청: "이번 달/다음 달" 카드 두 개로만 보여주지 말고, 할일에 날짜+예산이 있는 모든 달을
+// 월별로 펼쳐서(그 달에 어떤 할일들이 잡혀있는지까지) 보고 싶고, 프로젝트별/전체 중 골라서 보고 싶다는 요청.
+function collectBudgetedPlanTasks(projs){
+  const items=[];
+  projs.forEach(p=>{
+    (p.plan?.groups||[]).forEach(g=>{
+      (g.tasks||[]).forEach(t=>{
+        if(!t.budget||!t.date)return;
+        items.push({projName:p.name,projId:p.id,group:g.name,text:t.text||'(제목 없음)',budget:parseFloat(t.budget)||0,date:t.date,assignee:t.assignee||'',done:!!t.done});
+      });
+    });
+  });
+  return items;
+}
+function renderBudgetForecastSection(){
+  const el=document.getElementById('bt-forecast-section');if(!el)return;
+  const projId=document.getElementById('bt-proj-sel')?.value;
+  if(!projId){el.style.display='none';return;}
+  const isAll=projId==='all';
+  const projs=isAll?S.projects:[getProj(projId)].filter(Boolean);
+  const items=collectBudgetedPlanTasks(projs);
+  if(!items.length){el.style.display='none';return;}
+  el.style.display='block';
+  const byMonth={};
+  items.forEach(it=>{
+    const [y,m]=it.date.split('-');
+    const mk=`${y}-${m}`;
+    if(!byMonth[mk])byMonth[mk]={y:parseInt(y),m:parseInt(m),items:[],total:0};
+    byMonth[mk].items.push(it);
+    byMonth[mk].total+=it.budget;
+  });
+  const sortedMonths=Object.keys(byMonth).sort();
+  el.innerHTML=`
+    <div style="font-size:13px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;justify-content:space-between">
+      <span>📅 예상 소진 예산 (월별 · 할일 기준)</span>
+      <span style="font-size:11px;color:var(--t3)">${isAll?'전체 프로젝트':projs[0]?.name||''}</span>
+    </div>
+    <div style="font-size:10px;color:var(--t3);margin-bottom:10px">할일에 넣어둔 예산을 날짜 기준으로 월별로 모아서 보여줘요. 실제 집행 확정 전 참고용이에요(위 예산 표의 실집행 칸이 확정값).</div>
+    ${sortedMonths.map(mk=>{
+      const g=byMonth[mk];
+      return`<div style="margin-bottom:10px;border:1px solid var(--b);border-radius:var(--r-sm);overflow:hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--surf2)">
+          <span style="font-size:12px;font-weight:700">${g.y}년 ${g.m}월</span>
+          <span style="font-size:12px;font-weight:700;color:var(--lm)">${g.total.toLocaleString()}원</span>
+        </div>
+        <div>
+          ${g.items.map(it=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-top:1px solid var(--b);font-size:11px">
+            <span style="flex:1;min-width:0;${it.done?'text-decoration:line-through;color:var(--t3)':''}">${it.text}</span>
+            ${isAll?`<span style="font-size:9px;color:var(--t3);padding:1px 6px;background:var(--surf2);border-radius:8px;white-space:nowrap">${it.projName}</span>`:''}
+            <span style="font-size:9px;color:var(--t3);padding:1px 6px;background:var(--surf3);border-radius:8px;white-space:nowrap">${it.group}</span>
+            <span style="font-weight:600;color:var(--t);white-space:nowrap">${it.budget.toLocaleString()}원</span>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    }).join('')}
+  `;
 }
 
 // ── 전체 프로젝트 예산 비교 뷰 ──

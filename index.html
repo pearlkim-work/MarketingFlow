@@ -1966,7 +1966,13 @@ let S={
 // ── STORAGE ──
 
 // Supabase 디바운스 동기화
+// 버그 수정: 방금 로컬에서 저장(예: 회의록에서 새 프로젝트 생성, 목표 현재값 입력)했는데
+// 아직 서버에 업로드되기 전에 30초 자동 동기화(supaLoad)가 옛날 서버 데이터로 덮어써버려서
+// 방금 만든 데이터가 감쪽같이 사라지던(=화면엔 반영됐다가 잠시 후 없었던 일이 되는) 문제 방지.
+// 서버로 업로드 중(_pendingSupaSync=true)인 동안은 자동 다운로드가 로컬 데이터를 덮어쓰지 않게 함.
+let _pendingSupaSync=false;
 function scheduleSupa(){
+  _pendingSupaSync=true;
   if(typeof supaSync==='function'){clearTimeout(_syncTimer);_syncTimer=setTimeout(supaSync,1500);}
 }
 async function save(){try{if(window.storage){await window.storage.set('nnb-v8',JSON.stringify(S));}else{localStorage.setItem('nnb-v8',JSON.stringify(S));}}catch(e){try{localStorage.setItem('nnb-v8',JSON.stringify(S));}catch(e2){}}scheduleSupa();}
@@ -3110,7 +3116,7 @@ function renderFullDayTasks(ds){
     const color=TYPE_COLOR[t.type]||'var(--t3)';
     const clItems=(t.checklist||[]).map((c,ci)=>`
       <div style="display:flex;align-items:center;gap:5px;padding:3px 0;border-bottom:1px solid var(--b)">
-        <div onclick="toggleSubTask('${ds}','${t._projId}',${t._taskIdx},${ci})" style="width:12px;height:12px;border-radius:2px;border:1.5px solid ${c.done?color:'var(--b3)'};background:${c.done?color:'transparent'};flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center">
+        <div onclick="toggleSubTask('${ds}','${t.projId}',${t.taskIdx},${ci})" style="width:12px;height:12px;border-radius:2px;border:1.5px solid ${c.done?color:'var(--b3)'};background:${c.done?color:'transparent'};flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center">
           ${c.done?'<span style="font-size:7px;color:#fff;font-weight:700">✓</span>':''}
         </div>
         <span style="font-size:10px;${c.done?'text-decoration:line-through;color:var(--t3)':'color:var(--t2)'}">${c.text}</span>
@@ -3118,7 +3124,10 @@ function renderFullDayTasks(ds){
 
     return`<div style="background:var(--surf2);border-radius:var(--rs);border:1px solid var(--b);border-left:3px solid ${color};padding:9px 10px;margin-bottom:5px">
       <div style="display:flex;align-items:flex-start;gap:7px">
-        <div onclick="toggleTask(this,'${ds}','${t._projId}',${t._taskIdx})" class="stask-chk${t.done?' done':''}"></div>
+        <!-- 버그 수정: getAllTasksForDate()가 만드는 필드명은 밑줄 없는 projId/taskIdx인데
+             여기서는 밑줄 붙은 _projId/_taskIdx를 읽고 있어서 항상 undefined였고,
+             그래서 toggleTask()의 getProj(undefined) 조회가 실패해 체크 표시가 전혀 반영되지 않았음 -->
+        <div onclick="toggleTask(this,'${ds}','${t.projId}',${t.taskIdx})" class="stask-chk${t.done?' done':''}"></div>
         <div style="flex:1;min-width:0">
           <div style="font-size:11px;font-weight:500;${t.done?'text-decoration:line-through;color:var(--t3)':'color:var(--t)'}">${t.text}</div>
           <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:4px">
@@ -5328,6 +5337,9 @@ let _syncTimer = null;
 let _lastSyncAt = 0;
 
 async function supaLoad(){
+  // 버그 수정: 방금 만든/수정한 데이터가 아직 서버에 업로드되지 않았다면(supaSync 대기 중)
+  // 여기서 서버 데이터로 통째로 덮어쓰면 방금 한 작업이 사라지므로, 업로드가 끝날 때까지 건너뜀
+  if(_pendingSupaSync)return false;
   try{
     const res = await fetch(`${SUPA_URL}/rest/v1/mf_data?id=eq.${encodeURIComponent(SUPA_ID)}&select=data`, {
       method: 'GET',
@@ -5363,6 +5375,14 @@ async function supaLoad(){
 }
 
 async function supaSync(){
+  try{
+    await supaSyncInner();
+  } finally {
+    // 업로드가 끝났으니(성공/실패 무관) 이제 자동 다운로드(supaLoad)가 다시 최신 서버 데이터를 반영해도 안전함
+    _pendingSupaSync=false;
+  }
+}
+async function supaSyncInner(){
   try{
     const payload = {
       id: SUPA_ID,
@@ -5406,6 +5426,11 @@ async function supaSync(){
 
 // 30초마다 자동 동기화 (다른 팀원 변경사항 반영)
 setInterval(async ()=>{
+  // 버그 수정: 사용자가 입력창에 뭔가를 타이핑하고 있는 도중에 화면을 통째로 다시 그리면
+  // 입력하던 값이 사라져서(포커스도 날아가서) "입력해도 반응 없음"처럼 보이던 문제 방지.
+  // 아직 blur/enter로 확정 저장하지 않은 입력 중에는 이번 자동 새로고침 주기를 건너뜀.
+  const activeEl=document.activeElement;
+  if(activeEl&&['INPUT','TEXTAREA','SELECT'].includes(activeEl.tagName))return;
   const loaded = await supaLoad();
   if(loaded){
     // 현재 뷰 리렌더

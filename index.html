@@ -1033,7 +1033,8 @@ select:focus{border-color:var(--lm);outline:none}
         <button class="cal-ftag" data-filter="ops" onclick="calFilterClick(this)">⬜ 일반</button>
       </div>
       <div id="proj-colors" class="proj-colors"></div>
-      <div class="cal-grid" id="full-cal-grid"></div>
+      <!-- 사용자 요청: 마우스로 휙휙 넘길 수 있게(휠/트랙패드 스크롤로 이전/다음 달·주 이동) -->
+      <div class="cal-grid" id="full-cal-grid" onwheel="calWheelNav(event)"></div>
     </div>
     <aside class="cal-sidebar-full">
       <div class="sidebar-date" id="full-sel-date-lbl">날짜를 선택하세요</div>
@@ -3225,6 +3226,17 @@ function fullCalMove(d){
   }
   S.fullCalM+=d;if(S.fullCalM>11){S.fullCalM=0;S.fullCalY++;}if(S.fullCalM<0){S.fullCalM=11;S.fullCalY--;}renderFullCal();
 }
+// 사용자 요청: 마우스 휠(트랙패드 포함)로 캘린더를 휙휙 넘길 수 있게 함(월/주 보기 공용 - fullCalMove가 이미 모드별로 분기함)
+let _calWheelLast=0;
+function calWheelNav(e){
+  const delta=e.deltaY!==0?e.deltaY:e.deltaX;
+  if(Math.abs(delta)<10)return; // 아주 미세한 떨림성 이벤트는 무시
+  e.preventDefault();
+  const now=Date.now();
+  if(now-_calWheelLast<350)return; // 트랙패드는 스크롤 한 번에도 이벤트가 여러 번 발생하므로 과도한 연속 이동 방지
+  _calWheelLast=now;
+  fullCalMove(delta>0?1:-1);
+}
 function goToday(){
   const n=new Date();
   S.fullCalY=n.getFullYear();S.fullCalM=n.getMonth();
@@ -3276,7 +3288,7 @@ function renderFullCal(){
     let tasks=getAllTasksForDate(ds);
     if(_calFilter!=='all')tasks=tasks.filter(t=>t.type===_calFilter);
     const shown=tasks.slice(0,3);const more=tasks.length-3;
-    const dotItems=shown.map(t=>`<div class="cdot ${t.type}${t.done?' done':''}" draggable="true" ondragstart="calDragStart(event,'${t.projId}','${t._anchorDate}',${t.taskIdx})" ondragend="calDragEnd(event)"><div class="cdot-proj-dot" style="background:${t.projColor}"></div>${t.text}${t.endDate&&t.endDate>t._anchorDate?` <span style="opacity:.6;font-size:9px">~${t.endDate.slice(5)}</span>`:''}</div>`).join('');
+    const dotItems=shown.map(t=>`<div class="cdot ${t.type}${t.done?' done':''}" title="${t.projName} · ${t.text}" draggable="true" ondragstart="calDragStart(event,'${t.projId}','${t._anchorDate}',${t.taskIdx})" ondragend="calDragEnd(event)" oncontextmenu="event.stopPropagation();calTaskCtxMenu(event,'${t.projId}','${t._anchorDate}',${t.taskIdx})"><div class="cdot-proj-dot" style="background:${t.projColor}"></div>${t.text}${t.endDate&&t.endDate>t._anchorDate?` <span style="opacity:.6;font-size:9px">~${t.endDate.slice(5)}</span>`:''}</div>`).join('');
     return`<div class="cal-cell${isOther?' other-m-cell':''}${isToday?' today-cell':''}${isSel?' sel-cell':''}" onclick="fullSelectDate('${ds}')" ondragover="calDragOver(event)" ondragleave="calDragLeave(event)" ondrop="calDrop(event,'${ds}')"><div class="cal-date-n">${d}</div><div class="cal-cell-dots">${dotItems}${more>0?`<div class="cdot-more">+${more}개</div>`:''}</div></div>`;
   };
   const prevLast=new Date(y,m,0).getDate();
@@ -3313,10 +3325,15 @@ function calDrop(e,toDate){
   }
   if(!proj.tasks[toDate])proj.tasks[toDate]=[];proj.tasks[toDate].push(task);
   // 버그 수정: 플랜에서 만들어진 할일(_planRef)을 드래그로 다른 날로 옮기면 플랜 쪽 날짜도 같이
-  // 바뀌어야 하는데, 예전엔 캘린더 쪽 날짜만 바뀌고 플랜은 원래 날짜에 그대로 남아서 서로 어긋났음
+  // 바뀌어야 하는데, 예전엔 캘린더 쪽 날짜만 바뀌고 플랜은 원래 날짜에 그대로 남아서 서로 어긋났음.
+  // 버그 방지: 종료일(기간)이 있는 일정이면 위에서 이미 밀어둔 종료일도 플랜 쪽에 함께 반영해야
+  // 플랜 탭에 표시되는 기간이 캘린더와 어긋나지 않음(예산 예측표는 플랜 쪽 날짜를 기준으로 월별 집계함)
   if(task._planRef&&proj.plan?.groups){
     const[gi,ti]=task._planRef.split('-').map(Number);
-    if(proj.plan.groups[gi]?.tasks?.[ti])proj.plan.groups[gi].tasks[ti].date=toDate;
+    if(proj.plan.groups[gi]?.tasks?.[ti]){
+      proj.plan.groups[gi].tasks[ti].date=toDate;
+      proj.plan.groups[gi].tasks[ti].endDate=task.endDate||'';
+    }
   }
   _drag={};
   save();renderCalView();if(S.selDate)renderFullDayTasks(S.selDate);if(proj.plan)renderPlanResult(proj.plan);
@@ -3355,6 +3372,9 @@ function renderFullDayTasks(ds){
   const PRIO_STYLE={high:'background:var(--rdbg);color:var(--rd)',medium:'background:rgba(255,200,0,.1);color:#b8860b',low:'background:var(--gnbg);color:var(--gn)'};
   const PRIO_LABEL={high:'🔴 High',medium:'🟡 Medium',low:'🟢 Low'};
   const TYPE_COLOR={meta:'var(--lm)',crm:'var(--or)',inf:'var(--bl)',live:'var(--rd)',content:'var(--gn)',ops:'var(--t3)',meet:'#8a5cf6'};
+  // 사용자 요청: 캘린더에서 어떤 프로젝트/항목(광고매체 등)인지 색깔로 바로 구분되면 좋겠다는 요청 → 채널 라벨 추가
+  const TYPE_LABEL={meta:'📘 Meta',crm:'📨 CRM',inf:'✨ 인플루언서',live:'🔴 라이브',content:'🎨 콘텐츠',ops:'📋 일반',meet:'🗣 미팅'};
+  const TYPE_BG={meta:'var(--lmbg)',crm:'var(--orange-bg)',inf:'var(--blue-bg)',live:'var(--red-bg)',content:'var(--green-bg)',ops:'var(--surf3)',meet:'rgba(138,92,246,.12)'};
 
   document.getElementById('full-task-list').innerHTML=tasks.length
   ?tasks.map((t,i)=>{
@@ -3380,6 +3400,9 @@ function renderFullDayTasks(ds){
           <!-- 사용자 요청: 목록에서 바로 수정(제목 편집)/삭제할 수 있어야 하고, 플랜에서 만든 할일이면 플랜 쪽도 함께 반영되어야 함 -->
           <input class="full-task-text-inp" value="${(t.text||'').replace(/"/g,'&quot;')}" oninput="fullEditTaskText('${t.projId}','${anchorDs}',${t.taskIdx},this.value)" style="width:100%;border:none;background:transparent;padding:0;font-family:inherit;font-size:11px;font-weight:500;${t.done?'text-decoration:line-through;color:var(--t3)':'color:var(--t)'}">
           <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:4px;align-items:center">
+            <!-- 사용자 요청: 프로젝트/항목(광고매체 등)이 색깔로 구분되면 좋겠음 -->
+            <span style="font-size:9px;font-weight:600;color:${t.projColor};display:flex;align-items:center;gap:3px;padding:1px 5px;background:var(--surf2);border-radius:8px"><span style="width:6px;height:6px;border-radius:50%;background:${t.projColor};display:inline-block;flex-shrink:0"></span>${t.projName}</span>
+            <span style="font-size:9px;font-weight:600;padding:1px 5px;border-radius:8px;background:${TYPE_BG[t.type]||'var(--surf3)'};color:${color}">${TYPE_LABEL[t.type]||t.type}</span>
             <!-- 사용자 요청: 캘린더에서 할일 수정할 때 담당자(여러 명)도 날짜도 다 바로 수정 가능해야 함 -->
             <button type="button" class="assignee-picker-trigger" onclick="event.stopPropagation();openAssigneePicker(this,'${(t.assignee||'').replace(/'/g,"\\'")}',function(csv){fullUpdateTaskAssignee('${t.projId}','${anchorDs}',${t.taskIdx},csv);})" style="font-size:9px;padding:1px 5px;background:transparent;border:1px solid var(--b2);border-radius:8px;color:var(--t3);font-family:inherit">${t.assignee?('👤 '+assigneeDisplay(t.assignee)):'👤 담당자'}</button>
             ${t.budget?`<span style="font-size:9px;color:var(--t3)">💰 ${t.budget}</span>`:''}
@@ -3469,10 +3492,12 @@ function fullUpdateTaskDate(pid,ds,i,newDs){
 }
 // 사용자 요청: 할일을 마우스 우클릭하면 수정/삭제/복제 메뉴가 뜨게 함(캘린더 쪽 - 월/주 보기 공용)
 let _taskCtxRowEl=null;
+let _taskCtxTarget=null;
 function calTaskCtxMenu(e,pid,ds,i){
   e.preventDefault();
   document.querySelectorAll('.task-ctxmenu').forEach(m=>m.remove());
   _taskCtxRowEl=e.currentTarget;
+  _taskCtxTarget={pid,ds,i};
   const menu=document.createElement('div');
   menu.className='task-ctxmenu';
   menu.style.left=e.clientX+'px';menu.style.top=e.clientY+'px';
@@ -3483,7 +3508,10 @@ function calTaskCtxMenu(e,pid,ds,i){
 function calTaskCtxEdit(){
   document.querySelectorAll('.task-ctxmenu').forEach(m=>m.remove());
   const inp=_taskCtxRowEl?.querySelector('.full-task-text-inp');
-  if(inp){inp.focus();inp.select();}
+  if(inp){inp.focus();inp.select();return;}
+  // 버그 방지: 월 보기의 작은 점(dot)처럼 그 자리에서 바로 수정 가능한 입력칸이 없는 경우,
+  // 해당 날짜를 선택해서 상세 목록(패널)을 열어줌(거기서는 모든 항목을 바로 수정할 수 있음)
+  if(_taskCtxTarget)fullSelectDate(_taskCtxTarget.ds);
 }
 // 사용자 요청: 할일을 그대로 복제할 수 있어야 함(우클릭 메뉴 → 복제)
 function fullDuplicateTask(pid,ds,i){

@@ -762,8 +762,8 @@ select:focus{border-color:var(--lm);outline:none}
         <div style="background:#fff;border:1px solid var(--b2);border-radius:var(--r);padding:24px;box-shadow:0 4px 24px rgba(0,0,0,.06)">
           <div style="font-size:13px;font-weight:700;margin-bottom:16px">로그인</div>
           <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
-            <div class="field-g"><label class="field-label">아이디</label><input type="text" id="login-email" placeholder="아이디를 입력하세요" onkeydown="if(event.key==='Enter')doLogin()"></div>
-            <div class="field-g"><label class="field-label">비밀번호</label><input type="password" id="login-pw" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+            <div class="field-g"><label class="field-label">아이디</label><input type="text" id="login-email" placeholder="아이디를 입력하세요" onkeydown="if(event.key==='Enter'&&!event.isComposing&&event.keyCode!==229)doLogin()"></div>
+            <div class="field-g"><label class="field-label">비밀번호</label><input type="password" id="login-pw" placeholder="••••••••" onkeydown="if(event.key==='Enter'&&!event.isComposing&&event.keyCode!==229)doLogin()"></div>
           </div>
           <div id="login-err" style="font-size:11px;color:var(--rd);margin-bottom:8px;display:none">이메일 또는 비밀번호가 틀렸어요</div>
           <button onclick="doLogin()" style="width:100%;padding:11px;background:var(--lm);color:#fff;border:none;border-radius:var(--rs);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">로그인</button>
@@ -933,7 +933,7 @@ select:focus{border-color:var(--lm);outline:none}
       </div>
 
       <div class="ch-add-row" style="margin-bottom:14px">
-        <input type="text" id="ch-custom-inp" class="ch-custom-inp" placeholder="항목 직접 추가..." onkeydown="if(event.key==='Enter')addCustomChannel()">
+        <input type="text" id="ch-custom-inp" class="ch-custom-inp" placeholder="항목 직접 추가..." onkeydown="if(event.key==='Enter'&&!event.isComposing&&event.keyCode!==229)addCustomChannel()">
         <button class="btn-ch-add" onclick="addCustomChannel()">+</button>
       </div>
 
@@ -953,7 +953,7 @@ select:focus{border-color:var(--lm);outline:none}
   <div id="plan-quick-add" style="border-bottom:2px solid var(--b);padding:14px 16px;background:var(--surf);flex-shrink:0">
     <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:10px">✏️ 할 일 추가</div>
     <div style="display:flex;flex-direction:column;gap:7px">
-      <input type="text" id="plan-quick-text" placeholder="할 일 내용 입력..." onkeydown="if(event.key==='Enter')quickAddPlanTask()" style="font-size:12px;padding:7px 10px;border:1px solid var(--b2);border-radius:var(--rs);font-family:inherit">
+      <input type="text" id="plan-quick-text" placeholder="할 일 내용 입력..." onkeydown="if(event.key==='Enter'&&!event.isComposing&&event.keyCode!==229)quickAddPlanTask()" style="font-size:12px;padding:7px 10px;border:1px solid var(--b2);border-radius:var(--rs);font-family:inherit">
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <select id="plan-quick-group" style="font-size:11px;padding:5px 8px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);font-family:inherit;flex:1;min-width:80px">
           <option value="">그룹 선택</option>
@@ -1062,7 +1062,7 @@ select:focus{border-color:var(--lm);outline:none}
       <div class="add-task-full" style="display:flex;flex-direction:column;gap:6px">
         <div class="sec-label" style="margin-bottom:0">일정 추가</div>
 
-        <input type="text" id="full-task-inp" placeholder="할 일 내용..." onkeydown="if(event.key==='Enter'&&!event.shiftKey)fullAddTask()" style="font-size:12px">
+        <input type="text" id="full-task-inp" placeholder="할 일 내용..." onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing&&event.keyCode!==229)fullAddTask()" style="font-size:12px">
 
         <!-- 사용자 요청: 날짜 칸을 클릭한 그 날이 기본 시작일로 채워지되, 필요하면 직접 다른 날로 바꿀 수 있어야 하고
              여러 날에 걸친 일정이면 종료일도 바로 정할 수 있어야 함
@@ -1595,7 +1595,7 @@ select:focus{border-color:var(--lm);outline:none}
         <option value="기타">기타</option>
       </select></div>
     </div>
-    <div class="field-g"><label class="field-label">메모</label><input type="text" id="rim-memo" onkeydown="if(event.key==='Enter')saveRevEntry()" placeholder="예) 여름 기획전 오픈일, 인플루언서 2차 포스팅"></div>
+    <div class="field-g"><label class="field-label">메모</label><input type="text" id="rim-memo" onkeydown="if(event.key==='Enter'&&!event.isComposing&&event.keyCode!==229)saveRevEntry()" placeholder="예) 여름 기획전 오픈일, 인플루언서 2차 포스팅"></div>
     <div id="rim-roas-preview" style="padding:8px 12px;background:var(--lmbg);border-radius:var(--rs);font-size:11px;color:var(--lm);font-weight:600;display:none"></div>
     <div class="modal-btns">
       <button class="btn-cancel" onclick="document.getElementById('rev-input-modal').style.display='none'">취소</button>
@@ -1644,7 +1644,7 @@ select:focus{border-color:var(--lm);outline:none}
               <option value="display">display</option>
             </select></div>
           </div>
-          <div class="field-g"><label class="field-label">캠페인(campaign)</label><input type="text" id="utm-campaign" placeholder="예) 2026_summer" oninput="updateUtmPreview()" onkeydown="if(event.key==='Enter')saveUtmToList()" style="font-size:11px"></div>
+          <div class="field-g"><label class="field-label">캠페인(campaign)</label><input type="text" id="utm-campaign" placeholder="예) 2026_summer" oninput="updateUtmPreview()" onkeydown="if(event.key==='Enter'&&!event.isComposing&&event.keyCode!==229)saveUtmToList()" style="font-size:11px"></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
             <div class="field-g"><label class="field-label">콘텐츠(content)</label><input type="text" id="utm-content" placeholder="예) banner_A" oninput="updateUtmPreview()" style="font-size:11px"></div>
             <div class="field-g"><label class="field-label">키워드(term)</label><input type="text" id="utm-term" placeholder="예) 여름여행" oninput="updateUtmPreview()" style="font-size:11px"></div>
@@ -1910,7 +1910,7 @@ select:focus{border-color:var(--lm);outline:none}
     <div class="modal-title">✏️ 닉네임 변경</div>
     <div class="field-g">
       <label class="field-label">새 닉네임</label>
-      <input type="text" id="nickname-inp" placeholder="표시될 이름을 입력하세요" maxlength="10" onkeydown="if(event.key==='Enter')saveNickname()">
+      <input type="text" id="nickname-inp" placeholder="표시될 이름을 입력하세요" maxlength="10" onkeydown="if(event.key==='Enter'&&!event.isComposing&&event.keyCode!==229)saveNickname()">
     </div>
     <div style="font-size:10px;color:var(--t3);display:flex;align-items:center;gap:5px">
       <span id="nick-modal-org" style="padding:2px 7px;background:var(--lmbg);color:var(--lm);border-radius:10px;font-weight:600"></span>
@@ -1927,7 +1927,7 @@ select:focus{border-color:var(--lm);outline:none}
 <div class="modal-bg" id="create-folder-modal" style="display:none">
   <div class="modal" style="width:340px">
     <div class="modal-title">📁 새 폴더 만들기</div>
-    <div class="field-g"><label class="field-label">폴더 이름</label><input type="text" id="folder-name-inp" placeholder="예) 7월 전략 회의, 외부 미팅" onkeydown="if(event.key==='Enter')createMtgFolder()"></div>
+    <div class="field-g"><label class="field-label">폴더 이름</label><input type="text" id="folder-name-inp" placeholder="예) 7월 전략 회의, 외부 미팅" onkeydown="if(event.key==='Enter'&&!event.isComposing&&event.keyCode!==229)createMtgFolder()"></div>
     <div class="field-g">
       <label class="field-label">색상</label>
       <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:4px" id="folder-color-opts">
@@ -2071,7 +2071,7 @@ select:focus{border-color:var(--lm);outline:none}
         <div class="field-label" style="margin-bottom:4px">체크리스트</div>
         <div id="td-checklist-list" style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px"></div>
         <div style="display:flex;gap:4px">
-          <input type="text" id="td-checklist-inp" placeholder="항목 입력 후 Enter" onkeydown="if(event.key==='Enter'){event.preventDefault();addTaskDetailChecklistItem();}" style="font-size:12px;flex:1">
+          <input type="text" id="td-checklist-inp" placeholder="항목 입력 후 Enter" onkeydown="if(event.key==='Enter'&&!event.isComposing&&event.keyCode!==229){event.preventDefault();addTaskDetailChecklistItem();}" style="font-size:12px;flex:1">
           <button type="button" onclick="addTaskDetailChecklistItem()" style="padding:4px 10px;background:var(--surf2);border:1px solid var(--b2);border-radius:var(--rs);cursor:pointer;font-family:inherit">+</button>
         </div>
       </div>
@@ -3774,7 +3774,7 @@ function qtAddRow(date='',text='',type='ops'){
   const rows=document.getElementById('qt-rows');if(!rows)return;
   const id='qt-'+Date.now()+Math.random();const div=document.createElement('div');div.id=id;
   div.style.cssText='display:grid;grid-template-columns:120px 1fr 75px 22px;gap:6px;align-items:center';
-  div.innerHTML=`<input type="date" value="${date}" style="font-size:11px;padding:5px 7px;background:var(--surf2);border:1px solid var(--b2);border-radius:var(--rs);color:var(--t);outline:none"><input type="text" value="${text}" placeholder="할 일 내용..." style="font-size:12px;padding:5px 8px;background:var(--surf2);border:1px solid var(--b2);border-radius:var(--rs);color:var(--t);outline:none" onkeydown="if(event.key==='Enter'){qtAddRow();event.preventDefault()}"><select style="font-size:11px;padding:5px 6px;background:var(--surf2);border:1px solid var(--b2);border-radius:var(--rs);color:var(--t);outline:none"><option value="ops">일반</option><option value="meta">Meta</option><option value="crm">CRM</option><option value="inf">인플</option><option value="content">콘텐츠</option><option value="live">라이브</option></select><button onclick="document.getElementById('${id}').remove()" class="task-del" style="font-size:10px">✕</button>`;
+  div.innerHTML=`<input type="date" value="${date}" style="font-size:11px;padding:5px 7px;background:var(--surf2);border:1px solid var(--b2);border-radius:var(--rs);color:var(--t);outline:none"><input type="text" value="${text}" placeholder="할 일 내용..." style="font-size:12px;padding:5px 8px;background:var(--surf2);border:1px solid var(--b2);border-radius:var(--rs);color:var(--t);outline:none" onkeydown="if(event.key==='Enter'&&!event.isComposing&&event.keyCode!==229){qtAddRow();event.preventDefault()}"><select style="font-size:11px;padding:5px 6px;background:var(--surf2);border:1px solid var(--b2);border-radius:var(--rs);color:var(--t);outline:none"><option value="ops">일반</option><option value="meta">Meta</option><option value="crm">CRM</option><option value="inf">인플</option><option value="content">콘텐츠</option><option value="live">라이브</option></select><button onclick="document.getElementById('${id}').remove()" class="task-del" style="font-size:10px">✕</button>`;
   rows.appendChild(div);div.querySelectorAll('input[type=text]')[0]?.focus();
 }
 function qtPushToCalendar(){
@@ -4568,7 +4568,7 @@ function delReply(mid,rid){const proj=getCurProj();if(!proj)return;const memo=(p
 function renderMemos(){
   if(!S.curProjId){updateMemoHint();return;}updateMemoHint();const proj=getCurProj();const memos=proj.memos||[];
   if(!memos.length){document.getElementById('memo-list').innerHTML='<div style="font-size:11px;color:var(--t3);text-align:center;padding:16px 0">아직 메모가 없어요</div>';return;}
-  document.getElementById('memo-list').innerHTML=memos.map(m=>{const replies=(m.replies||[]);return`<div class="memo-item"><div class="memo-body"><div class="memo-header"><span class="memo-ts">🕐 ${fmtTs(m.ts)}</span><button class="memo-del" onclick="delMemo('${m.id}')">✕</button></div><div class="memo-text">${m.text.replace(/\n/g,'<br>')}</div><div class="memo-actions"><button class="memo-reply-btn" onclick="toggleReplyForm('${m.id}')">↩ 답글</button><span style="font-size:10px;color:var(--t3)">${replies.length?`답글 ${replies.length}개`:''}</span></div></div>${replies.length?`<div class="memo-replies">${replies.map(r=>`<div class="reply-item"><div class="reply-header"><span class="reply-ts">↩ ${fmtTs(r.ts)}</span><button class="reply-del" onclick="delReply('${m.id}','${r.id}')">✕</button></div><div class="reply-text">${r.text.replace(/\n/g,'<br>')}</div></div>`).join('')}</div>`:''}<div class="reply-form" id="rf-${m.id}" style="display:none"><input class="reply-inp" id="ri-${m.id}" placeholder="답글 입력..." onkeydown="if(event.key==='Enter')postReply('${m.id}')"><button class="btn-reply-post" onclick="postReply('${m.id}')">등록</button></div></div>`;}).join('');
+  document.getElementById('memo-list').innerHTML=memos.map(m=>{const replies=(m.replies||[]);return`<div class="memo-item"><div class="memo-body"><div class="memo-header"><span class="memo-ts">🕐 ${fmtTs(m.ts)}</span><button class="memo-del" onclick="delMemo('${m.id}')">✕</button></div><div class="memo-text">${m.text.replace(/\n/g,'<br>')}</div><div class="memo-actions"><button class="memo-reply-btn" onclick="toggleReplyForm('${m.id}')">↩ 답글</button><span style="font-size:10px;color:var(--t3)">${replies.length?`답글 ${replies.length}개`:''}</span></div></div>${replies.length?`<div class="memo-replies">${replies.map(r=>`<div class="reply-item"><div class="reply-header"><span class="reply-ts">↩ ${fmtTs(r.ts)}</span><button class="reply-del" onclick="delReply('${m.id}','${r.id}')">✕</button></div><div class="reply-text">${r.text.replace(/\n/g,'<br>')}</div></div>`).join('')}</div>`:''}<div class="reply-form" id="rf-${m.id}" style="display:none"><input class="reply-inp" id="ri-${m.id}" placeholder="답글 입력..." onkeydown="if(event.key==='Enter'&&!event.isComposing&&event.keyCode!==229)postReply('${m.id}')"><button class="btn-reply-post" onclick="postReply('${m.id}')">등록</button></div></div>`;}).join('');
 }
 
 // ── 나만의 기록장(로그인한 사람 개인 기록장) ──
@@ -6062,32 +6062,144 @@ function noteEditorSaveFor(descendantEl){
   else if(id.startsWith('pned-'))saveMyNoteContent(id.slice(5),editor);
   else if(id==='tned-detail')saveTaskDetailNote(editor); // 할일 상세 메모 모달도 표/토글 삽입 시 정상 저장되도록
 }
-// 사용자 요청: 표에서 행을 한 줄씩 삭제
+// 사용자 요청: 표에서 셀을 가로(오른쪽)뿐 아니라 세로(아래쪽)로도 합칠 수 있어야 함.
+// 세로 병합(rowSpan)이 생기면, 그 칸을 차지한 아래쪽 행들은 실제 <td>가 그 자리에 아예 없어지므로
+// (표준 HTML 표 규칙) 행/열마다 "몇 번째 자식 = 몇 번째 열"이라고 단순하게 셀 수 없음.
+// 그래서 표 전체를 훑어서 "그리드 좌표(행,열) → 그 자리를 실제로 차지하는 <td>" 지도를 만들어두고,
+// 행 삭제/열 삭제/병합/병합해제가 전부 이 지도를 기준으로 정확한 위치를 찾도록 함.
+// (마지막 "행 삭제 버튼" 칸, 마지막 "열 삭제/폭조절" 행은 실제 데이터가 아니므로 지도에서 제외)
+function buildTableGrid(table){
+  const rows=Array.from(table.querySelectorAll(':scope > tbody > tr')).filter(tr=>!tr.classList.contains('note-table-ctl'));
+  const grid=[],rowOwners=[],occupied=[];
+  rows.forEach((tr,r)=>{
+    occupied[r]=occupied[r]||[];
+    grid[r]=grid[r]||[];
+    rowOwners[r]=[];
+    const dataCells=Array.from(tr.children).filter(td=>!td.classList.contains('note-table-ctl'));
+    let c=0;
+    dataCells.forEach(td=>{
+      while(occupied[r][c])c++; // 위쪽 행의 세로 병합이 이미 차지한 칸은 건너뜀
+      const colSpan=td.colSpan||1,rowSpan=td.rowSpan||1;
+      rowOwners[r].push({td,startCol:c});
+      for(let rr=r;rr<r+rowSpan;rr++){
+        occupied[rr]=occupied[rr]||[];
+        grid[rr]=grid[rr]||[];
+        for(let cc=c;cc<c+colSpan;cc++){occupied[rr][cc]=true;grid[rr][cc]={td,ownerRow:r,ownerCol:c};}
+      }
+      c+=colSpan;
+    });
+  });
+  return{grid,rows,rowOwners};
+}
+// td가 그리드 상 어디서 "시작"하는 셀인지(맨 왼쪽 위 좌표) 찾아줌
+function findCellGridPos(grid,td){
+  for(let r=0;r<grid.length;r++){
+    const row=grid[r]||[];
+    for(let c=0;c<row.length;c++){
+      if(row[c]&&row[c].td===td&&row[c].ownerRow===r&&row[c].ownerCol===c)return{r,c};
+    }
+  }
+  return null;
+}
+// td(그리드 위치 pos, 폭 colSpan, 높이 rowSpan)를 "오른쪽으로" 합칠 수 있는지 확인하고,
+// 합쳐질 오른쪽 칸(들)을 정확히 찾아줌. td의 rowSpan이 2 이상이면 오른쪽에도 그만큼 높이가 맞는
+// 칸(들)이 있어야 안전하게 합칠 수 있음(안 그러면 합친 뒤 아래쪽 행의 다른 칸이 엉뚱한 열로 밀려 보임).
+// 경계(높이 합)가 정확히 안 맞으면 null을 돌려줘서 병합을 안전하게 취소시킴
+function findRightMergeCells(grid,pos,colSpan,rowSpan){
+  const rightC=pos.c+colSpan;
+  const seen=new Set();const cells=[];let r=pos.r;
+  while(r<pos.r+rowSpan){
+    const row=grid[r];
+    const cell=row&&row[rightC];
+    if(!cell||cell.ownerCol!==rightC||cell.ownerRow>r||cell.ownerRow+((cell.td.rowSpan||1))<=pos.r)return null;
+    if(cell.ownerRow!==r){r++;continue;} // 이미 위에서부터 세로로 걸쳐있는 칸이면 그 칸의 시작행에서 이미 처리됨
+    if(!seen.has(cell.td)){seen.add(cell.td);cells.push(cell.td);}
+    r+=(cell.td.rowSpan||1);
+  }
+  return r===pos.r+rowSpan?cells:null;
+}
+// td를 "아래쪽으로" 합칠 수 있는지 확인하고, 합쳐질 아래쪽 칸(들)을 정확히 찾아줌.
+// td의 colSpan이 2 이상이면 아래쪽에도 그만큼 너비가 맞는 칸(들)이 있어야 안전하게 합칠 수 있음
+// (안 그러면 합친 뒤 그 행의 다른 실제 칸이 엉뚱한 열로 밀려 보이는 문제가 생김).
+// 경계(너비 합)가 정확히 안 맞으면 null을 돌려줘서 병합을 안전하게 취소시킴
+function findBelowMergeCells(grid,pos,colSpan,rowSpan){
+  const belowR=pos.r+rowSpan;
+  const belowRowCells=grid[belowR];
+  if(!belowRowCells)return null;
+  const seen=new Set();const cells=[];let c=pos.c;
+  while(c<pos.c+colSpan){
+    const cell=belowRowCells[c];
+    if(!cell||cell.ownerRow!==belowR||cell.ownerCol!==c)return null;
+    if(!seen.has(cell.td)){seen.add(cell.td);cells.push(cell.td);}
+    c+=(cell.td.colSpan||1);
+  }
+  return c===pos.c+colSpan?cells:null;
+}
+// 표 행(rowEl) 안에서 "그리드 열 번호 targetCol" 자리에 정확히 cellToInsert를 끼워넣어줌.
+// rowOwnersForRow는 그 행에 원래 있던 실제 칸들의 (칸, 시작열) 목록(DOM 순서와 동일).
+// (버그 방지: targetCol보다 앞에 있는 실제 칸이 하나도 없는 경우 — 즉 맨 왼쪽 열에 끼워넣어야 하는
+// 경우 — 예전엔 무조건 "컨트롤 칸 앞"(=맨 끝)에 넣어버려서, 세로 병합을 옮기거나 병합 해제할 때
+// 새 칸/이동한 칸이 엉뚱하게 오른쪽에 붙어버리는 문제가 있었음. 이젠 그 행의 "가장 왼쪽 실제 칸" 앞에
+// 정확히 끼워넣도록 고침. cellToInsert는 새로 만든 빈 칸일 수도, 다른 행에서 옮겨오는 기존 칸일 수도 있음
+// (Node.after()/before()는 이미 다른 곳에 있던 노드도 알아서 그 자리로 옮겨줌)
+function insertCellAtColumn(rowEl,rowOwnersForRow,targetCol,cellToInsert){
+  let after=null;
+  for(const o of rowOwnersForRow||[]){
+    if(o.startCol<targetCol)after=o.td;else break;
+  }
+  if(after&&after.parentElement===rowEl){after.after(cellToInsert);return;}
+  const firstReal=(rowOwnersForRow&&rowOwnersForRow[0])?rowOwnersForRow[0].td:null;
+  if(firstReal&&firstReal.parentElement===rowEl){firstReal.before(cellToInsert);return;}
+  const ctl=rowEl.querySelector(':scope > td.note-table-ctl');
+  if(ctl)rowEl.insertBefore(cellToInsert,ctl);else rowEl.appendChild(cellToInsert);
+}
+// 사용자 요청: 표에서 행을 한 줄씩 삭제. 지우려는 행이 세로 병합(rowSpan)의 시작 칸이면 내용을 잃지
+// 않도록 바로 다음 행으로 옮겨서 rowSpan만 1 줄이고, 지우려는 행이 위쪽 행의 세로 병합에 걸쳐있는
+// (실제 <td>가 없는) 칸이면 그 위쪽 셀의 rowSpan을 1 줄여서 표가 깨지지 않게 함
 function noteTableDelRow(e){
   e.preventDefault();
   const tr=e.target.closest('tr');if(!tr||tr.classList.contains('note-table-ctl'))return;
   const table=tr.closest('table');if(!table)return;
+  const{grid,rows}=buildTableGrid(table);
+  const R=rows.indexOf(tr);
+  if(R<0){tr.remove();noteEditorSaveFor(table);return;} // 안전망(지도에서 못 찾으면 예전처럼 그냥 삭제)
+  const handledOwners=new Set();
+  (grid[R]||[]).forEach(cell=>{
+    if(!cell||handledOwners.has(cell.td))return;
+    handledOwners.add(cell.td);
+    const rowSpan=cell.td.rowSpan||1;
+    if(rowSpan<=1)return;
+    if(cell.ownerRow===R){
+      // 이 행에서 시작하는 세로 병합 셀 → 삭제될 행 안에 있으므로 바로 다음 행으로 옮기고 rowSpan만 줄임
+      // (주의: rowSpan을 줄이기 "전에" 다음 행의 실제 칸 배치를 먼저 계산해야 함 — td가 아직 이 행에
+      // 물리적으로 붙어있는 상태에서 계산해야 다음 행의 열 번호가 꼬이지 않음)
+      const nextRowEl=rows[R+1];if(!nextRowEl)return;
+      const nextOwners=(buildTableGrid(table).rowOwners[R+1]||[]).filter(o=>o.td!==cell.td);
+      cell.td.rowSpan=rowSpan-1;
+      insertCellAtColumn(nextRowEl,nextOwners,cell.ownerCol,cell.td);
+    }else{
+      // 위쪽 행에서 시작된 세로 병합이 이 행까지 차지하고 있음 → 그 위쪽 셀의 rowSpan만 1 줄임
+      cell.td.rowSpan=rowSpan-1;
+    }
+  });
   tr.remove();
   noteEditorSaveFor(table);
 }
-// 사용자 요청: 표에서 열을 한 칸씩 삭제 (병합(colspan)된 셀이 걸쳐있으면 그 셀의 colSpan만 1 줄이고,
-// colSpan이 이미 1이면 그 칸 자체를 삭제함 — 병합된 표에서도 열 구조가 깨지지 않도록)
+// 사용자 요청: 표에서 열을 한 칸씩 삭제 (가로 병합(colSpan)된 셀이 걸쳐있으면 그 셀의 colSpan만 1
+// 줄이고, colSpan이 이미 1이면 그 칸 자체를 삭제함 — 세로 병합(rowSpan)이 섞여 있어서 어떤 행엔
+// 그 열의 실제 <td>가 아예 없어도(위쪽 행의 세로 병합이 차지 중) 정확한 열 위치를 그리드로 찾아서 처리함)
 function noteTableDelCol(e){
   e.preventDefault();
   const td=e.target.closest('td');if(!td)return;
   const ctlRow=td.parentElement;const table=td.closest('table');if(!table)return;
   const colIdx=Array.from(ctlRow.children).indexOf(td);if(colIdx<0)return;
-  table.querySelectorAll('tr').forEach(tr=>{
-    if(tr===ctlRow){if(tr.children[colIdx])tr.children[colIdx].remove();return;}
-    let pos=0;
-    for(const cell of Array.from(tr.children)){
-      const span=cell.colSpan||1;
-      if(colIdx>=pos&&colIdx<pos+span){
-        if(span>1)cell.colSpan=span-1;else cell.remove();
-        break;
-      }
-      pos+=span;
-    }
+  if(ctlRow.children[colIdx])ctlRow.children[colIdx].remove();
+  const{grid,rows}=buildTableGrid(table);
+  rows.forEach((tr,r)=>{
+    const cell=grid[r]&&grid[r][colIdx];
+    if(!cell||cell.ownerRow!==r)return; // 실제 <td>가 없거나(위쪽 세로 병합이 차지 중) 이미 다른 행에서 처리한 셀이면 건너뜀
+    const span=cell.td.colSpan||1;
+    if(span>1)cell.td.colSpan=span-1;else cell.td.remove();
   });
   const col=table.querySelectorAll(':scope > colgroup > col')[colIdx];if(col)col.remove();
   noteEditorSaveFor(table);
@@ -6112,21 +6224,29 @@ function noteTableColResizeStart(e,handle){
   document.addEventListener('mousemove',onMove);
   document.addEventListener('mouseup',onUp);
 }
-// 사용자 요청: 셀을 마우스 우클릭하면 병합/병합 해제 메뉴가 뜨게 함
+// 사용자 요청: 셀을 마우스 우클릭하면 병합(오른쪽/아래쪽)/병합 해제 메뉴가 뜨게 함
+// (예전엔 오른쪽으로만 합칠 수 있었는데, "위아래 칸도 합치기 가능하게" 해달라는 요청으로 아래쪽 병합도 추가함)
 let _tableCtxCell=null;
 function noteTableCellMenu(e){
   const td=e.target.closest('td');if(!td||td.classList.contains('note-table-ctl'))return;
   e.preventDefault();
   document.querySelectorAll('.note-table-ctxmenu').forEach(m=>m.remove());
   _tableCtxCell=td;
-  const tr=td.parentElement;
-  const idx=Array.from(tr.children).indexOf(td);
-  const hasRight=idx>=0&&idx<tr.children.length-2; // 컨트롤 칸(맨 끝) 앞까지만 병합 가능
-  const isMerged=(td.colSpan||1)>1;
+  const table=td.closest('table');if(!table){_tableCtxCell=null;return;}
+  const{grid}=buildTableGrid(table);
+  const pos=findCellGridPos(grid,td);
+  let hasRight=false,hasBelow=false;
+  if(pos){
+    const colSpan=td.colSpan||1,rowSpan=td.rowSpan||1;
+    hasRight=!!findRightMergeCells(grid,pos,colSpan,rowSpan);
+    hasBelow=!!findBelowMergeCells(grid,pos,colSpan,rowSpan);
+  }
+  const isMerged=(td.colSpan||1)>1||(td.rowSpan||1)>1;
   const menu=document.createElement('div');
   menu.className='note-table-ctxmenu';
   menu.style.left=e.clientX+'px';menu.style.top=e.clientY+'px';
   menu.innerHTML=(hasRight?'<button onclick="noteTableMergeRight()">→ 오른쪽 셀과 합치기</button>':'')+
+    (hasBelow?'<button onclick="noteTableMergeDown()">↓ 아래 셀과 합치기</button>':'')+
     (isMerged?'<button onclick="noteTableUnmerge()">↔ 병합 해제</button>':'');
   if(!menu.innerHTML){menu.remove();_tableCtxCell=null;return;}
   document.body.appendChild(menu);
@@ -6134,23 +6254,75 @@ function noteTableCellMenu(e){
     document.addEventListener('click',function closeMenu(){menu.remove();document.removeEventListener('click',closeMenu);},{once:true});
   },0);
 }
+// td에 다른 칸(들)의 내용을 이어붙임(빈 칸/&nbsp;는 무시), 흡수되는 칸 중 가장 큰 값을 돌려줌
+// (오른쪽 합치기에선 colSpan, 아래쪽 합치기에선 rowSpan을 늘리는 데 사용)
+function _mergeAbsorbCells(td,cells,spanProp){
+  let curHtml=(td.innerHTML||'').trim();
+  let maxSpan=1;
+  cells.forEach(other=>{
+    const otherHtml=(other.innerHTML||'').trim();
+    if(otherHtml&&otherHtml!=='&nbsp;')curHtml=(!curHtml||curHtml==='&nbsp;'?otherHtml:curHtml+' '+otherHtml);
+    maxSpan=Math.max(maxSpan,other[spanProp]||1);
+  });
+  td.innerHTML=curHtml||'&nbsp;';
+  cells.forEach(other=>other.remove());
+  return maxSpan;
+}
+// 사용자 요청: 오른쪽 셀과 합치기. td에 세로 병합(rowSpan>1)이 있으면 오른쪽에도 그 높이만큼
+// 정확히 채우는 칸(들)이 있어야만 안전하게 합침(findRightMergeCells가 경계를 확인)
 function noteTableMergeRight(){
   const td=_tableCtxCell;if(!td)return;
-  const tr=td.parentElement;const idx=Array.from(tr.children).indexOf(td);
-  const rightTd=tr.children[idx+1];if(!rightTd||rightTd.classList.contains('note-table-ctl'))return;
-  const rightHtml=(rightTd.innerHTML||'').trim();
-  const curHtml=(td.innerHTML||'').trim();
-  if(rightHtml&&rightHtml!=='&nbsp;')td.innerHTML=(!curHtml||curHtml==='&nbsp;'?'':td.innerHTML+' ')+rightHtml;
-  td.colSpan=(td.colSpan||1)+(rightTd.colSpan||1);
-  rightTd.remove();
+  const table=td.closest('table');if(!table){_tableCtxCell=null;return;}
+  const{grid}=buildTableGrid(table);
+  const pos=findCellGridPos(grid,td);if(!pos){_tableCtxCell=null;return;}
+  const colSpan=td.colSpan||1,rowSpan=td.rowSpan||1;
+  const rightTds=findRightMergeCells(grid,pos,colSpan,rowSpan);
+  if(!rightTds){_tableCtxCell=null;return;}
+  const addedSpan=_mergeAbsorbCells(td,rightTds,'colSpan');
+  td.colSpan=colSpan+addedSpan;
   noteEditorSaveFor(td);
   _tableCtxCell=null;
 }
+// 사용자 요청: 위아래(세로)로도 셀을 합칠 수 있어야 함 — 아래 칸(들)을 지금 셀 밑으로 흡수시키고
+// rowSpan을 늘려줌. td에 가로 병합(colSpan>1)이 있으면 아래쪽에도 그 너비만큼 정확히 채우는
+// 칸(들)이 있어야만 안전하게 합침(findBelowMergeCells가 경계를 확인 — 안 맞으면 취소되어
+// 아래 행의 다른 칸이 엉뚱한 열로 밀려 보이는 문제를 막아줌)
+function noteTableMergeDown(){
+  const td=_tableCtxCell;if(!td)return;
+  const table=td.closest('table');if(!table){_tableCtxCell=null;return;}
+  const{grid}=buildTableGrid(table);
+  const pos=findCellGridPos(grid,td);if(!pos){_tableCtxCell=null;return;}
+  const colSpan=td.colSpan||1,rowSpan=td.rowSpan||1;
+  const belowTds=findBelowMergeCells(grid,pos,colSpan,rowSpan);
+  if(!belowTds){_tableCtxCell=null;return;}
+  const addedSpan=_mergeAbsorbCells(td,belowTds,'rowSpan');
+  td.rowSpan=rowSpan+addedSpan;
+  noteEditorSaveFor(td);
+  _tableCtxCell=null;
+}
+// 병합 해제: 가로(colSpan)/세로(rowSpan) 중 어느 쪽으로 합쳐져 있었든 한 번에 원래 1x1 칸들로
+// 되돌리고, 비게 되는 자리마다 정확한 위치에 빈 칸을 새로 끼워넣음
 function noteTableUnmerge(){
-  const td=_tableCtxCell;if(!td||(td.colSpan||1)<=1)return;
-  const newTd=document.createElement('td');newTd.innerHTML='&nbsp;';
-  td.after(newTd);
-  td.colSpan=(td.colSpan||1)-1;
+  const td=_tableCtxCell;if(!td)return;
+  const colSpan=td.colSpan||1,rowSpan=td.rowSpan||1;
+  if(colSpan<=1&&rowSpan<=1){_tableCtxCell=null;return;}
+  const table=td.closest('table');if(!table){_tableCtxCell=null;return;}
+  const{grid,rows,rowOwners}=buildTableGrid(table);
+  const pos=findCellGridPos(grid,td);
+  if(!pos){_tableCtxCell=null;return;}
+  const R=pos.r,C=pos.c;
+  td.colSpan=1;td.rowSpan=1;
+  const lastInserted={};
+  for(let r=R;r<R+rowSpan;r++){
+    const rowEl=rows[r];if(!rowEl)continue;
+    for(let c=C;c<C+colSpan;c++){
+      if(r===R&&c===C)continue; // 원래 셀 자신은 건너뜀
+      const newTd=document.createElement('td');newTd.innerHTML='&nbsp;';
+      if(lastInserted[r]&&lastInserted[r].parentElement===rowEl)lastInserted[r].after(newTd);
+      else insertCellAtColumn(rowEl,rowOwners[r]||[],c,newTd);
+      lastInserted[r]=newTd;
+    }
+  }
   noteEditorSaveFor(td);
   _tableCtxCell=null;
 }

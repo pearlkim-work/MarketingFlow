@@ -2048,16 +2048,44 @@ select:focus{border-color:var(--lm);outline:none}
 </div>
 <!-- 할 일 상세 메모 모달 — 사용자 요청: 캘린더 할일은 우클릭 → "상세수정", 플랜 항목은 하단 "상세보기" 버튼으로
      열 수 있는, 개인 기록장/회의록과 같은 서식(굵게·표·토글 등) 편집기가 있는 큰 메모장 -->
+<!-- 사용자 요청: 할일 목록에 우선순위/링크/메모/체크리스트를 항상 펼쳐서 보여주면 목록이 너무 길어지므로,
+     기본으로는 숨겨두고 우클릭(또는 "상세등록/상세수정" 버튼)으로 이 모달을 열었을 때만 보이게 함.
+     캘린더/플랜 어느 쪽에서 등록해도 서로 그대로 연동됨(_planRef로 양쪽에 동시 저장). -->
 <div class="modal-bg" id="task-detail-modal" style="display:none">
-  <div class="modal" style="width:560px">
-    <div class="modal-title" id="task-detail-modal-title">상세 메모</div>
+  <div class="modal" style="width:560px;max-height:82vh;overflow-y:auto">
+    <div class="modal-title" id="task-detail-modal-title">상세 내용</div>
+
+    <!-- 기본 상세내용: 우선순위 / 링크 / 간단 메모 / 체크리스트 -->
+    <div style="display:flex;flex-direction:column;gap:8px;padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--b2)">
+      <div style="display:flex;gap:8px">
+        <select id="td-priority" onchange="saveTaskDetailBasic()" style="font-size:12px;flex:1">
+          <option value="">우선순위 없음</option>
+          <option value="high">🔴 High</option>
+          <option value="medium">🟡 Medium</option>
+          <option value="low">🟢 Low</option>
+        </select>
+        <input type="text" id="td-link" placeholder="🔗 링크 (URL)" onchange="saveTaskDetailBasic()" style="font-size:12px;flex:2">
+      </div>
+      <textarea id="td-memo" placeholder="간단 메모..." rows="2" onchange="saveTaskDetailBasic()" style="font-size:12px;resize:vertical"></textarea>
+      <div>
+        <div class="field-label" style="margin-bottom:4px">체크리스트</div>
+        <div id="td-checklist-list" style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px"></div>
+        <div style="display:flex;gap:4px">
+          <input type="text" id="td-checklist-inp" placeholder="항목 입력 후 Enter" onkeydown="if(event.key==='Enter'){event.preventDefault();addTaskDetailChecklistItem();}" style="font-size:12px;flex:1">
+          <button type="button" onclick="addTaskDetailChecklistItem()" style="padding:4px 10px;background:var(--surf2);border:1px solid var(--b2);border-radius:var(--rs);cursor:pointer;font-family:inherit">+</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 사용자 요청: 원래 상세수정 모달에 있던 서식 있는 메모 기능은 그대로 유지 -->
+    <div style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:6px">📝 서식 있는 메모</div>
     <div id="task-detail-toolbar-wrap"></div>
-    <div class="notes-editor" id="tned-detail" contenteditable="true" style="min-height:220px"
+    <div class="notes-editor" id="tned-detail" contenteditable="true" style="min-height:180px"
       oninput="saveTaskDetailNote(this)"
       onpaste="setTimeout(()=>saveTaskDetailNote(document.getElementById('tned-detail')),0)"
     ></div>
     <div class="modal-btns">
-      <button class="btn-cancel" onclick="deleteTaskDetailNote()" style="color:var(--rd);border-color:rgba(194,32,32,.3)">🗑 메모 삭제</button>
+      <button class="btn-cancel" onclick="deleteTaskDetailNote()" style="color:var(--rd);border-color:rgba(194,32,32,.3)">🗑 서식 메모 삭제</button>
       <div style="flex:1"></div>
       <button class="btn-confirm" onclick="closeTaskDetailModal()">완료</button>
     </div>
@@ -3164,6 +3192,11 @@ function renderPlanResult(plan,editMode=false){
   const groupsHtml=plan.groups.map((g,gi)=>{
     const gc=TC[g.name]||g.color||'var(--lm)';
     const gd=(g.tasks||[]).filter(t=>t.done).length;
+    // 사용자 요청: 캘린더와 플랜 탭 어디서든 문구가 똑같이 "상세등록(없을 때)/상세수정(있을 때)"이고,
+    // 누르면 항상 같은 모달(우선순위/링크/메모/체크리스트/서식메모)이 열려서 어느 쪽에서 등록해도
+    // _planRef로 서로 그대로 연동됨
+    // (주의: 아래는 통째로 template literal이라 <!-- --> 형태의 HTML 주석을 쓰면 실제 DOM에도 그대로
+    // 텍스트로 남아서 hasTaskDetail() 여부와 무관하게 검색/문자열 비교에 항상 걸리므로 여기(바깥)에 JS 주석으로 남김)
     const rowHtml=(t,ti)=>`<div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--rs);margin-bottom:5px;padding:8px 10px" oncontextmenu="planTaskCtxMenu(event,${gi},${ti})">
         <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
           <div onclick="togglePT(${gi},${ti})" style="width:15px;height:15px;border-radius:3px;border:1.5px solid ${t.done?gc:'var(--b3)'};background:${t.done?gc:'transparent'};flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center">${t.done?'<span style="font-size:8px;color:#fff;font-weight:700">✓</span>':''}</div>
@@ -3176,10 +3209,7 @@ function renderPlanResult(plan,editMode=false){
           ${t.date?`<input type="date" value="${t.endDate||''}" onchange="updatePTEndDate(${gi},${ti},this.value)" title="종료일(선택·여러 날 일정이면)" min="${t.date}" style="font-size:10px;padding:2px 6px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:${t.endDate?'var(--lm)':'var(--t3)'};flex:1;font-family:inherit">`:''}
           <input type="text" inputmode="decimal" value="${fmtNum(t.budget)}" oninput="fmtNumInput(this)" onchange="updatePTBudget(${gi},${ti},numVal(this.value))" placeholder="예산(원)" style="font-size:10px;padding:2px 6px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:${t.budget?'#5a9e00':'var(--t3)'};width:80px;font-family:inherit">
         </div>
-        <!-- 사용자 요청: 메모 버튼이 내용이 있을 때만 보여서, 플랜 탭에서는 새로 메모를 추가할 방법이
-             아예 없었음(캘린더 우클릭으로 만든 것만 "보이기"만 가능했음) → 캘린더와 똑같이 플랜 탭에서도
-             항상 버튼이 보이게 해서 새로 추가/보기/수정/삭제가 다 여기서 가능하게 함 -->
-        <div style="padding-left:22px;margin-top:5px"><button onclick="event.stopPropagation();openTaskDetailModalFromPlan('${_pgPid}',${gi},${ti})" style="font-size:10px;padding:3px 8px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:var(--t2);cursor:pointer;font-family:inherit">${hasTaskDetail(t)?'📄 메모 보기':'📝 메모 추가'}</button></div>
+        <div style="padding-left:22px;margin-top:5px"><button onclick="event.stopPropagation();openTaskDetailModalFromPlan('${_pgPid}',${gi},${ti})" style="font-size:10px;padding:3px 8px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:var(--t2);cursor:pointer;font-family:inherit">${hasTaskDetail(t)?'📄 상세수정':'📝 상세등록'}</button></div>
       </div>`;
     const validIdx=[];
     (g.tasks||[]).forEach((t,ti)=>{if(t.text&&t.text.trim())validIdx.push(ti);}); // 빈 할일 숨기기
@@ -3593,10 +3623,14 @@ function planTaskCtxMenu(e,gi,ti){
   e.preventDefault();
   document.querySelectorAll('.task-ctxmenu').forEach(m=>m.remove());
   _planCtxRowEl=e.currentTarget;
+  // 사용자 요청: 캘린더와 똑같이 플랜 쪽 우클릭 메뉴에도 상세등록/상세수정을 넣어서 통일함
+  const _pgPidCtx=getCurProj()?.id||'';
+  const _ctxPlanTask=getCurProj()?.plan?.groups?.[gi]?.tasks?.[ti];
+  const _planDetailLabel=hasTaskDetail(_ctxPlanTask)?'📄 상세수정':'📝 상세등록';
   const menu=document.createElement('div');
   menu.className='task-ctxmenu';
   menu.style.left=e.clientX+'px';menu.style.top=e.clientY+'px';
-  menu.innerHTML=`<button onclick="planTaskCtxEdit()">✏️ 수정</button><button onclick="duplicatePT(${gi},${ti})">📋 복제</button><button onclick="deletePT(${gi},${ti})">🗑 삭제</button>`;
+  menu.innerHTML=`<button onclick="planTaskCtxEdit()">✏️ 수정</button><button onclick="openTaskDetailModalFromPlan('${_pgPidCtx}',${gi},${ti})">${_planDetailLabel}</button><button onclick="duplicatePT(${gi},${ti})">📋 복제</button><button onclick="deletePT(${gi},${ti})">🗑 삭제</button>`;
   document.body.appendChild(menu);
   setTimeout(()=>{document.addEventListener('click',function closeMenu(){menu.remove();document.removeEventListener('click',closeMenu);},{once:true});},0);
 }
@@ -3947,24 +3981,16 @@ function renderFullDayTasks(ds){
   tasks=tasks.filter(t=>assigneeMatches(t.assignee,_dayAssigneeF)&&calTypeMatches(t));
   if(_calFilter==='paid')tasks=tasks.filter(t=>taskIsPaid(t));
   else if(_calFilter==='free')tasks=tasks.filter(t=>!taskIsPaid(t));
-  const PRIO_STYLE={high:'background:var(--rdbg);color:var(--rd)',medium:'background:rgba(255,200,0,.1);color:#b8860b',low:'background:var(--gnbg);color:var(--gn)'};
-  const PRIO_LABEL={high:'🔴 High',medium:'🟡 Medium',low:'🟢 Low'};
   const _dayVisibleProjs=getVisibleProjects();
 
   document.getElementById('full-task-list').innerHTML=tasks.length
   ?tasks.map((t,i)=>{
     const color=TYPE_COLOR[t.type]||'var(--t3)';
-    const anchorDsForChecklist=t._anchorDate||ds;
-    const clItems=(t.checklist||[]).map((c,ci)=>`
-      <div style="display:flex;align-items:center;gap:5px;padding:3px 0;border-bottom:1px solid var(--b)">
-        <div onclick="toggleSubTask('${anchorDsForChecklist}','${t.projId}',${t.taskIdx},${ci})" style="width:12px;height:12px;border-radius:2px;border:1.5px solid ${c.done?color:'var(--b3)'};background:${c.done?color:'transparent'};flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center">
-          ${c.done?'<span style="font-size:7px;color:#fff;font-weight:700">✓</span>':''}
-        </div>
-        <span style="font-size:10px;${c.done?'text-decoration:line-through;color:var(--t3)':'color:var(--t2)'}">${c.text}</span>
-      </div>`).join('');
-
     const anchorDs=t._anchorDate||ds;
     const isRange=t.endDate&&t.endDate>anchorDs;
+    // 사용자 요청: 우선순위/링크/메모/체크리스트를 목록에 항상 펼쳐두면 너무 길어지므로, 기본으로는
+    // 숨겨두고 우클릭(또는 "상세등록/상세수정" 버튼)으로 모달을 열었을 때만 보이게 함. 등록(추가)할 때는
+    // 여전히 "+ 상세"에서 바로 입력할 수 있음
     return`<div style="background:var(--surf2);border-radius:var(--rs);border:1px solid var(--b);border-left:3px solid ${color};padding:9px 10px;margin-bottom:5px" draggable="true" ondragstart="calDragStart(event,'${t.projId}','${anchorDs}',${t.taskIdx})" ondragend="calDragEnd(event)" oncontextmenu="calTaskCtxMenu(event,'${t.projId}','${anchorDs}',${t.taskIdx})">
       <div style="display:flex;align-items:flex-start;gap:7px">
         <!-- 버그 수정: getAllTasksForDate()가 만드는 필드명은 밑줄 없는 projId/taskIdx인데
@@ -3983,17 +4009,12 @@ function renderFullDayTasks(ds){
             <button type="button" class="assignee-picker-trigger" onclick="event.stopPropagation();openAssigneePicker(this,'${(t.assignee||'').replace(/'/g,"\\'")}',function(csv){fullUpdateTaskAssignee('${t.projId}','${anchorDs}',${t.taskIdx},csv);})" style="font-size:9px;padding:1px 5px;background:transparent;border:1px solid var(--b2);border-radius:8px;color:var(--t3);font-family:inherit">${t.assignee?('👤 '+assigneeDisplay(t.assignee)):'👤 담당자'}</button>
             <!-- 사용자 요청: 캘린더에서 예산도 바로 넣고 수정할 수 있어야 하고, 플랜/예산 탭에도 연동되어야 함 -->
             <span style="font-size:9px;color:${t.budget?'#5a9e00':'var(--t3)'};display:flex;align-items:center;gap:2px">💰<input type="text" inputmode="decimal" value="${fmtNum(t.budget)}" placeholder="예산" oninput="event.stopPropagation();fmtNumInput(this)" onclick="event.stopPropagation()" onchange="event.stopPropagation();fullUpdateTaskBudget('${t.projId}','${anchorDs}',${t.taskIdx},numVal(this.value))" style="font-size:9px;padding:0 2px;border:1px solid var(--b2);border-radius:3px;background:var(--surf);color:inherit;width:64px"></span>
-            ${t.priority?`<span style="font-size:9px;padding:1px 5px;border-radius:8px;${PRIO_STYLE[t.priority]||''}">${PRIO_LABEL[t.priority]||''}</span>`:''}
             ${t.recurId?`<span title="반복 일정" style="font-size:9px;padding:1px 5px;border-radius:8px;background:var(--surf3);color:var(--t2)">🔁 반복</span>`:''}
-            ${t.link?`<a href="${t.link}" target="_blank" style="font-size:9px;color:var(--bl)">🔗 링크</a>`:''}
-            <!-- 사용자 요청: 상세 메모(서식 있는 긴 메모)가 있으면 우클릭 안 해도 바로 눌러서 볼 수 있게 배지도 하나 둠 -->
-            ${hasTaskDetail(t)?`<button type="button" onclick="event.stopPropagation();openTaskDetailModal('${t.projId}','${anchorDs}',${t.taskIdx})" style="font-size:9px;padding:1px 6px;background:var(--surf3);border:1px solid var(--b2);border-radius:8px;color:var(--t2);cursor:pointer;font-family:inherit">📄 상세</button>`:''}
+            <button type="button" onclick="event.stopPropagation();openTaskDetailModal('${t.projId}','${anchorDs}',${t.taskIdx})" style="font-size:9px;padding:1px 6px;background:var(--surf3);border:1px solid var(--b2);border-radius:8px;color:var(--t2);cursor:pointer;font-family:inherit">${hasTaskDetail(t)?'📄 상세수정':'📝 상세등록'}</button>
             <!-- 사용자 요청: 하루짜리가 아니라 여러 날에 걸친 일정일 수도 있으니 시작일/종료일을 직접 바꿀 수 있게 함 -->
             <span style="font-size:9px;color:var(--t3);display:flex;align-items:center;gap:2px">📅<input type="date" value="${anchorDs}" onclick="event.stopPropagation()" onchange="event.stopPropagation();fullUpdateTaskDate('${t.projId}','${anchorDs}',${t.taskIdx},this.value)" style="font-size:9px;padding:0 2px;border:1px solid var(--b2);border-radius:3px;background:var(--surf);color:var(--t2);width:88px">~<input type="date" value="${t.endDate||''}" min="${anchorDs}" onclick="event.stopPropagation()" onchange="event.stopPropagation();fullUpdateTaskEndDate('${t.projId}','${anchorDs}',${t.taskIdx},this.value)" style="font-size:9px;padding:0 2px;border:1px solid var(--b2);border-radius:3px;background:var(--surf);color:var(--t2);width:88px"></span>
             ${isRange?`<span style="font-size:9px;color:var(--lm);font-weight:600">(${anchorDs.slice(5)}~${t.endDate.slice(5)} 기간)</span>`:''}
           </div>
-          ${t.memo?`<div style="font-size:10px;color:var(--t2);margin-top:4px;padding:4px 6px;background:var(--surf3);border-radius:4px;line-height:1.5">${t.memo}</div>`:''}
-          ${clItems?`<div style="margin-top:5px">${clItems}</div>`:''}
         </div>
         <button class="task-del" title="삭제" onclick="fullDel('${t.projId}','${anchorDs}',${t.taskIdx})" style="flex-shrink:0">✕</button>
       </div>
@@ -4112,10 +4133,14 @@ function calTaskCtxMenu(e,pid,ds,i){
   document.querySelectorAll('.task-ctxmenu').forEach(m=>m.remove());
   _taskCtxRowEl=e.currentTarget;
   _taskCtxTarget={pid,ds,i};
+  // 사용자 요청: 상세 내용(우선순위/링크/메모/체크리스트/서식메모)이 이미 있으면 "상세수정",
+  // 아직 없으면 "상세등록"으로 문구가 바뀜(플랜 탭과 동일하게 통일)
+  const _ctxTask=getProj(pid)?.tasks?.[ds]?.[i];
+  const _detailLabel=hasTaskDetail(_ctxTask)?'📄 상세수정':'📝 상세등록';
   const menu=document.createElement('div');
   menu.className='task-ctxmenu';
   menu.style.left=e.clientX+'px';menu.style.top=e.clientY+'px';
-  menu.innerHTML=`<button onclick="calTaskCtxEdit()">✏️ 수정</button><button onclick="openTaskDetailModal('${pid}','${ds}',${i})">📝 상세수정</button><button onclick="fullDuplicateTask('${pid}','${ds}',${i})">📋 복제</button><button onclick="fullDel('${pid}','${ds}',${i})">🗑 삭제</button>`;
+  menu.innerHTML=`<button onclick="calTaskCtxEdit()">✏️ 수정</button><button onclick="openTaskDetailModal('${pid}','${ds}',${i})">${_detailLabel}</button><button onclick="fullDuplicateTask('${pid}','${ds}',${i})">📋 복제</button><button onclick="fullDel('${pid}','${ds}',${i})">🗑 삭제</button>`;
   document.body.appendChild(menu);
   setTimeout(()=>{document.addEventListener('click',function closeMenu(){menu.remove();document.removeEventListener('click',closeMenu);},{once:true});},0);
 }
@@ -4136,11 +4161,19 @@ function calTaskCtxEdit(){
 // 있는 할일이 _planRef로 연동돼 있으면, 상세 메모도 budget/assignee/date와 똑같이 양쪽에 함께 반영됨.
 // ══════════════════════════════════════════
 let _taskDetailCtx=null; // {pid,ds,i,gi,ti} — 어느 쪽(또는 양쪽)에 저장할지 기억해둠
-// 상세 메모가 실제로 내용이 있는지(빈 <p></p> 같은 빈 태그만 있는 경우는 "없음"으로 취급)
+// 사용자 요청: 우선순위/링크/메모/체크리스트/서식메모 중 하나라도 내용이 있으면 "상세수정"(내용 있음),
+// 전부 비어있으면 "상세등록"(아직 없음)으로 버튼 문구가 바뀜(캘린더/플랜 둘 다 동일하게 사용)
 function hasTaskDetail(t){
-  if(!t||!t.detail)return false;
-  const text=String(t.detail).replace(/<[^>]*>/g,'').replace(/&nbsp;/g,'').trim();
-  return text.length>0;
+  if(!t)return false;
+  if(t.priority)return true;
+  if(t.link&&String(t.link).trim())return true;
+  if(t.memo&&String(t.memo).trim())return true;
+  if(Array.isArray(t.checklist)&&t.checklist.length)return true;
+  if(t.detail){
+    const text=String(t.detail).replace(/<[^>]*>/g,'').replace(/&nbsp;/g,'').trim();
+    if(text.length>0)return true;
+  }
+  return false;
 }
 // 플랜 그룹의 (gi,ti) 할일과 연동된 캘린더 쪽 할일을 찾아줌(날짜/인덱스가 바뀌어도 _planRef로 정확히 찾음)
 function findCalTaskByPlanRef(proj,gi,ti){
@@ -4177,25 +4210,92 @@ function _openTaskDetail(pid,ref){
   _taskDetailCtx={pid,ds:r.ds,i:r.i,gi:r.gi,ti:r.ti};
   const text=(r.calTask||r.planTask)?.text||'';
   const detailHtml=r.calTask?.detail||r.planTask?.detail||'';
-  document.getElementById('task-detail-modal-title').textContent=text?`📝 ${text}`:'상세 메모';
+  document.getElementById('task-detail-modal-title').textContent=text?`📝 ${text}`:'상세 내용';
+  // 사용자 요청: 우선순위/링크/메모/체크리스트 같은 "기본 상세내용"도 이 모달 위쪽에서 함께 등록/수정
+  const priorityEl=document.getElementById('td-priority');if(priorityEl)priorityEl.value=r.calTask?.priority||r.planTask?.priority||'';
+  const linkEl=document.getElementById('td-link');if(linkEl)linkEl.value=r.calTask?.link||r.planTask?.link||'';
+  const memoEl=document.getElementById('td-memo');if(memoEl)memoEl.value=r.calTask?.memo||r.planTask?.memo||'';
+  renderTaskDetailChecklist();
   document.getElementById('task-detail-toolbar-wrap').innerHTML=notesToolbarHtml('tned-detail');
   const editor=document.getElementById('tned-detail');
   editor.innerHTML=detailHtml;
   document.getElementById('task-detail-modal').style.display='flex';
   setTimeout(()=>editor.focus(),0);
 }
-// 캘린더(월/주/사이드바)에서 우클릭 → "상세수정"으로 여는 진입점
+// 캘린더(월/주/사이드바)에서 우클릭 → "상세수정/상세등록"으로 여는 진입점
 function openTaskDetailModal(pid,ds,i){_openTaskDetail(pid,{ds,i});}
-// 플랜 탭 각 항목의 "상세보기" 버튼으로 여는 진입점
+// 플랜 탭 각 항목의 "상세수정/상세등록" 버튼으로 여는 진입점
 function openTaskDetailModalFromPlan(pid,gi,ti){_openTaskDetail(pid,{gi,ti});}
-function saveTaskDetailNote(el){
+// 지금 열려있는 상세 모달의 대상(캘린더 쪽/플랜 쪽 중 있는 쪽 모두)에 한 필드 값을 그대로 써줌
+// (budget/assignee/date처럼 다른 곳들과 동일하게, _planRef로 연동된 할일이면 양쪽에 함께 반영됨)
+function _taskDetailWriteField(field,value){
   if(!_taskDetailCtx)return;
   const{pid,ds,i,gi,ti}=_taskDetailCtx;
   const proj=getProj(pid);if(!proj)return;
-  const html=el.innerHTML;
-  if(ds!=null&&proj.tasks?.[ds]?.[i])proj.tasks[ds][i].detail=html;
-  if(gi!=null&&proj.plan?.groups?.[gi]?.tasks?.[ti])proj.plan.groups[gi].tasks[ti].detail=html;
+  if(ds!=null&&proj.tasks?.[ds]?.[i])proj.tasks[ds][i][field]=value;
+  if(gi!=null&&proj.plan?.groups?.[gi]?.tasks?.[ti])proj.plan.groups[gi].tasks[ti][field]=value;
+}
+function saveTaskDetailNote(el){
+  _taskDetailWriteField('detail',el.innerHTML);
   save();
+}
+// 사용자 요청: 우선순위/링크/간단 메모는 항상 목록에 펼쳐 보이지 않고, 이 모달에서 등록/수정하면
+// 캘린더/플랜 양쪽에 함께 저장됨(이전엔 이 필드들이 플랜 쪽엔 전혀 연동되지 않았음 — 이번에 새로 연동)
+function saveTaskDetailBasic(){
+  _taskDetailWriteField('priority',document.getElementById('td-priority')?.value||'');
+  _taskDetailWriteField('link',document.getElementById('td-link')?.value.trim()||'');
+  _taskDetailWriteField('memo',document.getElementById('td-memo')?.value.trim()||'');
+  save();
+}
+// 체크리스트: 지금 열려있는 상세 모달 대상의 체크리스트를 읽어옴(캘린더 쪽을 우선으로, 없으면 플랜 쪽)
+function _taskDetailGetChecklist(){
+  if(!_taskDetailCtx)return[];
+  const{pid,ds,i,gi,ti}=_taskDetailCtx;
+  const proj=getProj(pid);if(!proj)return[];
+  if(ds!=null&&proj.tasks?.[ds]?.[i])return proj.tasks[ds][i].checklist||[];
+  if(gi!=null&&proj.plan?.groups?.[gi]?.tasks?.[ti])return proj.plan.groups[gi].tasks[ti].checklist||[];
+  return[];
+}
+// 체크리스트는 배열이라 두 쪽에 같은 참조를 그대로 나눠주면 나중에 꼬일 수 있어서, 플랜 쪽엔 복사본을 저장
+function _taskDetailWriteChecklist(list){
+  if(!_taskDetailCtx)return;
+  const{pid,ds,i,gi,ti}=_taskDetailCtx;
+  const proj=getProj(pid);if(!proj)return;
+  if(ds!=null&&proj.tasks?.[ds]?.[i])proj.tasks[ds][i].checklist=list;
+  if(gi!=null&&proj.plan?.groups?.[gi]?.tasks?.[ti])proj.plan.groups[gi].tasks[ti].checklist=JSON.parse(JSON.stringify(list));
+  save();
+}
+function renderTaskDetailChecklist(){
+  const wrap=document.getElementById('td-checklist-list');if(!wrap)return;
+  const list=_taskDetailGetChecklist();
+  wrap.innerHTML=list.length?list.map((c,idx)=>`
+    <div style="display:flex;align-items:center;gap:6px">
+      <div onclick="toggleTaskDetailChecklistItem(${idx})" style="width:14px;height:14px;border-radius:3px;border:1.5px solid ${c.done?'var(--lm)':'var(--b3)'};background:${c.done?'var(--lm)':'transparent'};cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">${c.done?'<span style="font-size:8px;color:#fff">✓</span>':''}</div>
+      <span style="flex:1;font-size:12px;${c.done?'text-decoration:line-through;color:var(--t3)':''}">${(c.text||'').replace(/</g,'&lt;')}</span>
+      <span onclick="deleteTaskDetailChecklistItem(${idx})" style="cursor:pointer;color:var(--t3);font-size:11px">✕</span>
+    </div>`).join(''):'<div style="font-size:11px;color:var(--t3)">체크리스트 항목이 없어요</div>';
+}
+function addTaskDetailChecklistItem(){
+  const inp=document.getElementById('td-checklist-inp');const val=inp?.value.trim();if(!val)return;
+  const list=_taskDetailGetChecklist().slice();
+  list.push({text:val,done:false});
+  _taskDetailWriteChecklist(list);
+  inp.value='';
+  renderTaskDetailChecklist();
+}
+function toggleTaskDetailChecklistItem(idx){
+  const list=_taskDetailGetChecklist().slice();
+  if(!list[idx])return;
+  list[idx]={...list[idx],done:!list[idx].done};
+  _taskDetailWriteChecklist(list);
+  renderTaskDetailChecklist();
+}
+function deleteTaskDetailChecklistItem(idx){
+  const list=_taskDetailGetChecklist().slice();
+  if(idx<0||idx>=list.length)return;
+  list.splice(idx,1);
+  _taskDetailWriteChecklist(list);
+  renderTaskDetailChecklist();
 }
 function closeTaskDetailModal(){
   document.getElementById('task-detail-modal').style.display='none';

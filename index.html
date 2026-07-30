@@ -80,7 +80,7 @@ input::placeholder,textarea::placeholder{color:var(--t3)}
 .plan-output{padding:22px 24px;overflow-y:auto;display:flex;flex-direction:column;gap:20px}
 .plan-cal-panel{border-left:1px solid var(--b);overflow-y:auto;display:flex;flex-direction:column}
 .plan-cal-header{padding:14px 14px 10px;border-bottom:1px solid var(--b);display:flex;align-items:center;gap:8px}
-.plan-cal-title{font-size:13px;font-weight:700;flex:1}
+.plan-cal-title{font-size:13px;font-weight:700}
 .cal-nav{width:24px;height:24px;border-radius:5px;border:1px solid var(--b2);background:transparent;color:var(--t2);font-size:12px;display:flex;align-items:center;justify-content:center;transition:all .12s;cursor:pointer}
 .cal-nav:hover{border-color:var(--lm);color:var(--lm)}
 .mini-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);padding:0 8px 8px}
@@ -206,7 +206,7 @@ input::placeholder,textarea::placeholder{color:var(--t3)}
 .cal-view-layout{display:grid;grid-template-columns:1fr 280px;flex:1;overflow:hidden;min-height:0}
 .cal-main{padding:12px;overflow-y:auto;display:flex;flex-direction:column;flex:1}
 .cal-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-.cal-month-title{font-size:15px;font-weight:700;flex:1}
+.cal-month-title{font-size:15px;font-weight:700}
 /* ── 콘텐츠 캘린더 필터 토글 ── */
 .cal-filter-bar{display:flex;align-items:center;gap:6px;margin-bottom:12px;flex-wrap:wrap}
 .cal-filter-lbl{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.08em;margin-right:2px}
@@ -680,6 +680,11 @@ select:focus{border-color:var(--lm);outline:none}
 /* ── 토스트 개선 ── */
 #toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(10px);background:#1a1917;color:#fff;font-weight:500;padding:9px 18px;border-radius:20px;font-size:12px;font-weight:500;opacity:0;transition:opacity .2s,transform .2s;z-index:9999;pointer-events:none;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.2)}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* 실행취소 토스트(삭제 후 몇 초간 되돌릴 수 있는 버튼 포함 토스트) */
+#toast-undo{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(10px);background:#1a1917;color:#fff;font-weight:500;padding:9px 10px 9px 18px;border-radius:20px;font-size:12px;opacity:0;transition:opacity .2s,transform .2s;z-index:9999;pointer-events:none;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.2);display:flex;align-items:center;gap:10px}
+#toast-undo.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+.toast-undo-btn{background:#C8F064;color:#1a1917;border:none;border-radius:14px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
+.toast-undo-btn:hover{background:#b8e050}
 
 /* ── 모달 개선 ── */
 .modal-bg{cursor:pointer}
@@ -698,6 +703,7 @@ select:focus{border-color:var(--lm);outline:none}
 <body>
 
 <div id="toast"></div>
+<div id="toast-undo"></div>
 <nav>
   <span class="nav-logo">Marketing<span style="color:var(--lm);font-style:italic">Flow</span></span>
   <div class="nav-tabs">
@@ -875,7 +881,7 @@ select:focus{border-color:var(--lm);outline:none}
       </div>
       <div class="field-g">
         <label class="field-label">총 예산</label>
-        <input type="text" id="p-budget" placeholder="예) 500만원" onchange="savePlanInfo()">
+        <input type="text" inputmode="decimal" id="p-budget" placeholder="예) 5,000,000" oninput="fmtNumInput(this)" onchange="savePlanInfo()">
       </div>
       <div class="field-g">
         <label class="field-label">주 타겟</label>
@@ -940,6 +946,7 @@ select:focus{border-color:var(--lm);outline:none}
         <input type="hidden" id="plan-quick-assignee" value="">
         <button type="button" id="plan-quick-assignee-btn" class="assignee-picker-trigger" onclick="openAssigneePicker(this,document.getElementById('plan-quick-assignee').value,function(csv){document.getElementById('plan-quick-assignee').value=csv;document.getElementById('plan-quick-assignee-btn').textContent=csv?('👤 '+assigneeDisplay(csv)):'👤 담당자';})" style="font-size:11px;padding:5px 8px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);font-family:inherit;flex:1;min-width:80px;text-align:left;color:var(--t2)">👤 담당자</button>
         <input type="date" id="plan-quick-date" style="font-size:11px;padding:5px 8px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);font-family:inherit">
+        <button type="button" class="btn-ghost" onclick="setDateToday('plan-quick-date')" style="font-size:11px;padding:5px 8px;white-space:nowrap">오늘</button>
         <input type="text" inputmode="decimal" id="plan-quick-budget" placeholder="예산" oninput="fmtNumInput(this)" style="font-size:11px;padding:5px 8px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);font-family:inherit;width:70px">
         <button onclick="quickAddPlanTask()" style="padding:5px 16px;background:#C8F064;color:#1a1917;border:none;border-radius:var(--rs);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">+ 추가</button>
       </div>
@@ -1009,6 +1016,10 @@ select:focus{border-color:var(--lm);outline:none}
         <button class="cal-nav" onclick="fullCalMove(-1)">‹</button>
         <div class="cal-month-title" id="full-cal-title" style="white-space:nowrap;font-weight:700"></div>
         <button class="cal-nav" onclick="fullCalMove(1)">›</button>
+        <!-- 사용자 요청: 이전/다음 달 버튼이 서로 너무 멀리 떨어져 있어서(가운데 제목이 flex:1로 늘어나서
+             둘 사이 간격이 벌어짐) 클릭 이동 거리가 길었음. 제목을 flex:1에서 빼서 버튼 둘을 제목 바로
+             옆에 붙이고, 오른쪽 필터들을 원래처럼 우측 정렬시키기 위한 spacer를 여기로 옮김 -->
+        <div style="flex:1"></div>
         <button class="btn-ghost" onclick="goToday()" style="white-space:nowrap">오늘</button>
         <div style="display:flex;gap:3px;margin-left:4px">
           <button id="cal-mode-month" onclick="setCalMode('month')" style="padding:3px 10px;border:1px solid var(--b2);border-radius:var(--rs);background:#C8F064;color:#1a1917;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">월</button>
@@ -1474,7 +1485,7 @@ select:focus{border-color:var(--lm);outline:none}
   <div class="modal" style="width:460px">
     <div class="modal-title">📈 매출 입력</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="field-g"><label class="field-label">날짜</label><input type="date" id="rim-date"></div>
+      <div class="field-g"><label class="field-label">날짜</label><div style="display:flex;gap:5px"><input type="date" id="rim-date" style="flex:1;min-width:0"><button type="button" class="btn-ghost" onclick="setDateToday('rim-date')" style="font-size:11px;padding:4px 8px;white-space:nowrap">오늘</button></div></div>
       <div class="field-g"><label class="field-label">연결 프로젝트</label><select id="rim-proj"><option value="">없음</option></select></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
@@ -1872,7 +1883,7 @@ select:focus{border-color:var(--lm);outline:none}
     <div class="field-g"><label class="field-label">프로젝트</label><select id="am-proj" onchange="refreshAdChannelOptions()"></select></div>
     <div class="field-g"><label class="field-label">채널 / 항목</label><select id="am-ch"></select></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="field-g"><label class="field-label">시작일</label><input type="date" id="am-start"></div>
+      <div class="field-g"><label class="field-label">시작일</label><div style="display:flex;gap:5px"><input type="date" id="am-start" style="flex:1;min-width:0"><button type="button" class="btn-ghost" onclick="setDateToday('am-start')" style="font-size:11px;padding:4px 8px;white-space:nowrap">오늘</button></div></div>
       <div class="field-g"><label class="field-label">종료일</label><input type="date" id="am-end"></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
@@ -2171,7 +2182,12 @@ if(proj&&proj.plan){S._pendingPlan=JSON.parse(JSON.stringify(proj.plan));renderP
   if(typeof refreshProdProjFilter==='function'){refreshProdProjFilter();if(typeof renderProducts==='function')renderProducts();}
 }
 function resetPlanOutput(){
-  document.getElementById('plan-output').innerHTML=`<div class="empty-plan" id="plan-empty-state"><div class="ei">📋</div><p style="margin-bottom:14px">왼쪽 정보를 채우고 플랜을 생성하거나<br>아래에서 직접 일정을 입력해봐요</p><div id="quick-timeline" style="width:100%;max-width:480px;text-align:left"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div class="sec-label" style="margin-bottom:0">빠른 타임라인 입력</div><select id="qt-proj" style="font-size:11px;padding:4px 8px;background:var(--surf2);border:1px solid var(--b2);border-radius:var(--r-sm);color:var(--t);outline:none"></select></div><div id="qt-rows" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div><div style="display:flex;gap:6px"><button onclick="qtAddRow()" class="btn-add-mini" style="font-size:11px">+ 줄 추가</button><button onclick="qtPushToCalendar()" class="btn-gen" style="padding:7px 16px;font-size:12px;width:auto">캘린더에 추가 →</button></div></div></div>`;
+  // 버그 수정(실사용 중 발견): plan-output(전체 컨테이너)의 innerHTML을 통째로 갈아치우면
+  // 그 안의 형제 요소인 #plan-quick-add("✏️ 할 일 추가" 상단 바)까지 같이 사라짐.
+  // 플랜이 없는 프로젝트로 전환할 때마다 호출되는데, 한 번이라도 호출되면 할일 추가 바가
+  // 세션 내내 영구히 사라지는(새로고침 전까지 복구 불가) 버그였음. renderPlanResult()가 쓰는 것과
+  // 동일하게 더 좁은 컨테이너(#plan-task-view)만 갈아치우도록 수정.
+  (document.getElementById('plan-task-view')||document.getElementById('plan-output')).innerHTML=`<div class="empty-plan" id="plan-empty-state"><div class="ei">📋</div><p style="margin-bottom:14px">왼쪽 정보를 채우고 플랜을 생성하거나<br>아래에서 직접 일정을 입력해봐요</p><div id="quick-timeline" style="width:100%;max-width:480px;text-align:left"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div class="sec-label" style="margin-bottom:0">빠른 타임라인 입력</div><select id="qt-proj" style="font-size:11px;padding:4px 8px;background:var(--surf2);border:1px solid var(--b2);border-radius:var(--r-sm);color:var(--t);outline:none"></select></div><div id="qt-rows" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div><div style="display:flex;gap:6px"><button onclick="qtAddRow()" class="btn-add-mini" style="font-size:11px">+ 줄 추가</button><button onclick="qtPushToCalendar()" class="btn-gen" style="padding:7px 16px;font-size:12px;width:auto">캘린더에 추가 →</button></div></div></div>`;
   qtRefreshProj();qtAddRow();
 }
 function refreshProjSelects(){
@@ -2199,7 +2215,7 @@ function autosavePlanInput(){
   _autosaveTimer=setTimeout(()=>{
     const proj=getCurProj();if(!proj)return;
     proj.name=document.getElementById('p-name').value||proj.name;
-    proj.budget=document.getElementById('p-budget').value;
+    proj.budget=numVal(document.getElementById('p-budget').value);
     proj.timeline=document.getElementById('p-timeline').value;
     proj.target=document.getElementById('p-target').value;
     proj.planMemo=document.getElementById('p-memo').value;
@@ -2310,6 +2326,11 @@ function quickAddPlanTask(){
 
   const groupId=document.getElementById('plan-quick-group')?.value;
   let group=p.plan.groups.find(g=>g.id===groupId)||p.plan.groups[0];
+  // 버그 수정: _planRef는 다른 모든 동기화 함수(fullUpdateTaskBudget, updatePTDate 등)와 동일하게
+  // "그룹의 배열 인덱스-할일의 배열 인덱스" 형식이어야 하는데, 여기선 group.id(문자열, 배열 인덱스가 아님)를
+  // 써서 만들고 있었음. group.id가 숫자로 안 바뀌는 문자열이면 Number(gi)가 NaN이 되어 캘린더에서
+  // 예산/날짜/담당자를 수정해도 플랜 쪽에 절대 반영되지 않는(조용히 실패하는) 버그였음.
+  const gi=p.plan.groups.indexOf(group);
   const assignee=document.getElementById('plan-quick-assignee')?.value||'';
   const date=document.getElementById('plan-quick-date')?.value||'';
 
@@ -2321,7 +2342,7 @@ function quickAddPlanTask(){
   if(date){
     if(!p.tasks)p.tasks={};
     if(!p.tasks[date])p.tasks[date]=[];
-    p.tasks[date].push({text,type:'ops',done:false,assignee,budget:qBudget,_fromPlan:true,_planRef:group.id+'-'+(group.tasks.length-1)});
+    p.tasks[date].push({text,type:'ops',done:false,assignee,budget:qBudget,_fromPlan:true,_planRef:gi+'-'+(group.tasks.length-1)});
   }
 
   document.getElementById('plan-quick-text').value='';
@@ -2363,6 +2384,15 @@ function fmtNumInput(el){
 }
 // 콤마가 섞인 입력값을 저장/계산용 순수 숫자 문자열로 되돌림
 function numVal(v){return(v==null?'':String(v)).replace(/,/g,'');}
+// 사용자 요청: 네이티브 date input이 세그먼트별로 정확히 클릭/입력해야 해서 불편하다는 피드백에 따라,
+// 자주 쓰는 날짜 입력칸 옆에 "오늘" 버튼을 붙여서 한 번의 클릭으로 오늘 날짜를 채울 수 있게 함
+function setDateToday(id){
+  const el=document.getElementById(id);if(!el)return;
+  const d=new Date();
+  el.value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  el.dispatchEvent(new Event('input',{bubbles:true}));
+  el.dispatchEvent(new Event('change',{bubbles:true}));
+}
 // 저장된 순수 숫자 값을 화면에 표시할 때 콤마 넣어서 보여줌(값이 없으면 빈 문자열)
 function fmtNum(v){if(v===undefined||v===null||v==='')return'';const n=parseFloat(String(v).replace(/,/g,''));return isNaN(n)?'':n.toLocaleString();}
 function assigneeList(str){return(str||'').split(',').map(s=>s.trim()).filter(Boolean);}
@@ -2458,7 +2488,7 @@ function savePlanInfo(){
   p.name=document.getElementById('p-name')?.value.trim()||p.name;
   p.start=document.getElementById('p-start')?.value||p.start;
   p.end=document.getElementById('p-end')?.value||p.end;
-  p.budget=document.getElementById('p-budget')?.value.trim()||p.budget;
+  p.budget=numVal(document.getElementById('p-budget')?.value.trim())||p.budget;
   p.target=document.getElementById('p-target')?.value.trim()||p.target;
   p.memo=document.getElementById('p-memo')?.value.trim()||p.memo;
   save();
@@ -2474,7 +2504,7 @@ function loadPlanInputFromProj(proj){
   set('p-name', proj.name);
   set('p-start', proj.start);
   set('p-end', proj.end);
-  set('p-budget', proj.budget);
+  set('p-budget', fmtNum(proj.budget)||proj.budget);
   set('p-target', proj.target);
   set('p-memo', proj.memo||proj.planMemo);
   renderPlanGoals(proj);
@@ -2561,7 +2591,7 @@ function loadChBudgetInputs(proj){
   document.querySelectorAll('#ch-chips .ch-budget-inp').forEach(el=>{
     const ch=el.dataset.ch;
     const v=proj?.chBudgets?.[ch];
-    el.value=v||'';
+    el.value=v?fmtNum(v):'';
   });
 }
 
@@ -2573,7 +2603,7 @@ function genPlan(){
   const TN={'Meta 광고':'Meta','카카오 CRM':'CRM','인플루언서/블로그':'인플루언서','네이버 검색':'네이버','유튜브':'유튜브','당근마켓':'당근'};
   const groups=[{id:'g-common',name:'공통',color:'#aaa',tasks:[]}];
   chs.forEach(ch=>{groups.push({id:'g-'+ch.replace(/\s/g,'')+Date.now(),name:TN[ch]||ch,color:TC[ch]||'var(--lm)',_ch:ch,tasks:[]});});
-  const plan={name:document.getElementById('p-name')?.value.trim()||p.name||'',budget:document.getElementById('p-budget')?.value.trim()||'',period:document.getElementById('p-period')?.value.trim()||'',target:document.getElementById('p-target')?.value.trim()||'',memo:document.getElementById('p-memo')?.value.trim()||'',channels:chs,groups,createdAt:Date.now()};
+  const plan={name:document.getElementById('p-name')?.value.trim()||p.name||'',budget:numVal(document.getElementById('p-budget')?.value.trim())||'',period:document.getElementById('p-period')?.value.trim()||'',target:document.getElementById('p-target')?.value.trim()||'',memo:document.getElementById('p-memo')?.value.trim()||'',channels:chs,groups,createdAt:Date.now()};
   p.plan=plan;applyChBudgetsToProject(p);save();renderPlanResult(plan);renderQuickAddGroups();renderCalView();updatePlanButtons();toast('플랜 틀 생성! 할 일을 직접 입력해봐요 ✏️',3000);
 }
 
@@ -3047,7 +3077,7 @@ function updatePTBudget(gi,ti,val){
 function updatePTDate(gi,ti,date){const p=getCurProj();if(!p||!p.plan)return;const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(!t)return;if(t.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}t.date=date;if(t.endDate&&date&&t.endDate<=date)t.endDate='';if(date){if(!p.tasks[date])p.tasks[date]=[];const ex=p.tasks[date].find(c=>c._planRef===gi+'-'+ti);if(ex){ex.text=t.text;ex.done=t.done;ex.endDate=t.endDate||'';ex.budget=t.budget||'';}else{p.tasks[date].push({text:t.text||'(제목 없음)',type:'ops',done:t.done,assignee:t.assignee||'',endDate:t.endDate||'',budget:t.budget||'',_planRef:gi+'-'+ti,_fromPlan:true});}}save();renderPlanResult(p.plan);renderCalView();if(S.selDate===date)renderFullDayTasks(date);toast('캘린더에 반영됐어요 📅',1800);}
 function updatePTEndDate(gi,ti,val){const p=getCurProj();if(!p||!p.plan)return;const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(!t)return;const endDate=(val&&t.date&&val>t.date)?val:'';t.endDate=endDate;if(t.date&&p.tasks[t.date]){const ct=p.tasks[t.date].find(c=>c._planRef===gi+'-'+ti);if(ct)ct.endDate=endDate;}save();renderPlanResult(p.plan);renderCalView();if(S.selDate)renderFullDayTasks(S.selDate);}
 function addPT(gi){const g=getPG();if(!g)return;if(!g[gi].tasks)g[gi].tasks=[];g[gi].tasks.push({text:'',done:false,date:'',assignee:''});save();renderPlanResult(getCurProj().plan);}
-function deletePT(gi,ti){const p=getCurProj();if(!p||!p.plan)return;const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(t?.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}g[gi].tasks.splice(ti,1);_reindexPlanRefsAfterTaskDelete(p,gi,ti);save();renderPlanResult(p.plan);renderCalView();renderQuickAddGroups();}
+function deletePT(gi,ti){const p=getCurProj();if(!p||!p.plan)return;const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(!t)return;_saveUndoSnapshot(p);if(t?.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}g[gi].tasks.splice(ti,1);_reindexPlanRefsAfterTaskDelete(p,gi,ti);save();renderPlanResult(p.plan);renderCalView();renderQuickAddGroups();toastUndo('할 일을 삭제했어요');}
 // 사용자 요청: 플랜 할일도 마우스 우클릭하면 수정/삭제/복제 메뉴가 뜨게 함
 let _planCtxRowEl=null;
 function planTaskCtxMenu(e,gi,ti){
@@ -3082,7 +3112,9 @@ function duplicatePT(gi,ti){
   save();renderPlanResult(p.plan);renderCalView();if(S.selDate)renderFullDayTasks(S.selDate);toast('할 일을 복제했어요 📋',1500);
 }
 function addGroup(){const p=getCurProj();if(!p||!p.plan)return;if(!p.plan.groups)p.plan.groups=[];p.plan.groups.push({id:'g-'+Date.now(),name:'새 그룹',color:'var(--lm)',tasks:[]});save();renderPlanResult(p.plan);renderQuickAddGroups();setTimeout(()=>{const inputs=document.querySelectorAll('[onchange*="updatePT"]');if(inputs.length)inputs[inputs.length-1].select();},50);}
-function deleteGroup(gi){const p=getCurProj();if(!p||!p.plan?.groups)return;(p.plan.groups[gi]?.tasks||[]).forEach((t,ti)=>{if(t.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}});
+function deleteGroup(gi){const p=getCurProj();if(!p||!p.plan?.groups)return;
+  _saveUndoSnapshot(p); // 그룹 전체(할일 여러 개)가 한 번에 사라지는 만큼 실행취소 안전망이 특히 중요함
+  (p.plan.groups[gi]?.tasks||[]).forEach((t,ti)=>{if(t.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}});
   // 이 항목(그룹)에 연동돼있던 회의록 액션 아이템은 연동이 끊기므로, 사라지기 전 마지막 값을 로컬로 되돌려 보존하고 연동 해제
   (S.meetings||[]).forEach(m=>(m.actions||[]).forEach(a=>{
     if(a&&a._planRef&&a._linkProjId===p.id){
@@ -3090,7 +3122,9 @@ function deleteGroup(gi){const p=getCurProj();if(!p||!p.plan?.groups)return;(p.p
       if(agi===gi){_mtgActionRefreshCache(a);a._planRef=null;a._linkProjId=null;a._linkGroupId=null;a.projId='';a.groupId='';}
     }
   }));
-  p.plan.groups.splice(gi,1);_reindexPlanRefsAfterGroupDelete(p,gi);save();renderPlanResult(p.plan);renderCalView();}
+  p.plan.groups.splice(gi,1);_reindexPlanRefsAfterGroupDelete(p,gi);save();renderPlanResult(p.plan);renderCalView();
+  toastUndo('항목(그룹)을 삭제했어요');
+}
 function togglePlanTask(ch, taskIdx){
   const proj=getCurProj();
   if(!proj||!proj.plan)return;
@@ -3470,7 +3504,9 @@ function fullToggle(pid,ds,i){const p=getProj(pid);if(p&&p.tasks[ds]&&p.tasks[ds
 // 플랜 쪽 데이터도 함께 삭제되어야 함(안 그러면 캘린더에선 지워졌는데 플랜엔 남아있는 불일치가 생김)
 function fullDel(pid,ds,i){
   const p=getProj(pid);if(!p||!p.tasks[ds]||!p.tasks[ds][i])return;
-  if(!confirm('이 할 일을 삭제할까요?'))return;
+  // 사용자 요청: 삭제할 때마다 뜨는 확인창(confirm) 대신, 바로 지우고 몇 초간 "실행취소"할 수 있는
+  // 토스트를 띄우는 방식으로 변경(실수로 지워도 안심할 수 있게). 삭제 직전 프로젝트 스냅샷을 떠둠.
+  _saveUndoSnapshot(p);
   const t=p.tasks[ds][i];
   if(t._planRef&&p.plan?.groups){
     const[gi,ti]=t._planRef.split('-').map(Number);
@@ -3478,6 +3514,7 @@ function fullDel(pid,ds,i){
   }
   p.tasks[ds].splice(i,1);
   save();renderCalView();renderFullDayTasks(ds);if(p.plan)renderPlanResult(p.plan);renderQuickAddGroups();
+  toastUndo('할 일을 삭제했어요');
 }
 // 사용자 요청: 할일 내용도 목록에서 바로 수정 가능해야 하고, 플랜 쪽 텍스트도 같이 바뀌어야 함
 function fullEditTaskText(pid,ds,i,val){
@@ -6801,6 +6838,59 @@ function toast(msg, duration=2200){
   el.classList.add('show');
   clearTimeout(_toastTimer);
   _toastTimer=setTimeout(()=>el.classList.remove('show'), duration);
+}
+
+// 사용자 요청: 할일/그룹 등을 삭제했을 때 실수로 지운 경우를 대비해 몇 초간 "실행취소"할 수 있는 토스트.
+// 구현 방식: 삭제 직전 프로젝트 전체를 깊은 복사해 스냅샷으로 저장해두고(_saveUndoSnapshot),
+// 실행취소를 누르면 그 프로젝트를 통째로 스냅샷으로 되돌림(_restoreUndoSnapshot). 개별 삭제 함수마다
+// 복구 로직을 따로 짜지 않아도 되어 안전하고, 여러 군데(할일/그룹 삭제)에 그대로 재사용 가능함.
+// 한 번에 하나의 실행취소만 유지함(연속으로 여러 개 지우면 가장 최근 것만 되돌릴 수 있음 - 일반적인 실행취소 동작과 동일).
+let _undoSnapshot=null;
+let _toastUndoTimer=null;
+function _saveUndoSnapshot(proj){
+  if(!proj)return;
+  // 그룹 삭제(deleteGroup)는 회의록 액션 아이템(S.meetings)의 _planRef 연동도 함께 끊으므로,
+  // 프로젝트뿐 아니라 회의록 목록도 같이 스냅샷 떠서 실행취소 시 완전히 되돌아가도록 함
+  try{_undoSnapshot={projId:proj.id,data:JSON.stringify(proj),meetings:JSON.stringify(S.meetings||[])};}catch(e){_undoSnapshot=null;}
+}
+function _restoreUndoSnapshot(){
+  if(!_undoSnapshot)return;
+  const idx=S.projects.findIndex(p=>p.id===_undoSnapshot.projId);
+  if(idx===-1){_undoSnapshot=null;toast('되돌릴 프로젝트를 찾을 수 없어요');return;}
+  let restored,restoredMtgs;
+  try{restored=JSON.parse(_undoSnapshot.data);restoredMtgs=_undoSnapshot.meetings?JSON.parse(_undoSnapshot.meetings):null;}catch(e){_undoSnapshot=null;return;}
+  S.projects[idx]=restored;
+  if(restoredMtgs)S.meetings=restoredMtgs;
+  _undoSnapshot=null;
+  save();
+  renderCalView();
+  if(S.selDate)renderFullDayTasks(S.selDate);
+  const p=getCurProj();
+  if(p&&p.plan)renderPlanResult(p.plan);
+  renderQuickAddGroups();
+  updateCalProgress();
+  toast('되돌렸어요 ✓',1500);
+}
+function toastUndo(msg,duration=6000){
+  const el=document.getElementById('toast-undo');
+  if(!el)return;
+  el.innerHTML='';
+  const span=document.createElement('span');
+  span.textContent=msg;
+  const btn=document.createElement('button');
+  btn.type='button';
+  btn.className='toast-undo-btn';
+  btn.textContent='실행취소';
+  btn.onclick=()=>{
+    el.classList.remove('show');
+    clearTimeout(_toastUndoTimer);
+    _restoreUndoSnapshot();
+  };
+  el.appendChild(span);
+  el.appendChild(btn);
+  el.classList.add('show');
+  clearTimeout(_toastUndoTimer);
+  _toastUndoTimer=setTimeout(()=>{el.classList.remove('show');_undoSnapshot=null;},duration);
 }
 
 

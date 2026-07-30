@@ -892,8 +892,10 @@ select:focus{border-color:var(--lm);outline:none}
         <div style="display:flex;flex-direction:column;gap:5px">
           <input type="text" id="p-goal-name" placeholder="목표명 (예: 예약 건수, ROAS)" style="width:100%;font-size:11px;box-sizing:border-box">
           <div style="display:flex;gap:4px">
-            <input type="text" id="p-goal-val" placeholder="목표값" style="flex:1;font-size:11px">
-            <select id="p-goal-unit" style="font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2)">
+            <!-- 버그 수정: select에 전역으로 width:100%가 걸려있어서, flex 행 안에서 select가 거의 모든 폭을
+                 차지하고 옆의 "목표값" 입력칸(flex:1)이 거의 안 보일 정도로 찌그러졌었음 → select 폭을 고정 -->
+            <input type="text" inputmode="decimal" id="p-goal-val" placeholder="목표값" oninput="fmtNumInput(this)" style="flex:1;min-width:0;font-size:11px">
+            <select id="p-goal-unit" style="width:64px;flex:0 0 auto;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2)">
               <option>건</option><option>명</option><option>만원</option><option>억원</option><option>%</option><option>회</option>
             </select>
             <button onclick="addPlanGoal()" style="padding:4px 10px;background:#C8F064;color:#1a1917;border:none;border-radius:var(--rs);font-size:12px;font-weight:700;cursor:pointer">+</button>
@@ -905,12 +907,12 @@ select:focus{border-color:var(--lm);outline:none}
 
       <div style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">항목 선택 · 예산</div>
       <div id="ch-chips" style="display:flex;flex-direction:column;gap:7px;margin-bottom:12px">
-        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="Meta 광고" onchange="syncPlanGroups()" checked style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> Meta</label><input type="number" class="ch-budget-inp" data-ch="Meta 광고" placeholder="예산" min="0" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
-        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="네이버 검색" onchange="syncPlanGroups()" style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 네이버</label><input type="number" class="ch-budget-inp" data-ch="네이버 검색" placeholder="예산" min="0" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
-        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="인플루언서/블로그" onchange="syncPlanGroups()" checked style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 인플루언서</label><input type="number" class="ch-budget-inp" data-ch="인플루언서/블로그" placeholder="예산" min="0" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
-        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="카카오 CRM" onchange="syncPlanGroups()" checked style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> CRM</label><input type="number" class="ch-budget-inp" data-ch="카카오 CRM" placeholder="예산" min="0" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
-        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="유튜브" onchange="syncPlanGroups()" style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 유튜브</label><input type="number" class="ch-budget-inp" data-ch="유튜브" placeholder="예산" min="0" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
-        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="당근마켓" onchange="syncPlanGroups()" style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 당근</label><input type="number" class="ch-budget-inp" data-ch="당근마켓" placeholder="예산" min="0" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
+        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="Meta 광고" onchange="syncPlanGroups()" checked style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> Meta</label><input type="text" inputmode="decimal" class="ch-budget-inp" data-ch="Meta 광고" placeholder="예산" oninput="fmtNumInput(this)" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
+        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="네이버 검색" onchange="syncPlanGroups()" style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 네이버</label><input type="text" inputmode="decimal" class="ch-budget-inp" data-ch="네이버 검색" placeholder="예산" oninput="fmtNumInput(this)" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
+        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="인플루언서/블로그" onchange="syncPlanGroups()" checked style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 인플루언서</label><input type="text" inputmode="decimal" class="ch-budget-inp" data-ch="인플루언서/블로그" placeholder="예산" oninput="fmtNumInput(this)" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
+        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="카카오 CRM" onchange="syncPlanGroups()" checked style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> CRM</label><input type="text" inputmode="decimal" class="ch-budget-inp" data-ch="카카오 CRM" placeholder="예산" oninput="fmtNumInput(this)" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
+        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="유튜브" onchange="syncPlanGroups()" style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 유튜브</label><input type="text" inputmode="decimal" class="ch-budget-inp" data-ch="유튜브" placeholder="예산" oninput="fmtNumInput(this)" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
+        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="당근마켓" onchange="syncPlanGroups()" style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 당근</label><input type="text" inputmode="decimal" class="ch-budget-inp" data-ch="당근마켓" placeholder="예산" oninput="fmtNumInput(this)" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
       </div>
 
       <div class="ch-add-row" style="margin-bottom:14px">
@@ -938,7 +940,7 @@ select:focus{border-color:var(--lm);outline:none}
         <input type="hidden" id="plan-quick-assignee" value="">
         <button type="button" id="plan-quick-assignee-btn" class="assignee-picker-trigger" onclick="openAssigneePicker(this,document.getElementById('plan-quick-assignee').value,function(csv){document.getElementById('plan-quick-assignee').value=csv;document.getElementById('plan-quick-assignee-btn').textContent=csv?('👤 '+assigneeDisplay(csv)):'👤 담당자';})" style="font-size:11px;padding:5px 8px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);font-family:inherit;flex:1;min-width:80px;text-align:left;color:var(--t2)">👤 담당자</button>
         <input type="date" id="plan-quick-date" style="font-size:11px;padding:5px 8px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);font-family:inherit">
-        <input type="text" id="plan-quick-budget" placeholder="예산" style="font-size:11px;padding:5px 8px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);font-family:inherit;width:70px">
+        <input type="text" inputmode="decimal" id="plan-quick-budget" placeholder="예산" oninput="fmtNumInput(this)" style="font-size:11px;padding:5px 8px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);font-family:inherit;width:70px">
         <button onclick="quickAddPlanTask()" style="padding:5px 16px;background:#C8F064;color:#1a1917;border:none;border-radius:var(--rs);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">+ 추가</button>
       </div>
     </div>
@@ -1093,7 +1095,7 @@ select:focus{border-color:var(--lm);outline:none}
           </div>
           <div class="field-g">
             <label class="field-label">예산</label>
-            <input type="text" id="full-task-budget" placeholder="예) 200만원" style="font-size:11px">
+            <input type="text" inputmode="decimal" id="full-task-budget" placeholder="예) 2,000,000" oninput="fmtNumInput(this)" style="font-size:11px">
           </div>
           <div class="field-g">
             <label class="field-label">메모/디테일</label>
@@ -1476,11 +1478,11 @@ select:focus{border-color:var(--lm);outline:none}
       <div class="field-g"><label class="field-label">연결 프로젝트</label><select id="rim-proj"><option value="">없음</option></select></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="field-g"><label class="field-label">매출 (만원)</label><input type="number" id="rim-revenue" placeholder="예) 350" min="0" step="0.1"></div>
-      <div class="field-g"><label class="field-label">예약 건수</label><input type="number" id="rim-bookings" placeholder="예) 12" min="0"></div>
+      <div class="field-g"><label class="field-label">매출 (만원)</label><input type="text" inputmode="decimal" id="rim-revenue" placeholder="예) 350"></div>
+      <div class="field-g"><label class="field-label">예약 건수</label><input type="text" inputmode="decimal" id="rim-bookings" placeholder="예) 12" oninput="fmtNumInput(this)"></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="field-g"><label class="field-label">광고비 (만원)</label><input type="number" id="rim-adspend" placeholder="예) 80" min="0" step="0.1"></div>
+      <div class="field-g"><label class="field-label">광고비 (만원)</label><input type="text" inputmode="decimal" id="rim-adspend" placeholder="예) 80"></div>
       <div class="field-g"><label class="field-label">채널</label><select id="rim-channel">
         <option value="전체">전체</option>
         <option value="Meta">Meta</option>
@@ -1589,10 +1591,10 @@ select:focus{border-color:var(--lm);outline:none}
     <div class="modal-title">📊 UTM 성과 입력</div>
     <div id="utm-perf-modal-url" style="font-size:10px;font-family:monospace;color:var(--t3);padding:7px 9px;background:var(--surf2);border-radius:var(--rs);word-break:break-all;margin-bottom:4px"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="field-g"><label class="field-label">클릭 수</label><input type="number" id="upm-clicks" placeholder="0" min="0"></div>
-      <div class="field-g"><label class="field-label">세션 수</label><input type="number" id="upm-sessions" placeholder="0" min="0"></div>
-      <div class="field-g"><label class="field-label">결제 건수</label><input type="number" id="upm-conversions" placeholder="0" min="0"></div>
-      <div class="field-g"><label class="field-label">결제 매출 (만원)</label><input type="number" id="upm-revenue" placeholder="0" min="0" step="0.1"></div>
+      <div class="field-g"><label class="field-label">클릭 수</label><input type="text" inputmode="decimal" id="upm-clicks" placeholder="0"></div>
+      <div class="field-g"><label class="field-label">세션 수</label><input type="text" inputmode="decimal" id="upm-sessions" placeholder="0"></div>
+      <div class="field-g"><label class="field-label">결제 건수</label><input type="text" inputmode="decimal" id="upm-conversions" placeholder="0"></div>
+      <div class="field-g"><label class="field-label">결제 매출 (만원)</label><input type="text" inputmode="decimal" id="upm-revenue" placeholder="0"></div>
     </div>
     <div class="field-g"><label class="field-label">기간</label><input type="text" id="upm-period" placeholder="예) 7/1~7/14"></div>
     <div id="upm-preview" style="padding:8px 10px;background:var(--lmbg);border-radius:var(--rs);font-size:11px;color:var(--lm);display:none"></div>
@@ -1874,17 +1876,17 @@ select:focus{border-color:var(--lm);outline:none}
       <div class="field-g"><label class="field-label">종료일</label><input type="date" id="am-end"></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="field-g"><label class="field-label">예산(원)</label><input type="number" id="am-budget" placeholder="예) 800000" min="0"></div>
+      <div class="field-g"><label class="field-label">예산(원)</label><input type="text" inputmode="decimal" id="am-budget" placeholder="예) 800,000" oninput="fmtNumInput(this)"></div>
       <div class="field-g"><label class="field-label">상태</label><select id="am-status"><option value="scheduled">예정</option><option value="live">라이브</option><option value="paused">일시정지</option><option value="done">완료</option></select></div>
     </div>
     <div class="field-g" style="margin-top:2px;margin-bottom:-4px"><label class="field-label" style="font-weight:700">📊 성과 지표</label></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="field-g"><label class="field-label">노출수</label><input type="number" id="am-impressions" placeholder="0" min="0"></div>
-      <div class="field-g"><label class="field-label">클릭수</label><input type="number" id="am-clicks" placeholder="0" min="0"></div>
+      <div class="field-g"><label class="field-label">노출수</label><input type="text" inputmode="decimal" id="am-impressions" placeholder="0" oninput="fmtNumInput(this)"></div>
+      <div class="field-g"><label class="field-label">클릭수</label><input type="text" inputmode="decimal" id="am-clicks" placeholder="0" oninput="fmtNumInput(this)"></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="field-g"><label class="field-label">전환수</label><input type="number" id="am-conversions" placeholder="0" min="0"></div>
-      <div class="field-g"><label class="field-label">매출(원)</label><input type="number" id="am-revenue" placeholder="0" min="0"></div>
+      <div class="field-g"><label class="field-label">전환수</label><input type="text" inputmode="decimal" id="am-conversions" placeholder="0" oninput="fmtNumInput(this)"></div>
+      <div class="field-g"><label class="field-label">매출(원)</label><input type="text" inputmode="decimal" id="am-revenue" placeholder="0" oninput="fmtNumInput(this)"></div>
     </div>
     <div style="font-size:10px;color:var(--t3);padding:2px 2px 4px">CTR·ROAS·CPC·CPA는 위 숫자로 자동 계산돼요(직접 입력 안 해도 됨)</div>
     <div class="modal-btns"><button class="btn-cancel" onclick="closeAdModal()">취소</button><button class="btn-confirm" onclick="saveAd()">저장</button></div>
@@ -1905,7 +1907,7 @@ select:focus{border-color:var(--lm);outline:none}
       <div class="goal-list" id="np-goal-list"></div>
       <div class="add-goal-row">
         <input type="text" id="np-goal-name" placeholder="목표명 (예: 예약 건수)">
-        <input type="text" id="np-goal-target" placeholder="목표값 (예: 150)">
+        <input type="text" inputmode="decimal" id="np-goal-target" placeholder="목표값 (예: 150)" oninput="fmtNumInput(this)">
         <select id="np-goal-unit"><option value="건">건</option><option value="명">명</option><option value="만원">만원</option><option value="억원">억원</option><option value="%">%</option><option value="회">회</option><option value="개">개</option></select>
         <button class="btn-add-goal" onclick="npAddGoal()" title="목표 추가">+</button>
       </div>
@@ -1977,7 +1979,7 @@ select:focus{border-color:var(--lm);outline:none}
     <div class="field-g"><label class="field-label">채널 / 항목명 *</label><input type="text" id="bam-channel" placeholder="예) Meta 광고, 인플루언서 비용"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div class="field-g"><label class="field-label">카테고리</label><select id="bam-cat"><option value="광고">광고</option><option value="콘텐츠">콘텐츠</option><option value="인플루언서">인플루언서</option><option value="운영">운영</option><option value="기타">기타</option></select></div>
-      <div class="field-g"><label class="field-label">계획 총액 (만원)</label><input type="number" id="bam-plan-total" placeholder="예) 200" min="0"></div>
+      <div class="field-g"><label class="field-label">계획 총액 (만원)</label><input type="text" inputmode="decimal" id="bam-plan-total" placeholder="예) 200" oninput="fmtNumInput(this)"></div>
     </div>
     <div class="field-g"><label class="field-label">메모</label><input type="text" id="bam-memo" placeholder="예) 7~8월 집중 집행"></div>
     <div class="modal-btns"><button class="btn-cancel" onclick="btCloseAddRowModal()">취소</button><button class="btn-confirm" onclick="btSaveNewRow()">추가</button></div>
@@ -2076,7 +2078,7 @@ function showView(v,btn){
 let _npGoals=[];
 function npAddGoal(){
   const name=document.getElementById('np-goal-name').value.trim();
-  const target=document.getElementById('np-goal-target').value.trim();
+  const target=numVal(document.getElementById('np-goal-target').value.trim());
   const unit=document.getElementById('np-goal-unit').value;
   if(!name||!target)return;
   _npGoals.push({id:Date.now().toString(),name,target:parseFloat(target)||0,unit,current:0});
@@ -2312,14 +2314,14 @@ function quickAddPlanTask(){
   const date=document.getElementById('plan-quick-date')?.value||'';
 
   if(!group.tasks)group.tasks=[];
-  const qBudget=document.getElementById('plan-quick-budget')?.value.trim()||'';
+  const qBudget=numVal(document.getElementById('plan-quick-budget')?.value.trim()||'');
   group.tasks.push({text,done:false,date,assignee,budget:qBudget});
 
-  // 캘린더에도 추가
+  // 캘린더에도 추가 (버그 수정: 예산도 함께 복사해야 캘린더 쪽에서 봐도 정확한 예산이 보임)
   if(date){
     if(!p.tasks)p.tasks={};
     if(!p.tasks[date])p.tasks[date]=[];
-    p.tasks[date].push({text,type:'ops',done:false,assignee,_fromPlan:true,_planRef:group.id+'-'+(group.tasks.length-1)});
+    p.tasks[date].push({text,type:'ops',done:false,assignee,budget:qBudget,_fromPlan:true,_planRef:group.id+'-'+(group.tasks.length-1)});
   }
 
   document.getElementById('plan-quick-text').value='';
@@ -2344,6 +2346,25 @@ function getAssigneeOpts(cur){
 // 사용자 요청: 할일 담당자를 한 명이 아니라 두 명, 세 명, 네 명... 여러 명 선택할 수 있어야 함.
 // 데이터는 예전처럼 문자열 하나(assignee)에 그대로 저장하되, 여러 명이면 쉼표로 구분해서 저장함
 // (하위 호환: 기존에 한 명만 저장돼있던 데이터도 그대로 정상 동작함)
+// 사용자 요청: 모든 숫자(특히 예산/금액)에 천단위 콤마가 자동으로 표시되게 함.
+// 입력칸에 타이핑하는 동안 보기 좋게 콤마를 넣어주는 용도(화면 표시만 담당하고, 저장은 항상
+// 콤마 없는 순수 숫자 문자열로 함 → 기존의 parseFloat/toLocaleString 계산 로직은 그대로 안전하게 동작함)
+function fmtNumInput(el){
+  const hadTrailingDot=/\.$/.test(el.value);
+  let raw=(el.value||'').replace(/[^0-9.]/g,'');
+  if(raw===''){return;}
+  const firstDot=raw.indexOf('.');
+  if(firstDot!==-1)raw=raw.slice(0,firstDot+1)+raw.slice(firstDot+1).replace(/\./g,'');
+  const parts=raw.split('.');
+  let intPart=parts[0].replace(/^0+(?=\d)/,'');
+  if(intPart==='')intPart='0';
+  const formattedInt=intPart.replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  el.value=parts.length>1?formattedInt+'.'+parts[1]:(formattedInt+(hadTrailingDot?'.':''));
+}
+// 콤마가 섞인 입력값을 저장/계산용 순수 숫자 문자열로 되돌림
+function numVal(v){return(v==null?'':String(v)).replace(/,/g,'');}
+// 저장된 순수 숫자 값을 화면에 표시할 때 콤마 넣어서 보여줌(값이 없으면 빈 문자열)
+function fmtNum(v){if(v===undefined||v===null||v==='')return'';const n=parseFloat(String(v).replace(/,/g,''));return isNaN(n)?'':n.toLocaleString();}
 function assigneeList(str){return(str||'').split(',').map(s=>s.trim()).filter(Boolean);}
 function assigneeDisplay(str){return assigneeList(str).join(', ');}
 function assigneeMatches(str,filterName){
@@ -2402,7 +2423,7 @@ function renderQuickAddGroups(){
 function addPlanGoal(){
   const p=getCurProj();if(!p)return;
   const name=document.getElementById('p-goal-name')?.value.trim();
-  const val=document.getElementById('p-goal-val')?.value.trim();
+  const val=numVal(document.getElementById('p-goal-val')?.value.trim());
   const unit=document.getElementById('p-goal-unit')?.value||'건';
   if(!name||!val)return;
   if(!p.goals)p.goals=[];
@@ -2482,8 +2503,9 @@ function createChannelRow(ch,checked){
   del.onclick=function(){row.remove();syncPlanGroups();};
   label.appendChild(cb);label.appendChild(span);label.appendChild(del);
   const budgetInp=document.createElement('input');
-  budgetInp.type='number';budgetInp.className='ch-budget-inp';budgetInp.dataset.ch=ch;budgetInp.placeholder='예산';budgetInp.min='0';
+  budgetInp.type='text';budgetInp.inputMode='decimal';budgetInp.className='ch-budget-inp';budgetInp.dataset.ch=ch;budgetInp.placeholder='예산';
   budgetInp.style.cssText='width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit';
+  budgetInp.addEventListener('input',()=>fmtNumInput(budgetInp));
   budgetInp.addEventListener('change',()=>updateChBudget(budgetInp));
   row.appendChild(label);row.appendChild(budgetInp);
   return row;
@@ -2527,7 +2549,7 @@ function restoreChannelSelection(proj){
 // 항목(채널)별 계획 예산 저장 + 플랜 그룹 & 예산 탭에 동기화
 function updateChBudget(el){
   const p=getCurProj();if(!p)return;
-  const ch=el.dataset.ch;const val=parseFloat(el.value)||0;
+  const ch=el.dataset.ch;const val=parseFloat(numVal(el.value))||0;
   if(!p.chBudgets)p.chBudgets={};
   p.chBudgets[ch]=val;
   save();
@@ -2648,7 +2670,7 @@ function renderPlanResult(plan,editMode=false){
           <button type="button" class="assignee-picker-trigger" onclick="openAssigneePicker(this,'${(t.assignee||'').replace(/'/g,"\\'")}',function(csv){updatePTAssignee(${gi},${ti},csv);})" style="font-size:10px;padding:2px 6px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:var(--t3);flex:1;max-width:110px;font-family:inherit;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.assignee?('👤 '+assigneeDisplay(t.assignee)):'👤 담당자'}</button>
           <input type="date" value="${t.date||''}" onchange="updatePTDate(${gi},${ti},this.value)" style="font-size:10px;padding:2px 6px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:${t.date?'var(--lm)':'var(--t3)'};flex:1;font-family:inherit">
           ${t.date?`<input type="date" value="${t.endDate||''}" onchange="updatePTEndDate(${gi},${ti},this.value)" title="종료일(선택·여러 날 일정이면)" min="${t.date}" style="font-size:10px;padding:2px 6px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:${t.endDate?'var(--lm)':'var(--t3)'};flex:1;font-family:inherit">`:''}
-          <input type="number" value="${t.budget||''}" onchange="updatePT(${gi},${ti},'budget',this.value)" placeholder="예산(원)" min="0" style="font-size:10px;padding:2px 6px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:${t.budget?'#5a9e00':'var(--t3)'};width:80px;font-family:inherit">
+          <input type="text" inputmode="decimal" value="${fmtNum(t.budget)}" oninput="fmtNumInput(this)" onchange="updatePTBudget(${gi},${ti},numVal(this.value))" placeholder="예산(원)" style="font-size:10px;padding:2px 6px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:${t.budget?'#5a9e00':'var(--t3)'};width:80px;font-family:inherit">
         </div>
       </div>`;
     const validIdx=[];
@@ -3009,7 +3031,20 @@ function updatePTAssignee(gi,ti,csv){
   }
   save();renderPlanResult(p.plan);renderCalView();if(S.selDate)renderFullDayTasks(S.selDate);
 }
-function updatePTDate(gi,ti,date){const p=getCurProj();if(!p||!p.plan)return;const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(!t)return;if(t.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}t.date=date;if(t.endDate&&date&&t.endDate<=date)t.endDate='';if(date){if(!p.tasks[date])p.tasks[date]=[];const ex=p.tasks[date].find(c=>c._planRef===gi+'-'+ti);if(ex){ex.text=t.text;ex.done=t.done;ex.endDate=t.endDate||'';}else{p.tasks[date].push({text:t.text||'(제목 없음)',type:'ops',done:t.done,assignee:t.assignee||'',endDate:t.endDate||'',_planRef:gi+'-'+ti,_fromPlan:true});}}save();renderPlanResult(p.plan);renderCalView();if(S.selDate===date)renderFullDayTasks(date);toast('캘린더에 반영됐어요 📅',1800);}
+// 사용자 요청: 예산도 캘린더/플랜/예산 탭이 다 서로 연동되어야 함 → 플랜에서 예산을 바꾸면
+// 캘린더 쪽 미러 데이터에도 반영(예산 탭 예측표는 이 플랜 쪽 budget 값을 그대로 집계함)
+function updatePTBudget(gi,ti,val){
+  const p=getCurProj();if(!p||!p.plan)return;
+  const g=getPG();if(!g)return;
+  const t=g[gi]?.tasks?.[ti];if(!t)return;
+  t.budget=val;
+  if(t.date&&p.tasks[t.date]){
+    const ct=p.tasks[t.date].find(c=>c._planRef===gi+'-'+ti);
+    if(ct)ct.budget=val;
+  }
+  save();renderCalView();if(S.selDate)renderFullDayTasks(S.selDate);
+}
+function updatePTDate(gi,ti,date){const p=getCurProj();if(!p||!p.plan)return;const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(!t)return;if(t.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}t.date=date;if(t.endDate&&date&&t.endDate<=date)t.endDate='';if(date){if(!p.tasks[date])p.tasks[date]=[];const ex=p.tasks[date].find(c=>c._planRef===gi+'-'+ti);if(ex){ex.text=t.text;ex.done=t.done;ex.endDate=t.endDate||'';ex.budget=t.budget||'';}else{p.tasks[date].push({text:t.text||'(제목 없음)',type:'ops',done:t.done,assignee:t.assignee||'',endDate:t.endDate||'',budget:t.budget||'',_planRef:gi+'-'+ti,_fromPlan:true});}}save();renderPlanResult(p.plan);renderCalView();if(S.selDate===date)renderFullDayTasks(date);toast('캘린더에 반영됐어요 📅',1800);}
 function updatePTEndDate(gi,ti,val){const p=getCurProj();if(!p||!p.plan)return;const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(!t)return;const endDate=(val&&t.date&&val>t.date)?val:'';t.endDate=endDate;if(t.date&&p.tasks[t.date]){const ct=p.tasks[t.date].find(c=>c._planRef===gi+'-'+ti);if(ct)ct.endDate=endDate;}save();renderPlanResult(p.plan);renderCalView();if(S.selDate)renderFullDayTasks(S.selDate);}
 function addPT(gi){const g=getPG();if(!g)return;if(!g[gi].tasks)g[gi].tasks=[];g[gi].tasks.push({text:'',done:false,date:'',assignee:''});save();renderPlanResult(getCurProj().plan);}
 function deletePT(gi,ti){const p=getCurProj();if(!p||!p.plan)return;const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(t?.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}g[gi].tasks.splice(ti,1);_reindexPlanRefsAfterTaskDelete(p,gi,ti);save();renderPlanResult(p.plan);renderCalView();renderQuickAddGroups();}
@@ -3042,7 +3077,7 @@ function duplicatePT(gi,ti){
   const newTi=g[gi].tasks.length-1;
   if(dup.date){
     if(!p.tasks[dup.date])p.tasks[dup.date]=[];
-    p.tasks[dup.date].push({text:dup.text||'(제목 없음)',type:'ops',done:false,assignee:dup.assignee||'',endDate:dup.endDate||'',_planRef:gi+'-'+newTi,_fromPlan:true});
+    p.tasks[dup.date].push({text:dup.text||'(제목 없음)',type:'ops',done:false,assignee:dup.assignee||'',endDate:dup.endDate||'',budget:dup.budget||'',_planRef:gi+'-'+newTi,_fromPlan:true});
   }
   save();renderPlanResult(p.plan);renderCalView();if(S.selDate)renderFullDayTasks(S.selDate);toast('할 일을 복제했어요 📋',1500);
 }
@@ -3405,7 +3440,8 @@ function renderFullDayTasks(ds){
             <span style="font-size:9px;font-weight:600;padding:1px 5px;border-radius:8px;background:${TYPE_BG[t.type]||'var(--surf3)'};color:${color}">${TYPE_LABEL[t.type]||t.type}</span>
             <!-- 사용자 요청: 캘린더에서 할일 수정할 때 담당자(여러 명)도 날짜도 다 바로 수정 가능해야 함 -->
             <button type="button" class="assignee-picker-trigger" onclick="event.stopPropagation();openAssigneePicker(this,'${(t.assignee||'').replace(/'/g,"\\'")}',function(csv){fullUpdateTaskAssignee('${t.projId}','${anchorDs}',${t.taskIdx},csv);})" style="font-size:9px;padding:1px 5px;background:transparent;border:1px solid var(--b2);border-radius:8px;color:var(--t3);font-family:inherit">${t.assignee?('👤 '+assigneeDisplay(t.assignee)):'👤 담당자'}</button>
-            ${t.budget?`<span style="font-size:9px;color:var(--t3)">💰 ${t.budget}</span>`:''}
+            <!-- 사용자 요청: 캘린더에서 예산도 바로 넣고 수정할 수 있어야 하고, 플랜/예산 탭에도 연동되어야 함 -->
+            <span style="font-size:9px;color:${t.budget?'#5a9e00':'var(--t3)'};display:flex;align-items:center;gap:2px">💰<input type="text" inputmode="decimal" value="${fmtNum(t.budget)}" placeholder="예산" oninput="event.stopPropagation();fmtNumInput(this)" onclick="event.stopPropagation()" onchange="event.stopPropagation();fullUpdateTaskBudget('${t.projId}','${anchorDs}',${t.taskIdx},numVal(this.value))" style="font-size:9px;padding:0 2px;border:1px solid var(--b2);border-radius:3px;background:var(--surf);color:inherit;width:64px"></span>
             ${t.priority?`<span style="font-size:9px;padding:1px 5px;border-radius:8px;${PRIO_STYLE[t.priority]||''}">${PRIO_LABEL[t.priority]||''}</span>`:''}
             ${t.link?`<a href="${t.link}" target="_blank" style="font-size:9px;color:var(--bl)">🔗 링크</a>`:''}
             <!-- 사용자 요청: 하루짜리가 아니라 여러 날에 걸친 일정일 수도 있으니 시작일/종료일을 직접 바꿀 수 있게 함 -->
@@ -3468,6 +3504,17 @@ function fullUpdateTaskAssignee(pid,ds,i,csv){
   if(t._planRef&&p.plan?.groups){
     const[gi,ti]=t._planRef.split('-').map(Number);
     if(p.plan.groups[gi]?.tasks?.[ti])p.plan.groups[gi].tasks[ti].assignee=csv;
+  }
+  save();renderCalView();renderFullDayTasks(ds);if(p.plan)renderPlanResult(p.plan);
+}
+// 사용자 요청: 캘린더에서 예산도 바로 넣고 수정할 수 있어야 하고, 플랜에 연동된 할일이면 그쪽에도 반영되어야 함
+// (예산 탭의 "예산 예측표"는 플랜 할일의 budget/date를 기준으로 집계하므로, 여기서 값을 바꾸면 그 집계에도 반영됨)
+function fullUpdateTaskBudget(pid,ds,i,val){
+  const p=getProj(pid);if(!p||!p.tasks[ds]||!p.tasks[ds][i])return;
+  const t=p.tasks[ds][i];t.budget=val;
+  if(t._planRef&&p.plan?.groups){
+    const[gi,ti]=t._planRef.split('-').map(Number);
+    if(p.plan.groups[gi]?.tasks?.[ti])p.plan.groups[gi].tasks[ti].budget=val;
   }
   save();renderCalView();renderFullDayTasks(ds);if(p.plan)renderPlanResult(p.plan);
 }
@@ -3548,7 +3595,7 @@ function fullAddTask(){
   const task={
     text,type:typeVal,done:false,assignee,
     priority:document.getElementById('full-task-priority')?.value||'',
-    budget:document.getElementById('full-task-budget')?.value?.trim()||'',
+    budget:numVal(document.getElementById('full-task-budget')?.value?.trim()||''),
     memo:document.getElementById('full-task-memo')?.value?.trim()||'',
     link:document.getElementById('full-task-link')?.value?.trim()||'',
     endDate,
@@ -3567,7 +3614,10 @@ function fullAddTask(){
       const g=proj.plan.groups[gi];
       if(!g.tasks)g.tasks=[];
       const ti=g.tasks.length;
-      g.tasks.push({text,done:false,date:S.selDate,assignee});
+      // 버그 수정: 캘린더에서 예산을 넣고 플랜 그룹에 연동해서 추가해도, 예전엔 플랜 쪽 할일에는
+      // 예산이 복사되지 않아서 예산 탭의 "예산 예측표"(플랜 할일의 budget/date를 기준으로 집계)에
+      // 전혀 반영되지 않았음 → 플랜 쪽 할일 생성 시 budget/endDate도 함께 저장
+      g.tasks.push({text,done:false,date:S.selDate,assignee,budget:task.budget||'',endDate:task.endDate||''});
       task._fromPlan=true;
       task._planRef=gi+'-'+ti;
     }
@@ -3619,12 +3669,12 @@ function openAdModal(id){
       if(projSel)projSel.value=ownerProjId;
       document.getElementById('am-start').value=ad.start||'';
       document.getElementById('am-end').value=ad.end||'';
-      document.getElementById('am-budget').value=ad.budget||'';
+      document.getElementById('am-budget').value=fmtNum(ad.budget)||'';
       document.getElementById('am-status').value=ad.status||'scheduled';
-      document.getElementById('am-impressions').value=ad.impressions||'';
-      document.getElementById('am-clicks').value=ad.clicks||'';
-      document.getElementById('am-conversions').value=ad.conversions||'';
-      document.getElementById('am-revenue').value=ad.revenue||'';
+      document.getElementById('am-impressions').value=fmtNum(ad.impressions)||'';
+      document.getElementById('am-clicks').value=fmtNum(ad.clicks)||'';
+      document.getElementById('am-conversions').value=fmtNum(ad.conversions)||'';
+      document.getElementById('am-revenue').value=fmtNum(ad.revenue)||'';
       refreshAdChannelOptions(ad.channel);
     }
   }else{
@@ -3644,12 +3694,12 @@ function saveAd(){
     channel:document.getElementById('am-ch').value,
     start:document.getElementById('am-start').value,
     end:document.getElementById('am-end').value,
-    budget:document.getElementById('am-budget').value,
+    budget:numVal(document.getElementById('am-budget').value),
     status:document.getElementById('am-status').value,
-    impressions:parseFloat(document.getElementById('am-impressions').value)||0,
-    clicks:parseFloat(document.getElementById('am-clicks').value)||0,
-    conversions:parseFloat(document.getElementById('am-conversions').value)||0,
-    revenue:parseFloat(document.getElementById('am-revenue').value)||0,
+    impressions:parseFloat(numVal(document.getElementById('am-impressions').value))||0,
+    clicks:parseFloat(numVal(document.getElementById('am-clicks').value))||0,
+    conversions:parseFloat(numVal(document.getElementById('am-conversions').value))||0,
+    revenue:parseFloat(numVal(document.getElementById('am-revenue').value))||0,
   };
   ad.roas=calcAdROAS(ad); // 매출/예산으로 자동 계산해서 저장(대시보드/보고서의 ROAS 랭킹 등 기존 기능이 그대로 쓸 수 있도록)
   if(S.editAdId)S.projects.forEach(p=>{p.ads=(p.ads||[]).filter(a=>a.id!==S.editAdId);});
@@ -3681,7 +3731,7 @@ function updateGoalCurrent(projId,goalId,val){const proj=getProj(projId);if(!pro
 function delGoal(projId,goalId){const proj=getProj(projId);if(!proj)return;proj.goals=proj.goals.filter(g=>g.id!==goalId);save();if(typeof renderDashboard==='function')renderDashboard();}
 function addGoalToProj(projId){
   const nameEl=document.getElementById('pg-goal-name-'+projId);const targetEl=document.getElementById('pg-goal-target-'+projId);const unitEl=document.getElementById('pg-goal-unit-'+projId);
-  if(!nameEl||!targetEl)return;const name=nameEl.value.trim(),target=targetEl.value.trim();if(!name||!target)return;
+  if(!nameEl||!targetEl)return;const name=nameEl.value.trim(),target=numVal(targetEl.value.trim());if(!name||!target)return;
   const proj=getProj(projId);if(!proj.goals)proj.goals=[];proj.goals.push({id:Date.now().toString(),name,target:parseFloat(target)||0,unit:unitEl.value,current:0});save();if(typeof renderDashboard==='function')renderDashboard();
 }
 function goalBarColor(pct){if(pct>=100)return'var(--green)';if(pct>=60)return'var(--blue)';if(pct>=30)return'var(--orange)';return'var(--red)';}
@@ -3694,8 +3744,8 @@ function renderProgress(){
     let tot=0,done=0;Object.values(proj.tasks||{}).forEach(ts=>ts.forEach(t=>{tot++;if(t.done)done++;}));
     const pct=tot?Math.round(done/tot*100):0;const ads=proj.ads||[];const liveN=ads.filter(a=>a.status==='live').length;
     const statusL={live:'🔴 라이브',paused:'⏸ 일시정지',scheduled:'🗓 예정'};const goals=proj.goals||[];
-    const goalsHtml=goals.length?`<div class="prog-ads" style="margin-top:12px"><div class="prog-ads-lbl">목표 달성 현황</div><div class="goal-list" style="margin-bottom:8px">${goals.map(g=>{const gpct=g.target>0?Math.min(Math.round(g.current/g.target*100),999):0;const barColor=goalBarColor(gpct);return`<div class="goal-row"><div class="goal-info"><div class="goal-name">${g.name}</div><div class="goal-target">목표 ${g.target.toLocaleString()}${g.unit}</div></div><div class="goal-progress-wrap"><div class="goal-bar-bg"><div class="goal-bar-fill" style="width:${Math.min(gpct,100)}%;background:${barColor}"></div></div><div class="goal-pct-row"><span class="goal-pct" style="color:${barColor}">${gpct}%</span><div style="display:flex;align-items:center;gap:4px"><input class="goal-update-inp" type="number" value="${g.current}" onchange="updateGoalCurrent('${proj.id}','${g.id}',this.value)"><span style="font-size:10px;color:var(--t3)">${g.unit}</span></div></div></div><button class="goal-del" onclick="delGoal('${proj.id}','${g.id}')">✕</button></div>`;}).join('')}</div><div class="add-goal-row" style="margin-top:4px"><input type="text" id="pg-goal-name-${proj.id}" placeholder="새 목표명" style="font-size:11px;padding:6px 8px"><input type="text" id="pg-goal-target-${proj.id}" placeholder="목표값" style="font-size:11px;padding:6px 8px"><select id="pg-goal-unit-${proj.id}" style="font-size:11px;padding:6px 8px"><option>건</option><option>명</option><option>만원</option><option>억원</option><option>%</option><option>회</option><option>개</option></select><button class="btn-add-goal" onclick="addGoalToProj('${proj.id}')">+</button></div></div>`:
-    `<div class="prog-ads" style="margin-top:12px"><div class="prog-ads-lbl">목표 달성 현황</div><div style="font-size:11px;color:var(--t3);margin-bottom:8px">아직 목표가 없어요</div><div class="add-goal-row"><input type="text" id="pg-goal-name-${proj.id}" placeholder="새 목표명" style="font-size:11px;padding:6px 8px"><input type="text" id="pg-goal-target-${proj.id}" placeholder="목표값" style="font-size:11px;padding:6px 8px"><select id="pg-goal-unit-${proj.id}" style="font-size:11px;padding:6px 8px"><option>건</option><option>명</option><option>만원</option><option>억원</option><option>%</option><option>회</option><option>개</option></select><button class="btn-add-goal" onclick="addGoalToProj('${proj.id}')">+</button></div></div>`;
+    const goalsHtml=goals.length?`<div class="prog-ads" style="margin-top:12px"><div class="prog-ads-lbl">목표 달성 현황</div><div class="goal-list" style="margin-bottom:8px">${goals.map(g=>{const gpct=g.target>0?Math.min(Math.round(g.current/g.target*100),999):0;const barColor=goalBarColor(gpct);return`<div class="goal-row"><div class="goal-info"><div class="goal-name">${g.name}</div><div class="goal-target">목표 ${g.target.toLocaleString()}${g.unit}</div></div><div class="goal-progress-wrap"><div class="goal-bar-bg"><div class="goal-bar-fill" style="width:${Math.min(gpct,100)}%;background:${barColor}"></div></div><div class="goal-pct-row"><span class="goal-pct" style="color:${barColor}">${gpct}%</span><div style="display:flex;align-items:center;gap:4px"><input class="goal-update-inp" type="text" inputmode="decimal" value="${fmtNum(g.current)}" oninput="fmtNumInput(this)" onchange="updateGoalCurrent('${proj.id}','${g.id}',numVal(this.value))"><span style="font-size:10px;color:var(--t3)">${g.unit}</span></div></div></div><button class="goal-del" onclick="delGoal('${proj.id}','${g.id}')">✕</button></div>`;}).join('')}</div><div class="add-goal-row" style="margin-top:4px"><input type="text" id="pg-goal-name-${proj.id}" placeholder="새 목표명" style="font-size:11px;padding:6px 8px"><input type="text" inputmode="decimal" id="pg-goal-target-${proj.id}" placeholder="목표값" oninput="fmtNumInput(this)" style="font-size:11px;padding:6px 8px"><select id="pg-goal-unit-${proj.id}" style="font-size:11px;padding:6px 8px"><option>건</option><option>명</option><option>만원</option><option>억원</option><option>%</option><option>회</option><option>개</option></select><button class="btn-add-goal" onclick="addGoalToProj('${proj.id}')">+</button></div></div>`:
+    `<div class="prog-ads" style="margin-top:12px"><div class="prog-ads-lbl">목표 달성 현황</div><div style="font-size:11px;color:var(--t3);margin-bottom:8px">아직 목표가 없어요</div><div class="add-goal-row"><input type="text" id="pg-goal-name-${proj.id}" placeholder="새 목표명" style="font-size:11px;padding:6px 8px"><input type="text" inputmode="decimal" id="pg-goal-target-${proj.id}" placeholder="목표값" oninput="fmtNumInput(this)" style="font-size:11px;padding:6px 8px"><select id="pg-goal-unit-${proj.id}" style="font-size:11px;padding:6px 8px"><option>건</option><option>명</option><option>만원</option><option>억원</option><option>%</option><option>회</option><option>개</option></select><button class="btn-add-goal" onclick="addGoalToProj('${proj.id}')">+</button></div></div>`;
     html+=`<div class="prog-card"><div class="prog-top"><div><div class="prog-name">${proj.name}</div>${proj.start?`<div class="prog-dates">${proj.start}${proj.end?' ~ '+proj.end:''}</div>`:''}</div><div class="prog-pct">${pct}%</div></div><div class="prog-bar-bg"><div class="prog-bar-fill" style="width:${pct}%"></div></div><div class="prog-stats"><div class="ps"><div class="ps-v">${tot}</div><div class="ps-l">전체 할 일</div></div><div class="ps"><div class="ps-v" style="color:var(--lm)">${done}</div><div class="ps-l">완료</div></div><div class="ps"><div class="ps-v" style="color:var(--t2)">${tot-done}</div><div class="ps-l">미완료</div></div><div class="ps"><div class="ps-v" style="color:var(--red)">${liveN}</div><div class="ps-l">광고 라이브</div></div></div>${ads.length?`<div class="prog-ads"><div class="prog-ads-lbl">광고 현황</div>${ads.map(a=>`<div class="prog-ad-row"><span>${a.name}</span><span style="color:${a.status==='live'?'var(--red)':a.status==='scheduled'?'var(--blue)':'var(--t3)'}">${statusL[a.status]}</span></div>`).join('')}</div>`:''}${goalsHtml}</div>`;
   });
   document.getElementById('prog-wrap').innerHTML=html;
@@ -4806,7 +4856,7 @@ function renderBudgetTracker(proj){
               // + 그 달이 지나버렸으면 실제값을 안 채웠어도 "계획"은 자동으로 사라짐
               return`<td style="text-align:right">
                 <div style="font-size:9px;color:var(--t3);min-height:12px;white-space:nowrap">${(planned&&!v&&!isPastBudgetMonth(mi))?'계획 '+planned.toLocaleString():''}</div>
-                <input class="bt-inp" type="number" value="${v}" placeholder="" min="0" onchange="btUpdateActual('${proj.id}',${ri},'${mk}',this.value)">
+                <input class="bt-inp" type="text" inputmode="decimal" value="${fmtNum(v)}" placeholder="" oninput="fmtNumInput(this)" onchange="btUpdateActual('${proj.id}',${ri},'${mk}',numVal(this.value))">
               </td>`;
             }).join('')}
             <td style="text-align:right;font-weight:600;color:var(--lm)">${totalActR.toLocaleString()}</td>
@@ -4851,7 +4901,7 @@ function btSaveNewRow(){
   const channel=document.getElementById('bam-channel').value.trim();if(!channel)return;
   const projId=document.getElementById('bt-proj-sel')?.value;const proj=getProj(projId);if(!proj){alert('프로젝트를 먼저 선택해주세요');return;}
   if(!Array.isArray(proj.budgetRows))proj.budgetRows=[];
-  proj.budgetRows.push({id:Date.now().toString(),channel,cat:document.getElementById('bam-cat').value,planTotal:parseFloat(document.getElementById('bam-plan-total').value)||0,memo:document.getElementById('bam-memo').value,monthly:{},planMonthly:{}});
+  proj.budgetRows.push({id:Date.now().toString(),channel,cat:document.getElementById('bam-cat').value,planTotal:parseFloat(numVal(document.getElementById('bam-plan-total').value))||0,memo:document.getElementById('bam-memo').value,monthly:{},planMonthly:{}});
   save();btCloseAddRowModal();renderBudgetTracker(proj);
   ['bam-channel','bam-plan-total','bam-memo'].forEach(id=>document.getElementById(id).value='');
 }
@@ -5023,10 +5073,10 @@ function expToggleTL(){const p=getEP();expTLEditing=!expTLEditing;document.getEl
 function expAddTL(){const p=getEP();p.timeline.push({day:'',desc:''});expSave();expToggleTL();expToggleTL();}
 function expRemoveTL(i){const p=getEP();p.timeline.splice(i,1);expSave();expToggleTL();expToggleTL();}
 function expSaveTL(){const p=getEP();document.querySelectorAll('.exp-tl-d').forEach(el=>{if(p.timeline[+el.dataset.i])p.timeline[+el.dataset.i].day=el.value});document.querySelectorAll('.exp-tl-t').forEach(el=>{if(p.timeline[+el.dataset.i])p.timeline[+el.dataset.i].desc=el.value});expSave();expRenderTLView();}
-function expRenderPerfInput(){const p=getEP();if(!p.adsets||!p.adsets.length){document.getElementById('exp-perf-area').innerHTML='<div style="color:var(--t3);font-size:12px">애드세트 설계를 먼저 완료해주세요</div>';return;}if(!p.perf)p.perf={};document.getElementById('exp-perf-tabs').innerHTML=p.adsets.map((a,i)=>`<button style="padding:4px 10px;font-size:11px;border:1px solid ${i===expPerfAs?'var(--lm)':'var(--b2)'};background:${i===expPerfAs?'var(--lmbg)':'transparent'};color:${i===expPerfAs?'var(--lm)':'var(--t2)'};border-radius:var(--r-sm);cursor:pointer;font-family:inherit" onclick="expSelPerfAs(${i})">${a.label}. ${(a.vp||'').substring(0,8)}</button>`).join('');const a=p.adsets[expPerfAs];const key=`as_${expPerfAs}`;if(!p.perf[key])p.perf[key]=Array(7).fill(0).map((_,d)=>({day:d+1,impressions:'',clicks:'',ctr:'',booking_clicks:'',status:'on'}));document.getElementById('exp-perf-area').innerHTML=`<div style="font-size:12px;font-weight:600;margin-bottom:8px">애드세트 ${a.label} — ${a.vp||''}</div><div style="display:grid;grid-template-columns:46px 1fr 1fr 90px 1fr 68px;gap:5px;font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;padding:0 2px"><span>Day</span><span>노출수</span><span>클릭수</span><span>CTR(%)</span><span>예약클릭</span><span>상태</span></div>${p.perf[key].map((d,di)=>`<div style="display:grid;grid-template-columns:46px 1fr 1fr 90px 1fr 68px;gap:5px;align-items:center;margin-bottom:4px"><span style="font-weight:600;color:var(--t2);font-size:11px">Day${d.day}</span><input class="epi epi-imp" data-di="${di}" value="${d.impressions||''}" placeholder="0" type="number" min="0" style="padding:4px 6px;font-size:11px"><input class="epi epi-clk" data-di="${di}" value="${d.clicks||''}" placeholder="0" type="number" min="0" style="padding:4px 6px;font-size:11px"><input class="epi epi-ctr" data-di="${di}" value="${d.ctr||''}" placeholder="자동" readonly style="background:var(--surf2);color:var(--t2);padding:4px 6px;font-size:11px"><input class="epi epi-bk" data-di="${di}" value="${d.booking_clicks||''}" placeholder="0" type="number" min="0" style="padding:4px 6px;font-size:11px"><select class="epi epi-st" data-di="${di}" style="padding:4px 6px;font-size:11px"><option value="on" ${d.status!=='off'?'selected':''}>ON</option><option value="off" ${d.status==='off'?'selected':''}>OFF</option></select></div>`).join('')}`;document.querySelectorAll('.epi-imp,.epi-clk').forEach(el=>el.addEventListener('input',expAutoCalcCTR));document.querySelectorAll('.epi-bk,.epi-st').forEach(el=>el.addEventListener('change',expSavePerf));}
+function expRenderPerfInput(){const p=getEP();if(!p.adsets||!p.adsets.length){document.getElementById('exp-perf-area').innerHTML='<div style="color:var(--t3);font-size:12px">애드세트 설계를 먼저 완료해주세요</div>';return;}if(!p.perf)p.perf={};document.getElementById('exp-perf-tabs').innerHTML=p.adsets.map((a,i)=>`<button style="padding:4px 10px;font-size:11px;border:1px solid ${i===expPerfAs?'var(--lm)':'var(--b2)'};background:${i===expPerfAs?'var(--lmbg)':'transparent'};color:${i===expPerfAs?'var(--lm)':'var(--t2)'};border-radius:var(--r-sm);cursor:pointer;font-family:inherit" onclick="expSelPerfAs(${i})">${a.label}. ${(a.vp||'').substring(0,8)}</button>`).join('');const a=p.adsets[expPerfAs];const key=`as_${expPerfAs}`;if(!p.perf[key])p.perf[key]=Array(7).fill(0).map((_,d)=>({day:d+1,impressions:'',clicks:'',ctr:'',booking_clicks:'',status:'on'}));document.getElementById('exp-perf-area').innerHTML=`<div style="font-size:12px;font-weight:600;margin-bottom:8px">애드세트 ${a.label} — ${a.vp||''}</div><div style="display:grid;grid-template-columns:46px 1fr 1fr 90px 1fr 68px;gap:5px;font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;padding:0 2px"><span>Day</span><span>노출수</span><span>클릭수</span><span>CTR(%)</span><span>예약클릭</span><span>상태</span></div>${p.perf[key].map((d,di)=>`<div style="display:grid;grid-template-columns:46px 1fr 1fr 90px 1fr 68px;gap:5px;align-items:center;margin-bottom:4px"><span style="font-weight:600;color:var(--t2);font-size:11px">Day${d.day}</span><input class="epi epi-imp" data-di="${di}" value="${fmtNum(d.impressions)||''}" placeholder="0" type="text" inputmode="decimal" style="padding:4px 6px;font-size:11px"><input class="epi epi-clk" data-di="${di}" value="${fmtNum(d.clicks)||''}" placeholder="0" type="text" inputmode="decimal" style="padding:4px 6px;font-size:11px"><input class="epi epi-ctr" data-di="${di}" value="${d.ctr||''}" placeholder="자동" readonly style="background:var(--surf2);color:var(--t2);padding:4px 6px;font-size:11px"><input class="epi epi-bk" data-di="${di}" value="${fmtNum(d.booking_clicks)||''}" placeholder="0" type="text" inputmode="decimal" style="padding:4px 6px;font-size:11px"><select class="epi epi-st" data-di="${di}" style="padding:4px 6px;font-size:11px"><option value="on" ${d.status!=='off'?'selected':''}>ON</option><option value="off" ${d.status==='off'?'selected':''}>OFF</option></select></div>`).join('')}`;document.querySelectorAll('.epi-imp,.epi-clk').forEach(el=>el.addEventListener('input',()=>{fmtNumInput(el);expAutoCalcCTR();}));document.querySelectorAll('.epi-bk').forEach(el=>el.addEventListener('input',()=>fmtNumInput(el)));document.querySelectorAll('.epi-bk,.epi-st').forEach(el=>el.addEventListener('change',expSavePerf));}
 function expSelPerfAs(i){expPerfAs=i;expRenderPerfInput();}
-function expAutoCalcCTR(){const p=getEP();const key=`as_${expPerfAs}`;document.querySelectorAll('.epi-imp').forEach((el,di)=>{const imp=parseFloat(el.value)||0,clk=parseFloat(document.querySelectorAll('.epi-clk')[di]?.value)||0;const ctr=imp>0?(clk/imp*100).toFixed(2):'';document.querySelectorAll('.epi-ctr')[di].value=ctr;if(p.perf[key]&&p.perf[key][di]){p.perf[key][di].impressions=imp;p.perf[key][di].clicks=clk;p.perf[key][di].ctr=ctr;}});expSave();}
-function expSavePerf(){const p=getEP();const key=`as_${expPerfAs}`;if(!p.perf[key])return;document.querySelectorAll('.epi-imp').forEach((el,di)=>{if(!p.perf[key][di])return;Object.assign(p.perf[key][di],{impressions:el.value,clicks:document.querySelectorAll('.epi-clk')[di]?.value||'',ctr:document.querySelectorAll('.epi-ctr')[di]?.value||'',booking_clicks:document.querySelectorAll('.epi-bk')[di]?.value||'',status:document.querySelectorAll('.epi-st')[di]?.value||'on'});});expSave();}
+function expAutoCalcCTR(){const p=getEP();const key=`as_${expPerfAs}`;document.querySelectorAll('.epi-imp').forEach((el,di)=>{const imp=parseFloat(numVal(el.value))||0,clk=parseFloat(numVal(document.querySelectorAll('.epi-clk')[di]?.value))||0;const ctr=imp>0?(clk/imp*100).toFixed(2):'';document.querySelectorAll('.epi-ctr')[di].value=ctr;if(p.perf[key]&&p.perf[key][di]){p.perf[key][di].impressions=imp;p.perf[key][di].clicks=clk;p.perf[key][di].ctr=ctr;}});expSave();}
+function expSavePerf(){const p=getEP();const key=`as_${expPerfAs}`;if(!p.perf[key])return;document.querySelectorAll('.epi-imp').forEach((el,di)=>{if(!p.perf[key][di])return;Object.assign(p.perf[key][di],{impressions:numVal(el.value),clicks:numVal(document.querySelectorAll('.epi-clk')[di]?.value)||'',ctr:document.querySelectorAll('.epi-ctr')[di]?.value||'',booking_clicks:numVal(document.querySelectorAll('.epi-bk')[di]?.value)||'',status:document.querySelectorAll('.epi-st')[di]?.value||'on'});});expSave();}
 function expCalcStats(p){if(!p.adsets)return[];return p.adsets.map((a,i)=>{const rows=(p.perf&&p.perf[`as_${i}`])||[];const on=rows.filter(r=>r.status!=='off'&&r.ctr!=='');const avgCTR=on.length?on.reduce((s,r)=>s+parseFloat(r.ctr||0),0)/on.length:0;const tc=rows.reduce((s,r)=>s+parseFloat(r.clicks||0),0);const tb=rows.reduce((s,r)=>s+parseFloat(r.booking_clicks||0),0);return{...a,avgCTR,bkRate:tc>0?(tb/tc*100):0,idx:i};});}
 function expRenderWinner(){const p=getEP();const stats=expCalcStats(p);if(!stats.length){document.getElementById('exp-w-metrics').innerHTML='';return;}const sorted=[...stats].sort((a,b)=>b.avgCTR-a.avgCTR);const w=sorted[0];document.getElementById('exp-w-metrics').innerHTML=`<div class="exp-metric"><div class="exp-metric-label">총 애드세트</div><div class="exp-metric-val">${stats.length}</div></div><div class="exp-metric"><div class="exp-metric-label">위너 CTR</div><div class="exp-metric-val">${w.avgCTR.toFixed(2)}%</div></div><div class="exp-metric"><div class="exp-metric-label">위너 VP</div><div class="exp-metric-val" style="font-size:12px">${(w.vp||'').substring(0,16)}</div></div><div class="exp-metric"><div class="exp-metric-label">예약 클릭률</div><div class="exp-metric-val">${w.bkRate.toFixed(1)}%</div></div>`;document.getElementById('exp-w-table').innerHTML=sorted.map((s,rank)=>`<tr style="${rank%2?'background:var(--surf2)':''}"><td style="padding:8px 10px"><span class="exp-adset-badge ${EBCOLORS[s.idx]}">애드세트 ${s.label}</span></td><td style="padding:8px 10px;font-size:11px;color:var(--t2)">${s.vp||'—'}</td><td style="padding:8px 10px;font-weight:700">${s.avgCTR.toFixed(2)}%</td><td style="padding:8px 10px">${s.bkRate.toFixed(1)}%</td><td style="padding:8px 10px"><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:${rank===0?'var(--lmbg)':rank===sorted.length-1?'rgba(194,32,32,.08)':'var(--surf2)'};color:${rank===0?'var(--lm)':rank===sorted.length-1&&sorted.length>1?'var(--red)':'var(--t2)'}">${rank===0?'위너':rank===sorted.length-1&&sorted.length>1?'OFF':'유지'}</span></td></tr>`).join('');const wc=[w.copy1,w.copy2].filter(Boolean);document.getElementById('exp-w-insight').innerHTML=`<div style="background:var(--surf2);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:8px"><div style="font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">위너 카피</div>${wc.length?wc.map(c=>`<div style="font-size:12px;margin-bottom:3px">"${c}"</div>`).join(''):'<div style="color:var(--t3);font-size:11px">카피 미입력</div>'}</div><div style="background:var(--surf2);border-radius:var(--r-sm);padding:10px 12px"><div style="font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">검증된 VP & 가설</div><div style="font-size:12px;font-weight:600">${w.vp||'—'}</div>${w.hypothesis?`<div style="font-size:11px;color:var(--t2);margin-top:3px">${w.hypothesis}</div>`:''}</div>`;if(p.memo)document.getElementById('exp-w-memo').value=p.memo;}
 function expConfirmWinner(){const p=getEP();p.memo=document.getElementById('exp-w-memo').value;p.step=5;expSave();expRenderProjList();}
@@ -5908,7 +5958,7 @@ function renderDashGoalDetail(){
           <div style="font-size:11px;font-weight:600">${g.name}<span style="color:var(--t3);font-weight:400"> · ${g._projName}</span></div>
           <div style="font-size:10px;color:var(--t3)">목표 ${g.target.toLocaleString()}${g.unit}</div>
         </div>
-        <input class="goal-update-inp" type="number" value="${g.current}" oninput="livePreviewGoalPct('${g._projId}','${g.id}',this.value)" onchange="updateGoalCurrent('${g._projId}','${g.id}',this.value)" style="width:70px">
+        <input class="goal-update-inp" type="text" inputmode="decimal" value="${fmtNum(g.current)}" oninput="fmtNumInput(this);livePreviewGoalPct('${g._projId}','${g.id}',numVal(this.value))" onchange="updateGoalCurrent('${g._projId}','${g.id}',numVal(this.value))" style="width:70px">
         <span style="font-size:10px;color:var(--t3);width:14px">${g.unit}</span>
         <span id="goal-pct-${g.id}" style="font-size:12px;font-weight:700;color:${barColor};width:38px;text-align:right">${gpct}%</span>
       </div>`;
@@ -6373,9 +6423,9 @@ function openRevInputModal(){
   document.getElementById('rim-roas-preview').style.display='none';
   const psel=document.getElementById('rim-proj');
   if(psel){psel.innerHTML='<option value="">없음</option>'+getVisibleProjects().map(p=>`<option value="${p.id}">${p.name}</option>`).join('');if(S.curProjId)psel.value=S.curProjId;}
-  const updateRoas=()=>{const r=parseFloat(document.getElementById('rim-revenue')?.value)||0;const sp=parseFloat(document.getElementById('rim-adspend')?.value)||0;const p=document.getElementById('rim-roas-preview');if(p){if(r>0&&sp>0){p.textContent=`ROAS: ${(r/sp).toFixed(2)}x`;p.style.display='block';}else p.style.display='none';}};
-  document.getElementById('rim-revenue').oninput=updateRoas;
-  document.getElementById('rim-adspend').oninput=updateRoas;
+  const updateRoas=()=>{const r=parseFloat(numVal(document.getElementById('rim-revenue')?.value))||0;const sp=parseFloat(numVal(document.getElementById('rim-adspend')?.value))||0;const p=document.getElementById('rim-roas-preview');if(p){if(r>0&&sp>0){p.textContent=`ROAS: ${(r/sp).toFixed(2)}x`;p.style.display='block';}else p.style.display='none';}};
+  document.getElementById('rim-revenue').oninput=function(){fmtNumInput(this);updateRoas();};
+  document.getElementById('rim-adspend').oninput=function(){fmtNumInput(this);updateRoas();};
   document.getElementById('rev-input-modal').style.display='flex';
   setTimeout(()=>document.getElementById('rim-date').focus(),100);
 }
@@ -6384,7 +6434,7 @@ function saveRevEntry(){
   const date=document.getElementById('rim-date').value;
   if(!date)return;
   if(!S.revEntries)S.revEntries=[];
-  S.revEntries.unshift({id:Date.now().toString(),date,projId:document.getElementById('rim-proj')?.value||'',revenue:parseFloat(document.getElementById('rim-revenue').value)||0,bookings:parseInt(document.getElementById('rim-bookings').value)||0,adspend:parseFloat(document.getElementById('rim-adspend').value)||0,channel:document.getElementById('rim-channel').value||'전체',memo:document.getElementById('rim-memo').value.trim(),createdAt:Date.now(),org:_mfUser?.org||''});
+  S.revEntries.unshift({id:Date.now().toString(),date,projId:document.getElementById('rim-proj')?.value||'',revenue:parseFloat(numVal(document.getElementById('rim-revenue').value))||0,bookings:parseInt(numVal(document.getElementById('rim-bookings').value))||0,adspend:parseFloat(numVal(document.getElementById('rim-adspend').value))||0,channel:document.getElementById('rim-channel').value||'전체',memo:document.getElementById('rim-memo').value.trim(),createdAt:Date.now(),org:_mfUser?.org||''});
   save();document.getElementById('rev-input-modal').style.display='none';renderRevenue();toast('매출 데이터 저장됐어요 ✓');
 }
 
@@ -6427,20 +6477,20 @@ function openUtmPerfModal(id){
   if(!entry)return;
   const urlEl=document.getElementById('utm-perf-modal-url');
   if(urlEl)urlEl.textContent=entry.url;
-  ['clicks','sessions','conversions','revenue'].forEach(k=>{const el=document.getElementById('upm-'+k);if(el)el.value=entry[k]||'';});
+  ['clicks','sessions','conversions','revenue'].forEach(k=>{const el=document.getElementById('upm-'+k);if(el)el.value=fmtNum(entry[k])||'';});
   const pEl=document.getElementById('upm-period');if(pEl)pEl.value=entry.period||'';
-  const updatePrev=()=>{const cl=parseInt(document.getElementById('upm-clicks')?.value)||0;const cv=parseInt(document.getElementById('upm-conversions')?.value)||0;const rv=parseFloat(document.getElementById('upm-revenue')?.value)||0;const p=document.getElementById('upm-preview');if(p){const show=cl>0||cv>0||rv>0;p.style.display=show?'block':'none';p.textContent=`전환율 ${cl>0?(cv/cl*100).toFixed(1):0}% · ${cv}건 · ${rv.toLocaleString()}만원`;}};
-  ['upm-clicks','upm-sessions','upm-conversions','upm-revenue'].forEach(id=>{const el=document.getElementById(id);if(el)el.oninput=updatePrev;});
+  const updatePrev=()=>{const cl=parseInt(numVal(document.getElementById('upm-clicks')?.value))||0;const cv=parseInt(numVal(document.getElementById('upm-conversions')?.value))||0;const rv=parseFloat(numVal(document.getElementById('upm-revenue')?.value))||0;const p=document.getElementById('upm-preview');if(p){const show=cl>0||cv>0||rv>0;p.style.display=show?'block':'none';p.textContent=`전환율 ${cl>0?(cv/cl*100).toFixed(1):0}% · ${cv}건 · ${rv.toLocaleString()}만원`;}};
+  ['upm-clicks','upm-sessions','upm-conversions','upm-revenue'].forEach(id=>{const el=document.getElementById(id);if(el)el.oninput=function(){fmtNumInput(this);updatePrev();};});
   document.getElementById('utm-perf-modal').style.display='flex';
 }
 
 function saveUtmPerf(){
   const entry=(S.utmEntries||[]).find(e=>e.id===_utmEditId);
   if(!entry)return;
-  entry.clicks=parseInt(document.getElementById('upm-clicks')?.value)||0;
-  entry.sessions=parseInt(document.getElementById('upm-sessions')?.value)||0;
-  entry.conversions=parseInt(document.getElementById('upm-conversions')?.value)||0;
-  entry.revenue=parseFloat(document.getElementById('upm-revenue')?.value)||0;
+  entry.clicks=parseInt(numVal(document.getElementById('upm-clicks')?.value))||0;
+  entry.sessions=parseInt(numVal(document.getElementById('upm-sessions')?.value))||0;
+  entry.conversions=parseInt(numVal(document.getElementById('upm-conversions')?.value))||0;
+  entry.revenue=parseFloat(numVal(document.getElementById('upm-revenue')?.value))||0;
   entry.period=document.getElementById('upm-period')?.value||'';
   save();renderUtmView();document.getElementById('utm-perf-modal').style.display='none';toast('성과 데이터 저장됐어요 ✓');
 }

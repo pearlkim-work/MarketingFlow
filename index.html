@@ -96,11 +96,11 @@ input::placeholder,textarea::placeholder{color:var(--t3)}
 .mini-dots{display:flex;flex-direction:column;gap:1px}
 .mini-dot{font-size:8px;padding:1px 3px;border-radius:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mini-dot.meta{background:var(--lmbg);color:var(--lm)}
-.mini-dot.crm{background:var(--orange-bg);color:var(--orange)}
-.mini-dot.inf{background:var(--blue-bg);color:var(--blue)}
+.mini-dot.crm{background:var(--orbg);color:var(--or)}
+.mini-dot.inf{background:var(--blbg);color:var(--bl)}
 .mini-dot.ops{background:var(--surf3);color:var(--t2)}
-.mini-dot.live{background:var(--red-bg);color:var(--red)}
-.mini-dot.content{background:var(--green-bg);color:var(--green)}
+.mini-dot.live{background:var(--rdbg);color:var(--rd)}
+.mini-dot.content{background:var(--gnbg);color:var(--gn)}
 .mini-dot.done{opacity:.35;text-decoration:line-through}
 .mini-more{font-size:8px;color:var(--t3)}
 .plan-cal-tasks{padding:10px 14px;flex:1;border-top:1px solid var(--b)}
@@ -982,21 +982,7 @@ select:focus{border-color:var(--lm);outline:none}
       <div class="plan-cal-tasks" id="panel-todo">
         <div class="plan-cal-sel-date" id="plan-sel-date-lbl">날짜를 선택하세요</div>
         <div class="task-mini-list" id="plan-task-list"></div>
-        <div class="add-task-mini" id="plan-add-task-area" style="display:none">
-          <input type="text" id="plan-task-inp" placeholder="할 일 입력..." onkeydown="if(event.key==='Enter')planAddTask()">
-          <div class="add-task-row">
-            <select id="plan-task-type">
-              <option value="ops">일반</option>
-              <option value="meta">Meta</option>
-              <option value="crm">CRM</option>
-              <option value="inf">인플루언서</option>
-              <option value="content">콘텐츠</option>
-              <option value="live">광고 라이브</option>
-            </select>
-            <button class="btn-add-mini" onclick="planAddTask()">추가</button>
-          </div>
-        </div>
-        <div id="plan-cal-hint" style="font-size:11px;color:var(--t3)">프로젝트를 선택하면<br>할 일을 추가할 수 있어요</div>
+        <div id="plan-cal-hint" style="font-size:11px;color:var(--t3)">프로젝트를 선택하면<br>일정을 볼 수 있어요</div>
       </div>
       <div class="memo-panel" id="panel-memo" style="display:none">
         <div id="memo-proj-hint" class="memo-hint">프로젝트를 선택하면<br>메모를 작성할 수 있어요</div>
@@ -2850,7 +2836,10 @@ function renderPlanResult(plan,editMode=false){
           ${t.date?`<input type="date" value="${t.endDate||''}" onchange="updatePTEndDate(${gi},${ti},this.value)" title="종료일(선택·여러 날 일정이면)" min="${t.date}" style="font-size:10px;padding:2px 6px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:${t.endDate?'var(--lm)':'var(--t3)'};flex:1;font-family:inherit">`:''}
           <input type="text" inputmode="decimal" value="${fmtNum(t.budget)}" oninput="fmtNumInput(this)" onchange="updatePTBudget(${gi},${ti},numVal(this.value))" placeholder="예산(원)" style="font-size:10px;padding:2px 6px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:${t.budget?'#5a9e00':'var(--t3)'};width:80px;font-family:inherit">
         </div>
-        ${hasTaskDetail(t)?`<div style="padding-left:22px;margin-top:5px"><button onclick="event.stopPropagation();openTaskDetailModalFromPlan('${_pgPid}',${gi},${ti})" style="font-size:10px;padding:3px 8px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:var(--t2);cursor:pointer;font-family:inherit">📄 상세보기</button></div>`:''}
+        <!-- 사용자 요청: 메모 버튼이 내용이 있을 때만 보여서, 플랜 탭에서는 새로 메모를 추가할 방법이
+             아예 없었음(캘린더 우클릭으로 만든 것만 "보이기"만 가능했음) → 캘린더와 똑같이 플랜 탭에서도
+             항상 버튼이 보이게 해서 새로 추가/보기/수정/삭제가 다 여기서 가능하게 함 -->
+        <div style="padding-left:22px;margin-top:5px"><button onclick="event.stopPropagation();openTaskDetailModalFromPlan('${_pgPid}',${gi},${ti})" style="font-size:10px;padding:3px 8px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:var(--t2);cursor:pointer;font-family:inherit">${hasTaskDetail(t)?'📄 메모 보기':'📝 메모 추가'}</button></div>
       </div>`;
     const validIdx=[];
     (g.tasks||[]).forEach((t,ti)=>{if(t.text&&t.text.trim())validIdx.push(ti);}); // 빈 할일 숨기기
@@ -3325,7 +3314,6 @@ function savePlanToProj(){
 // ── PLAN MINI CALENDAR ──
 function updatePlanCalHint(){
   const hasProj=!!S.curProjId;
-  document.getElementById('plan-add-task-area').style.display=hasProj?'flex':'none';
   document.getElementById('plan-cal-hint').style.display=hasProj?'none':'block';
 }
 function planCalMove(d){S.planCalM+=d;if(S.planCalM>11){S.planCalM=0;S.planCalY++;}if(S.planCalM<0){S.planCalM=11;S.planCalY--;}renderMiniCal();}
@@ -3359,8 +3347,7 @@ function renderPlanDayTasks(ds){
   const[y,m,d]=ds.split('-');
   document.getElementById('plan-sel-date-lbl').textContent=`${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;
   const proj=getCurProj();const tasks=proj?getTasksOverlappingDate(proj,ds):[];
-  const typeC={meta:'var(--lm)',crm:'var(--orange)',inf:'var(--blue)',ops:'var(--t2)',live:'var(--red)',content:'var(--green)'};
-  document.getElementById('plan-task-list').innerHTML=tasks.map(t=>`<div class="task-mini"><div class="task-chk ${t.done?'done':''}" onclick="planToggleTask('${t._anchorDate}',${t._anchorIdx})"></div><div class="task-txt ${t.done?'done':''}" style="color:${typeC[t.type]||'var(--t2)'}">${t.text}${t.endDate&&t.endDate>t._anchorDate?` <span style="opacity:.6">(~${t.endDate.slice(5)})</span>`:''}</div><button class="task-del" onclick="planDelTask('${t._anchorDate}',${t._anchorIdx})">✕</button></div>`).join('')||'<div style="font-size:11px;color:var(--t3)">할 일 없음</div>';
+  document.getElementById('plan-task-list').innerHTML=tasks.map(t=>`<div class="task-mini"><div class="task-chk ${t.done?'done':''}" onclick="planToggleTask('${t._anchorDate}',${t._anchorIdx})"></div><div class="task-txt ${t.done?'done':''}" style="color:${TYPE_COLOR[t.type]||'var(--t2)'}">${t.text}${t.endDate&&t.endDate>t._anchorDate?` <span style="opacity:.6">(~${t.endDate.slice(5)})</span>`:''}</div></div>`).join('')||'<div style="font-size:11px;color:var(--t3)">할 일 없음</div>';
 }
 // 캘린더 할일 타입 ↔ 플랜 그룹 매핑 (미니 캘린더에서 추가한 할일도 플랜 그룹에 동기화되도록)
 const PLAN_TYPE_GROUP={meta:'Meta',crm:'CRM',inf:'인플루언서',content:'콘텐츠',live:'광고 라이브',ops:'공통'};
@@ -3397,25 +3384,6 @@ function _reindexPlanRefsAfterGroupDelete(p,removedGi){
   }));
 }
 
-function planAddTask(){
-  if(!S.curProjId)return;const text=document.getElementById('plan-task-inp').value.trim();if(!text||!S.planSelDate)return;
-  const proj=getCurProj();
-  const type=document.getElementById('plan-task-type').value;
-  // 플랜 그룹에도 함께 추가 (중간 플랜 패널과 동기화)
-  if(!proj.plan)proj.plan={name:proj.name,groups:[{id:'g-common',name:'공통',color:'#aaa',tasks:[]}],createdAt:Date.now()};
-  if(!proj.plan.groups)proj.plan.groups=[{id:'g-common',name:'공통',color:'#aaa',tasks:[]}];
-  const gname=PLAN_TYPE_GROUP[type]||'공통';
-  let gi=proj.plan.groups.findIndex(g=>g.name===gname);
-  if(gi===-1){proj.plan.groups.push({id:'g-'+Date.now()+Math.random().toString(36).slice(2),name:gname,color:PLAN_TYPE_COLOR[type]||'var(--lm)',tasks:[]});gi=proj.plan.groups.length-1;}
-  const group=proj.plan.groups[gi];if(!group.tasks)group.tasks=[];
-  group.tasks.push({text,done:false,date:S.planSelDate,assignee:''});
-  const ti=group.tasks.length-1;
-  if(!proj.tasks[S.planSelDate])proj.tasks[S.planSelDate]=[];
-  proj.tasks[S.planSelDate].push({text,type,done:false,_planRef:gi+'-'+ti,_fromPlan:true});
-  document.getElementById('plan-task-inp').value='';
-  save();renderMiniCal();renderPlanResult(proj.plan);renderQuickAddGroups();renderCalView();
-  toast('할 일 추가됐어요 ✓',1200);
-}
 function planToggleTask(ds,i){
   const proj=getCurProj();if(!proj||!proj.tasks[ds]||proj.tasks[ds][i]===undefined)return;
   const t=proj.tasks[ds][i];t.done=!t.done;
@@ -3423,16 +3391,6 @@ function planToggleTask(ds,i){
     const[gi,ti]=t._planRef.split('-').map(Number);
     if(proj.plan.groups[gi]?.tasks?.[ti])proj.plan.groups[gi].tasks[ti].done=t.done;
   }
-  save();renderMiniCal();if(proj.plan)renderPlanResult(proj.plan);
-}
-function planDelTask(ds,i){
-  const proj=getCurProj();if(!proj||!proj.tasks[ds])return;
-  const t=proj.tasks[ds][i];
-  if(t&&t._planRef&&proj.plan?.groups){
-    const[gi,ti]=t._planRef.split('-').map(Number);
-    if(proj.plan.groups[gi]?.tasks){proj.plan.groups[gi].tasks.splice(ti,1);_reindexPlanRefsAfterTaskDelete(proj,gi,ti);}
-  }
-  proj.tasks[ds].splice(i,1);
   save();renderMiniCal();if(proj.plan)renderPlanResult(proj.plan);
 }
 

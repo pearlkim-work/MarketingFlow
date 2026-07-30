@@ -1960,6 +1960,23 @@ select:focus{border-color:var(--lm);outline:none}
     <div class="modal-btns"><button class="btn-cancel" onclick="closeMtgModal()">취소</button><button class="btn-confirm" onclick="saveMtg()">만들기</button></div>
   </div>
 </div>
+<!-- 할 일 상세 메모 모달 — 사용자 요청: 캘린더 할일은 우클릭 → "상세수정", 플랜 항목은 하단 "상세보기" 버튼으로
+     열 수 있는, 개인 기록장/회의록과 같은 서식(굵게·표·토글 등) 편집기가 있는 큰 메모장 -->
+<div class="modal-bg" id="task-detail-modal" style="display:none">
+  <div class="modal" style="width:560px">
+    <div class="modal-title" id="task-detail-modal-title">상세 메모</div>
+    <div id="task-detail-toolbar-wrap"></div>
+    <div class="notes-editor" id="tned-detail" contenteditable="true" style="min-height:220px"
+      oninput="saveTaskDetailNote(this)"
+      onpaste="setTimeout(()=>saveTaskDetailNote(document.getElementById('tned-detail')),0)"
+    ></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="deleteTaskDetailNote()" style="color:var(--rd);border-color:rgba(194,32,32,.3)">🗑 메모 삭제</button>
+      <div style="flex:1"></div>
+      <button class="btn-confirm" onclick="closeTaskDetailModal()">완료</button>
+    </div>
+  </div>
+</div>
 <!-- ACTION ITEM IMPORT MODAL (사용자 요청: 액션 아이템을 다른 회의로 복사해서 다음 회의에서 점검) -->
 <div class="modal-bg" id="action-import-modal" style="display:none">
   <div class="modal" style="width:420px">
@@ -2811,6 +2828,9 @@ function renderPlanResult(plan,editMode=false){
   if(!container)return;
   if(!plan){container.innerHTML='<div style="text-align:center;padding:30px;color:var(--t3)">📋 플랜 생성 버튼을 눌러봐요</div>';return;}
   if(!plan.groups)plan.groups=[{id:'g-common',name:'공통',color:'#aaa',tasks:[]}];
+  // 사용자 요청: 항목(할일)마다 상세 메모가 있으면 그 아래에 "상세보기" 버튼이 나오게 함(캘린더 우클릭 →
+  // 상세수정과 같은 내용을 여기서도 보고 수정/삭제할 수 있어야 함) — 어느 프로젝트의 플랜인지 필요함
+  const _pgPid=getCurProj()?.id||'';
   const total=plan.groups.reduce((s,g)=>s+(g.tasks||[]).length,0);
   const done=plan.groups.reduce((s,g)=>s+(g.tasks||[]).filter(t=>t.done).length,0);
   const pct=total?Math.round(done/total*100):0;
@@ -2830,6 +2850,7 @@ function renderPlanResult(plan,editMode=false){
           ${t.date?`<input type="date" value="${t.endDate||''}" onchange="updatePTEndDate(${gi},${ti},this.value)" title="종료일(선택·여러 날 일정이면)" min="${t.date}" style="font-size:10px;padding:2px 6px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:${t.endDate?'var(--lm)':'var(--t3)'};flex:1;font-family:inherit">`:''}
           <input type="text" inputmode="decimal" value="${fmtNum(t.budget)}" oninput="fmtNumInput(this)" onchange="updatePTBudget(${gi},${ti},numVal(this.value))" placeholder="예산(원)" style="font-size:10px;padding:2px 6px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:${t.budget?'#5a9e00':'var(--t3)'};width:80px;font-family:inherit">
         </div>
+        ${hasTaskDetail(t)?`<div style="padding-left:22px;margin-top:5px"><button onclick="event.stopPropagation();openTaskDetailModalFromPlan('${_pgPid}',${gi},${ti})" style="font-size:10px;padding:3px 8px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:var(--t2);cursor:pointer;font-family:inherit">📄 상세보기</button></div>`:''}
       </div>`;
     const validIdx=[];
     (g.tasks||[]).forEach((t,ti)=>{if(t.text&&t.text.trim())validIdx.push(ti);}); // 빈 할일 숨기기
@@ -3661,6 +3682,8 @@ function renderFullDayTasks(ds){
             <span style="font-size:9px;color:${t.budget?'#5a9e00':'var(--t3)'};display:flex;align-items:center;gap:2px">💰<input type="text" inputmode="decimal" value="${fmtNum(t.budget)}" placeholder="예산" oninput="event.stopPropagation();fmtNumInput(this)" onclick="event.stopPropagation()" onchange="event.stopPropagation();fullUpdateTaskBudget('${t.projId}','${anchorDs}',${t.taskIdx},numVal(this.value))" style="font-size:9px;padding:0 2px;border:1px solid var(--b2);border-radius:3px;background:var(--surf);color:inherit;width:64px"></span>
             ${t.priority?`<span style="font-size:9px;padding:1px 5px;border-radius:8px;${PRIO_STYLE[t.priority]||''}">${PRIO_LABEL[t.priority]||''}</span>`:''}
             ${t.link?`<a href="${t.link}" target="_blank" style="font-size:9px;color:var(--bl)">🔗 링크</a>`:''}
+            <!-- 사용자 요청: 상세 메모(서식 있는 긴 메모)가 있으면 우클릭 안 해도 바로 눌러서 볼 수 있게 배지도 하나 둠 -->
+            ${hasTaskDetail(t)?`<button type="button" onclick="event.stopPropagation();openTaskDetailModal('${t.projId}','${anchorDs}',${t.taskIdx})" style="font-size:9px;padding:1px 6px;background:var(--surf3);border:1px solid var(--b2);border-radius:8px;color:var(--t2);cursor:pointer;font-family:inherit">📄 상세</button>`:''}
             <!-- 사용자 요청: 하루짜리가 아니라 여러 날에 걸친 일정일 수도 있으니 시작일/종료일을 직접 바꿀 수 있게 함 -->
             <span style="font-size:9px;color:var(--t3);display:flex;align-items:center;gap:2px">📅<input type="date" value="${anchorDs}" onclick="event.stopPropagation()" onchange="event.stopPropagation();fullUpdateTaskDate('${t.projId}','${anchorDs}',${t.taskIdx},this.value)" style="font-size:9px;padding:0 2px;border:1px solid var(--b2);border-radius:3px;background:var(--surf);color:var(--t2);width:88px">~<input type="date" value="${t.endDate||''}" min="${anchorDs}" onclick="event.stopPropagation()" onchange="event.stopPropagation();fullUpdateTaskEndDate('${t.projId}','${anchorDs}',${t.taskIdx},this.value)" style="font-size:9px;padding:0 2px;border:1px solid var(--b2);border-radius:3px;background:var(--surf);color:var(--t2);width:88px"></span>
             ${isRange?`<span style="font-size:9px;color:var(--lm);font-weight:600">(${anchorDs.slice(5)}~${t.endDate.slice(5)} 기간)</span>`:''}
@@ -3788,7 +3811,7 @@ function calTaskCtxMenu(e,pid,ds,i){
   const menu=document.createElement('div');
   menu.className='task-ctxmenu';
   menu.style.left=e.clientX+'px';menu.style.top=e.clientY+'px';
-  menu.innerHTML=`<button onclick="calTaskCtxEdit()">✏️ 수정</button><button onclick="fullDuplicateTask('${pid}','${ds}',${i})">📋 복제</button><button onclick="fullDel('${pid}','${ds}',${i})">🗑 삭제</button>`;
+  menu.innerHTML=`<button onclick="calTaskCtxEdit()">✏️ 수정</button><button onclick="openTaskDetailModal('${pid}','${ds}',${i})">📝 상세수정</button><button onclick="fullDuplicateTask('${pid}','${ds}',${i})">📋 복제</button><button onclick="fullDel('${pid}','${ds}',${i})">🗑 삭제</button>`;
   document.body.appendChild(menu);
   setTimeout(()=>{document.addEventListener('click',function closeMenu(){menu.remove();document.removeEventListener('click',closeMenu);},{once:true});},0);
 }
@@ -3800,6 +3823,96 @@ function calTaskCtxEdit(){
   // 해당 날짜를 선택해서 상세 목록(패널)을 열어줌(거기서는 모든 항목을 바로 수정할 수 있음)
   if(_taskCtxTarget)fullSelectDate(_taskCtxTarget.ds);
 }
+
+// ══════════════════════════════════════════
+// 📝 할 일 상세 메모(서식 있는 긴 메모) — 사용자 요청:
+// 캘린더 할일 우클릭 → "상세수정"으로 열고, 플랜 탭 각 항목 하단에는 내용이 있을 때만 "상세보기" 버튼이
+// 나오게 함. 편집기는 개인 기록장/회의록과 완전히 같은 서식 툴바(굵게/색/표/토글 등)를 그대로 재사용함.
+// 캘린더 쪽(proj.tasks[ds][i].detail)과 플랜 쪽(proj.plan.groups[gi].tasks[ti].detail)에 각각 저장돼
+// 있는 할일이 _planRef로 연동돼 있으면, 상세 메모도 budget/assignee/date와 똑같이 양쪽에 함께 반영됨.
+// ══════════════════════════════════════════
+let _taskDetailCtx=null; // {pid,ds,i,gi,ti} — 어느 쪽(또는 양쪽)에 저장할지 기억해둠
+// 상세 메모가 실제로 내용이 있는지(빈 <p></p> 같은 빈 태그만 있는 경우는 "없음"으로 취급)
+function hasTaskDetail(t){
+  if(!t||!t.detail)return false;
+  const text=String(t.detail).replace(/<[^>]*>/g,'').replace(/&nbsp;/g,'').trim();
+  return text.length>0;
+}
+// 플랜 그룹의 (gi,ti) 할일과 연동된 캘린더 쪽 할일을 찾아줌(날짜/인덱스가 바뀌어도 _planRef로 정확히 찾음)
+function findCalTaskByPlanRef(proj,gi,ti){
+  if(!proj?.tasks)return null;
+  const target=gi+'-'+ti;
+  for(const ds of Object.keys(proj.tasks)){
+    const idx=(proj.tasks[ds]||[]).findIndex(t=>t._planRef===target);
+    if(idx!==-1)return{ds,idx};
+  }
+  return null;
+}
+// ref로 캘린더 쪽/플랜 쪽 할일을 모두 찾아줌(하나가 없으면 나머지 하나만이라도 반환)
+function resolveTaskDetailTargets(pid,ref){
+  const proj=getProj(pid);if(!proj)return null;
+  let{ds,i,gi,ti}=ref;
+  let calTask=null,planTask=null;
+  if(ds!=null&&i!=null){
+    calTask=proj.tasks?.[ds]?.[i]||null;
+    if(calTask?._planRef){
+      const[g,t]=calTask._planRef.split('-').map(Number);
+      planTask=proj.plan?.groups?.[g]?.tasks?.[t]||null;
+      gi=g;ti=t;
+    }
+  }else if(gi!=null&&ti!=null){
+    planTask=proj.plan?.groups?.[gi]?.tasks?.[ti]||null;
+    const found=findCalTaskByPlanRef(proj,gi,ti);
+    if(found){ds=found.ds;i=found.idx;calTask=proj.tasks[ds][i];}
+  }
+  return{proj,ds,i,gi,ti,calTask,planTask};
+}
+function _openTaskDetail(pid,ref){
+  const r=resolveTaskDetailTargets(pid,ref);
+  if(!r||(!r.calTask&&!r.planTask)){toast('할 일을 찾을 수 없어요');return;}
+  _taskDetailCtx={pid,ds:r.ds,i:r.i,gi:r.gi,ti:r.ti};
+  const text=(r.calTask||r.planTask)?.text||'';
+  const detailHtml=r.calTask?.detail||r.planTask?.detail||'';
+  document.getElementById('task-detail-modal-title').textContent=text?`📝 ${text}`:'상세 메모';
+  document.getElementById('task-detail-toolbar-wrap').innerHTML=notesToolbarHtml('tned-detail');
+  const editor=document.getElementById('tned-detail');
+  editor.innerHTML=detailHtml;
+  document.getElementById('task-detail-modal').style.display='flex';
+  setTimeout(()=>editor.focus(),0);
+}
+// 캘린더(월/주/사이드바)에서 우클릭 → "상세수정"으로 여는 진입점
+function openTaskDetailModal(pid,ds,i){_openTaskDetail(pid,{ds,i});}
+// 플랜 탭 각 항목의 "상세보기" 버튼으로 여는 진입점
+function openTaskDetailModalFromPlan(pid,gi,ti){_openTaskDetail(pid,{gi,ti});}
+function saveTaskDetailNote(el){
+  if(!_taskDetailCtx)return;
+  const{pid,ds,i,gi,ti}=_taskDetailCtx;
+  const proj=getProj(pid);if(!proj)return;
+  const html=el.innerHTML;
+  if(ds!=null&&proj.tasks?.[ds]?.[i])proj.tasks[ds][i].detail=html;
+  if(gi!=null&&proj.plan?.groups?.[gi]?.tasks?.[ti])proj.plan.groups[gi].tasks[ti].detail=html;
+  save();
+}
+function closeTaskDetailModal(){
+  document.getElementById('task-detail-modal').style.display='none';
+  _taskDetailCtx=null;
+  renderCalView();if(S.selDate)renderFullDayTasks(S.selDate);
+  const p=getCurProj();if(p?.plan)renderPlanResult(p.plan);
+}
+// 사용자 요청: 상세 메모 모달에서 수정뿐 아니라 삭제도 가능해야 함(할 일 자체는 남아있고 메모 내용만 지워짐)
+function deleteTaskDetailNote(){
+  if(!_taskDetailCtx)return;
+  if(!confirm('상세 메모를 삭제할까요? (할 일 자체는 그대로 남아있어요)'))return;
+  const{pid,ds,i,gi,ti}=_taskDetailCtx;
+  const proj=getProj(pid);if(!proj)return;
+  if(ds!=null&&proj.tasks?.[ds]?.[i])delete proj.tasks[ds][i].detail;
+  if(gi!=null&&proj.plan?.groups?.[gi]?.tasks?.[ti])delete proj.plan.groups[gi].tasks[ti].detail;
+  save();
+  const editor=document.getElementById('tned-detail');if(editor)editor.innerHTML='';
+  toast('상세 메모를 삭제했어요');
+  closeTaskDetailModal();
+}
+
 // 사용자 요청: 할일을 그대로 복제할 수 있어야 함(우클릭 메뉴 → 복제)
 function fullDuplicateTask(pid,ds,i){
   document.querySelectorAll('.task-ctxmenu').forEach(m=>m.remove());
@@ -5434,6 +5547,7 @@ function noteEditorSaveFor(descendantEl){
   const id=editor.id||'';
   if(id.startsWith('ned-'))saveMtgNotes(id.slice(4),editor);
   else if(id.startsWith('pned-'))saveMyNoteContent(id.slice(5),editor);
+  else if(id==='tned-detail')saveTaskDetailNote(editor); // 할일 상세 메모 모달도 표/토글 삽입 시 정상 저장되도록
 }
 // 사용자 요청: 표에서 행을 한 줄씩 삭제
 function noteTableDelRow(e){

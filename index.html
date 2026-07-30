@@ -75,9 +75,11 @@ input::placeholder,textarea::placeholder{color:var(--t3)}
 .btn-confirm{padding:8px 16px;background:var(--lm);color:#fff;border:none;border-radius:var(--r-sm);font-size:12px;font-weight:700;cursor:pointer}
 
 /* PLAN VIEW */
-.plan-layout{display:grid;grid-template-columns:260px 1fr 250px;flex:1;overflow:hidden;min-height:0}
-.plan-input{border-right:1px solid var(--b);padding:18px;overflow-y:auto;display:flex;flex-direction:column;gap:14px;width:280px;flex-shrink:0;padding-bottom:0}
-.plan-output{padding:22px 24px;overflow-y:auto;display:flex;flex-direction:column;gap:20px}
+/* 사용자 요청: 왼쪽 "프로젝트 정보" 칸이 너무 좁고, 가운데 칸은 (특히 플랜을 아직 안 만들었을 때)
+   내용에 비해 너무 넓어 보임 → 왼쪽을 넓히고, 가운데는 내용이 가운데 정렬된 적당한 너비로 보이게 함 */
+.plan-layout{display:grid;grid-template-columns:320px 1fr 260px;flex:1;overflow:hidden;min-height:0}
+.plan-input{border-right:1px solid var(--b);padding:18px;overflow-y:auto;display:flex;flex-direction:column;gap:14px;flex-shrink:0;padding-bottom:0}
+.plan-output{padding:22px 24px;overflow-y:auto;display:flex;flex-direction:column;gap:20px;max-width:840px;margin:0 auto;width:100%;box-sizing:border-box}
 .plan-cal-panel{border-left:1px solid var(--b);overflow-y:auto;display:flex;flex-direction:column}
 .plan-cal-header{padding:14px 14px 10px;border-bottom:1px solid var(--b);display:flex;align-items:center;gap:8px}
 .plan-cal-title{font-size:13px;font-weight:700}
@@ -214,12 +216,14 @@ input::placeholder,textarea::placeholder{color:var(--t3)}
 .cal-ftag:hover{border-color:var(--b3);color:var(--t)}
 .cal-ftag.on{border-width:1.5px}
 .cal-ftag.on-all{background:var(--surf3);border-color:var(--b3);color:var(--t)}
-.cal-ftag.on-meta{background:var(--lmbg);border-color:rgba(124,75,194,.4);color:var(--lm)}
-.cal-ftag.on-crm{background:var(--orange-bg);border-color:rgba(194,90,0,.35);color:var(--orange)}
-.cal-ftag.on-inf{background:var(--blue-bg);border-color:rgba(26,120,194,.35);color:var(--blue)}
-.cal-ftag.on-ops{background:var(--surf3);border-color:var(--b3);color:var(--t2)}
-.cal-ftag.on-live{background:var(--red-bg);border-color:rgba(194,32,32,.35);color:var(--red)}
-.cal-ftag.on-content{background:var(--green-bg);border-color:rgba(26,156,90,.35);color:var(--green)}
+/* 버그 수정: 기존 on-meta/on-crm/on-inf/on-live/on-content 규칙은 --orange-bg/--blue-bg/--red-bg/--green-bg
+   처럼 실제로는 정의돼 있지 않은 CSS 변수 이름을 쓰고 있어서, 태그를 눌러도 선택된 색이 전혀 표시되지
+   않던 원인 중 하나였음(태그 자체도 6개나 돼서 실사용 빈도가 낮았음) → 유료광고/무료광고 2개로
+   단순화하면서 실제 정의된 변수(--orbg/--or, --gnbg/--gn)로 교체 */
+.cal-ftag.on-paid{background:var(--orbg);border-color:rgba(194,90,0,.35);color:var(--or)}
+/* 인플루언서 DB 탭의 상태 필터(검토중/컨택중/...)도 같은 .cal-ftag 스타일을 재사용하므로 별도 유지 */
+.cal-ftag.on-sel{background:var(--gnbg);border-color:rgba(26,156,90,.35);color:var(--gn)}
+.cal-ftag.on-free{background:var(--gnbg);border-color:rgba(26,156,90,.35);color:var(--gn)}
 .cal-grid{flex:1;display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--b)}
 .cal-dow{background:var(--surf);padding:7px 0;text-align:center;font-size:10px;font-weight:500;color:var(--t3)}
 .cal-cell{background:var(--surf);min-height:100px;padding:6px;cursor:pointer;transition:background .1s;position:relative}
@@ -1025,12 +1029,15 @@ select:focus{border-color:var(--lm);outline:none}
           <button id="cal-mode-month" onclick="setCalMode('month')" style="padding:3px 10px;border:1px solid var(--b2);border-radius:var(--rs);background:#C8F064;color:#1a1917;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">월</button>
           <button id="cal-mode-week" onclick="setCalMode('week')" style="padding:3px 10px;border:1px solid var(--b2);border-radius:var(--rs);background:transparent;color:var(--t2);font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap">주</button>
         </div>
-        <select id="cal-proj-filter" onchange="renderCalView();updateCalProgress()" style="padding:3px 8px;border:1px solid var(--b2);border-radius:var(--rs);font-size:11px;font-family:inherit;background:var(--surf2);color:var(--t2);max-width:120px">
+        <select id="cal-proj-filter" onchange="calRefreshAll()" style="padding:3px 8px;border:1px solid var(--b2);border-radius:var(--rs);font-size:11px;font-family:inherit;background:var(--surf2);color:var(--t2);max-width:120px">
           <option value="">📁 전체 프로젝트</option>
         </select>
-        <select id="cal-assignee-filter" onchange="renderCalView();updateCalProgress()" style="padding:3px 8px;border:1px solid var(--b2);border-radius:var(--rs);font-size:11px;font-family:inherit;background:var(--surf2);color:var(--t2);max-width:110px">
+        <select id="cal-assignee-filter" onchange="calRefreshAll()" style="padding:3px 8px;border:1px solid var(--b2);border-radius:var(--rs);font-size:11px;font-family:inherit;background:var(--surf2);color:var(--t2);max-width:110px">
           <option value="">👤 전체</option>
         </select>
+        <!-- 사용자 요청: 담당자 필터 옆에 항목(채널) 필터도 추가. 플랜에서 쓰는 항목들(Meta/CRM/인플루언서/콘텐츠/라이브/일반)을
+             여러 개 동시에 선택할 수 있어야 함(예: Meta+인플루언서 선택 시 두 항목 할일만 모아 보임) -->
+        <button type="button" id="cal-type-filter-btn" class="type-picker-trigger" onclick="event.stopPropagation();openCalTypePicker(this)" style="padding:3px 8px;border:1px solid var(--b2);border-radius:var(--rs);font-size:11px;font-family:inherit;background:var(--surf2);color:var(--t2);max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">🏷 전체 항목</button>
       </div>
       <!-- 진행 현황 바 -->
       <div id="cal-progress-bar" style="padding:5px 12px;background:var(--surf2);border-bottom:1px solid var(--b);font-size:11px;display:flex;align-items:center;gap:10px;min-height:28px"></div>
@@ -1038,12 +1045,10 @@ select:focus{border-color:var(--lm);outline:none}
       <div class="cal-filter-bar" id="cal-filter-bar">
         <span class="cal-filter-lbl">보기</span>
         <button class="cal-ftag on on-all" data-filter="all" onclick="calFilterClick(this)">전체</button>
-        <button class="cal-ftag" data-filter="content" onclick="calFilterClick(this)">🟢 콘텐츠</button>
-        <button class="cal-ftag" data-filter="meta" onclick="calFilterClick(this)">🔵 Meta</button>
-        <button class="cal-ftag" data-filter="crm" onclick="calFilterClick(this)">🟠 CRM</button>
-        <button class="cal-ftag" data-filter="inf" onclick="calFilterClick(this)">🔷 인플루언서</button>
-        <button class="cal-ftag" data-filter="live" onclick="calFilterClick(this)">🔴 라이브</button>
-        <button class="cal-ftag" data-filter="ops" onclick="calFilterClick(this)">⬜ 일반</button>
+        <!-- 사용자 요청: 콘텐츠/Meta/CRM/인플루언서/라이브/일반 태그가 잘 작동 안 함 → 예산 입력 여부로
+             자동 판별되는 유료광고/무료광고 두 개 태그로 단순화 (taskIsPaid() 참고) -->
+        <button class="cal-ftag" data-filter="paid" onclick="calFilterClick(this)">💰 유료광고</button>
+        <button class="cal-ftag" data-filter="free" onclick="calFilterClick(this)">🌱 무료광고</button>
       </div>
       <div id="proj-colors" class="proj-colors"></div>
       <!-- 사용자 요청: 마우스로 휙휙 넘길 수 있게(휠/트랙패드 스크롤로 이전/다음 달·주 이동) -->
@@ -2026,7 +2031,9 @@ select:focus{border-color:var(--lm);outline:none}
 
 <script>
 // ── PROJ COLORS ──
-const PROJ_COLORS=['#c8f064','#64b8f0','#f0a064','#b89ef0','#f06464','#64e096','#f0e064'];
+// 사용자 요청: 기존 파스텔 톤 색상은 서로 비슷해 보여서 구분이 잘 안 됨 → 채도/명도를 높인,
+// 서로 뚜렷이 구분되는 색상 팔레트로 교체 (앱 곳곳에서 이미 쓰는 --lm/--bl/--or/--rd/--gn 톤과 통일감 유지)
+const PROJ_COLORS=['#5a9e00','#1a78c2','#c25a00','#c22020','#8a5cf6','#0891b2','#d6336c','#b8860b','#6b4226','#495057'];
 function projColor(idx){return PROJ_COLORS[idx%PROJ_COLORS.length]}
 
 // ── STATE ──
@@ -2395,6 +2402,47 @@ function setDateToday(id){
 }
 // 저장된 순수 숫자 값을 화면에 표시할 때 콤마 넣어서 보여줌(값이 없으면 빈 문자열)
 function fmtNum(v){if(v===undefined||v===null||v==='')return'';const n=parseFloat(String(v).replace(/,/g,''));return isNaN(n)?'':n.toLocaleString();}
+// 사용자 요청: 캘린더 필터 태그를 콘텐츠/Meta/CRM/인플루언서/라이브/일반(6개, 잘 안 쓰이고 헷갈림) 대신
+// 유료광고/무료광고 2개로 단순화 — 할 일에 예산이 입력돼 있으면 유료광고, 없으면 무료광고로 자동 판별
+function taskIsPaid(t){
+  if(!t)return false;
+  const n=parseFloat(String(t.budget==null?'':t.budget).replace(/,/g,''));
+  return !isNaN(n)&&n>0;
+}
+// 항목(채널/유형) 공통 라벨·색상 — 캘린더 카드 표시와 항목 필터 팝오버에서 함께 사용
+const TYPE_COLOR={meta:'var(--lm)',crm:'var(--or)',inf:'var(--bl)',live:'var(--rd)',content:'var(--gn)',ops:'var(--t3)',meet:'#8a5cf6'};
+const TYPE_LABEL={meta:'📘 Meta',crm:'📨 CRM',inf:'✨ 인플루언서',live:'🔴 라이브',content:'🎨 콘텐츠',ops:'📋 일반',meet:'🗣 미팅'};
+const TYPE_BG={meta:'var(--lmbg)',crm:'var(--orbg)',inf:'var(--blbg)',live:'var(--rdbg)',content:'var(--gnbg)',ops:'var(--surf3)',meet:'rgba(138,92,246,.12)'};
+// 사용자 요청: 캘린더에서 프로젝트/담당자뿐 아니라 항목(채널)으로도 필터링하고 싶고, 여러 개를
+// 동시에 선택(예: Meta+인플루언서)해서 그 항목들만 모아볼 수 있어야 함 → 담당자 필터 옆에 다중선택 팝오버 추가
+let _calTypeFilter=[];
+function calTypeMatches(t){return _calTypeFilter.length===0||_calTypeFilter.includes(t.type);}
+function calTypeFilterLabel(){
+  if(!_calTypeFilter.length)return'🏷 전체 항목';
+  return '🏷 '+_calTypeFilter.map(k=>(TYPE_LABEL[k]||k).replace(/^[^\s]+\s/,'')).join(', ');
+}
+function openCalTypePicker(triggerEl){
+  document.querySelectorAll('.type-picker-pop').forEach(m=>m.remove());
+  const rect=triggerEl.getBoundingClientRect?triggerEl.getBoundingClientRect():{left:0,bottom:0};
+  const pop=document.createElement('div');
+  pop.className='assignee-picker-pop type-picker-pop';
+  pop.style.left=Math.max(4,Math.min(rect.left,(window.innerWidth||400)-180))+'px';
+  pop.style.top=(rect.bottom+4)+'px';
+  pop.innerHTML=Object.keys(TYPE_LABEL).map(k=>{
+    const checked=_calTypeFilter.includes(k);
+    return`<label onclick="event.stopPropagation()"><input type="checkbox" ${checked?'checked':''} onchange="calTypePickerToggle('${k}',this.checked)">${TYPE_LABEL[k]}</label>`;
+  }).join('');
+  document.body.appendChild(pop);
+}
+function calTypePickerToggle(type,checked){
+  if(checked){if(!_calTypeFilter.includes(type))_calTypeFilter.push(type);}else{_calTypeFilter=_calTypeFilter.filter(t=>t!==type);}
+  const btn=document.getElementById('cal-type-filter-btn');if(btn)btn.textContent=calTypeFilterLabel();
+  calRefreshAll();
+}
+document.addEventListener('click',function(e){
+  if(e.target.closest('.type-picker-pop')||e.target.closest('.type-picker-trigger'))return;
+  document.querySelectorAll('.type-picker-pop').forEach(m=>m.remove());
+});
 function assigneeList(str){return(str||'').split(',').map(s=>s.trim()).filter(Boolean);}
 function assigneeDisplay(str){return assigneeList(str).join(', ');}
 function assigneeMatches(str,filterName){
@@ -2767,6 +2815,13 @@ function renderCalView(){
   updateCalProgress();
   updateAssigneeFilter();
 }
+// 버그 수정(사용자 요청으로 점검하다 발견): 프로젝트/담당자/항목 필터를 바꿔도 이미 선택돼 있는 날짜의
+// 오른쪽 할일 목록(사이드바)은 다시 그려지지 않아서 필터 이전 상태로 계속 남아있었음 → 필터가 바뀌는
+// 모든 지점(프로젝트/담당자 select, 항목 다중선택, 유료·무료광고 태그)에서 공통으로 이 함수를 쓰도록 통일
+function calRefreshAll(){
+  renderCalView();
+  if(S.selDate)renderFullDayTasks(S.selDate);
+}
 
 function updateAssigneeFilter(){
   const sel = document.getElementById('cal-assignee-filter');
@@ -2795,6 +2850,13 @@ function updateCalProgress(){
   if(!bar) return;
   const now = new Date();
   const assigneeF = getAssigneeFilterVal();
+  // 버그 수정(사용자 요청으로 점검하다 발견): 진행 현황 바(%)가 프로젝트 필터·항목 필터를 전혀 반영하지
+  // 않고 항상 "전체 프로젝트"만 기준으로 계산되고 있었음 → 그리드에 보이는 할일 필터(프로젝트/담당자/
+  // 항목/유료·무료광고)와 정확히 같은 기준으로 계산되도록 통일
+  const progProjF = getCalProjFilter();
+  const progProjs = progProjF ? getVisibleProjects().filter(p=>p.id===progProjF) : getVisibleProjects();
+  const progMatches = t => assigneeMatches(t.assignee, assigneeF) && calTypeMatches(t) &&
+    (_calFilter!=='paid'||taskIsPaid(t)) && (_calFilter!=='free'||!taskIsPaid(t));
 
   if(_calMode === 'week'){
     // 이번 주 시작/끝
@@ -2804,13 +2866,13 @@ function updateCalProgress(){
     const fmt = d => d.toISOString().split('T')[0];
     let total=0, done=0;
     const wsStr=fmt(weekStart),weStr=fmt(weekEnd);
-    getVisibleProjects().forEach(p => {
+    progProjs.forEach(p => {
       // 사용자 요청: 여러 날에 걸친 일정은 저장된 시작일이 이번 주 밖이어도, 기간이 이번 주와 겹치면 이번 주 진행률에 포함돼야 함
       Object.entries(p.tasks||{}).forEach(([ds,ts]) => {
         const endOf=t=>(t.endDate&&t.endDate>ds)?t.endDate:ds;
         ts.forEach(t => {
           if(!(ds<=weStr && endOf(t)>=wsStr))return; // 구간 겹침 체크(한 번만 카운트)
-          if(!assigneeMatches(t.assignee,assigneeF)) return;
+          if(!progMatches(t)) return;
           total++; if(t.done) done++;
         });
       });
@@ -2827,11 +2889,11 @@ function updateCalProgress(){
     const y = now.getFullYear(), m = now.getMonth()+1;
     const prefix = y+'-'+(m<10?'0'+m:m);
     let total=0, done=0;
-    getVisibleProjects().forEach(p => {
+    progProjs.forEach(p => {
       Object.entries(p.tasks||{}).forEach(([ds,ts]) => {
         if(ds.startsWith(prefix)){
           ts.forEach(t => {
-            if(!assigneeMatches(t.assignee,assigneeF)) return;
+            if(!progMatches(t)) return;
             total++; if(t.done) done++;
           });
         }
@@ -2936,7 +2998,9 @@ function getFilteredTasks(ds){
   projs.forEach(p=>{
     (p.tasks[ds]||[]).forEach((t,ti)=>{
       if(!assigneeMatches(t.assignee,assigneeF))return;
-      if(typeF!=='all'&&t.type!==typeF)return;
+      if(typeF==='paid'&&!taskIsPaid(t))return;
+      if(typeF==='free'&&taskIsPaid(t))return;
+      if(!calTypeMatches(t))return;
       tasks.push({...t,_projId:p.id,_taskIdx:ti,_projName:p.name,_projColor:p.color||'var(--lm)'});
     });
   });
@@ -2997,7 +3061,9 @@ function renderWeekCal(){
       const _pColorIdx=_weekColorProjs.findIndex(vp=>vp.id===p.id);
       getTasksOverlappingDate(p,ds).forEach(t=>{
         if(!assigneeMatches(t.assignee,assigneeF))return;
-        if(typeF&&typeF!=='all'&&t.type!==typeF)return;
+        if(typeF==='paid'&&!taskIsPaid(t))return;
+        if(typeF==='free'&&taskIsPaid(t))return;
+        if(!calTypeMatches(t))return;
         tasks.push({...t,_projId:p.id,_taskIdx:t._anchorIdx,_anchorDate:t._anchorDate,_projName:p.name,_projColor:projColor(_pColorIdx<0?0:_pColorIdx)});
       });
     });
@@ -3279,10 +3345,10 @@ let _calFilter='all';
 function calFilterClick(btn){
   _calFilter=btn.dataset.filter;
   document.querySelectorAll('#cal-filter-bar .cal-ftag').forEach(b=>{
-    b.classList.remove('on','on-all','on-meta','on-crm','on-inf','on-ops','on-live','on-content');
+    b.classList.remove('on','on-all','on-paid','on-free');
   });
   btn.classList.add('on','on-'+_calFilter);
-  renderCalView();
+  calRefreshAll();
 }
 // 버그 수정: 캘린더가 "주" 보기 모드일 때 ‹/› 버튼을 눌러도 다음/이전 주로 안 넘어가던 문제.
 // 예전엔 이 함수가 항상 월(month) 기준으로만 이동해서, 주 보기 상태에서 눌러도 반영이 안 됐음.
@@ -3334,8 +3400,20 @@ function getTasksOverlappingDate(proj,ds){
   });
   return r;
 }
-function getAllTasksForDate(ds){
-  const r=[];getVisibleProjects().forEach((p,pi)=>getTasksOverlappingDate(p,ds).forEach(t=>r.push({...t,projId:p.id,projName:p.name,projColor:projColor(pi),taskIdx:t._anchorIdx})));return r;
+// 버그 수정(사용자 요청으로 점검하다 발견): 이 함수는 항상 getVisibleProjects()의 "전체" 프로젝트를 훑기만
+// 하고 프로젝트 필터(projF)를 전혀 반영하지 않았음 — 그래서 월 보기/날짜 사이드바에서는 상단의
+// "📁 프로젝트" 드롭다운을 바꿔도 그리드에 표시되는 할일이 전혀 줄어들지 않았음(주 보기만 자체 로직으로
+// 정상 필터링되고 있었음). projF를 선택적으로 받아서 필터링하도록 수정. 색상 인덱스(projColor)는 필터와
+// 무관하게 항상 "전체 프로젝트 목록" 기준으로 고정해서, 필터를 걸었다 풀었다 해도 같은 프로젝트는 항상 같은 색을 유지함.
+function getAllTasksForDate(ds,projF){
+  const r=[];
+  const _colorProjs=getVisibleProjects();
+  const projs=projF?_colorProjs.filter(p=>p.id===projF):_colorProjs;
+  projs.forEach(p=>{
+    const pi=_colorProjs.findIndex(vp=>vp.id===p.id);
+    getTasksOverlappingDate(p,ds).forEach(t=>r.push({...t,projId:p.id,projName:p.name,projColor:projColor(pi<0?0:pi),taskIdx:t._anchorIdx}));
+  });
+  return r;
 }
 let _drag={projId:null,fromDate:null,taskIdx:null};
 function renderFullCal(){
@@ -3347,6 +3425,10 @@ function renderFullCal(){
   const today=new Date();today.setHours(0,0,0,0);
   let html='';
   ['일','월','화','수','목','금','토'].forEach(d=>html+=`<div class="cal-dow">${d}</div>`);
+  // 버그 수정: 프로젝트/담당자 필터를 아래서 함께 반영하도록 함(원래는 이 부분이 빠져 있어서
+  // 상단 필터를 바꿔도 월 보기 그리드에는 전혀 반영되지 않았음)
+  const projF=getCalProjFilter();
+  const assigneeF=getAssigneeFilterVal();
   // 버그 수정: 이전/다음 달로 넘어가는 회색 칸(다른 달 날짜)은 예전엔 숫자만 있고 onclick/ondrop이
   // 전혀 없어서, 할일을 그 칸으로 드래그해서 옮기려 하면(달을 넘어가는 이동) 아무 반응이 없었음.
   // 그래서 이전/현재/다음 달 칸이 모두 같은 렌더 로직(실제 날짜 계산 + 클릭/드래그/할일 표시)을 쓰도록 통일함.
@@ -3354,8 +3436,10 @@ function renderFullCal(){
     const ds=`${y2}-${String(m2+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isToday=new Date(y2,m2,d).getTime()===today.getTime();
     const isSel=S.selDate===ds;
-    let tasks=getAllTasksForDate(ds);
-    if(_calFilter!=='all')tasks=tasks.filter(t=>t.type===_calFilter);
+    let tasks=getAllTasksForDate(ds,projF);
+    tasks=tasks.filter(t=>assigneeMatches(t.assignee,assigneeF)&&calTypeMatches(t));
+    if(_calFilter==='paid')tasks=tasks.filter(t=>taskIsPaid(t));
+    else if(_calFilter==='free')tasks=tasks.filter(t=>!taskIsPaid(t));
     const shown=tasks.slice(0,3);const more=tasks.length-3;
     const dotItems=shown.map(t=>`<div class="cdot ${t.type}${t.done?' done':''}" title="${t.projName} · ${t.text}" draggable="true" ondragstart="calDragStart(event,'${t.projId}','${t._anchorDate}',${t.taskIdx})" ondragend="calDragEnd(event)" oncontextmenu="event.stopPropagation();calTaskCtxMenu(event,'${t.projId}','${t._anchorDate}',${t.taskIdx})"><div class="cdot-proj-dot" style="background:${t.projColor}"></div>${t.text}${t.endDate&&t.endDate>t._anchorDate?` <span style="opacity:.6;font-size:9px">~${t.endDate.slice(5)}</span>`:''}</div>`).join('');
     return`<div class="cal-cell${isOther?' other-m-cell':''}${isToday?' today-cell':''}${isSel?' sel-cell':''}" onclick="fullSelectDate('${ds}')" ondragover="calDragOver(event)" ondragleave="calDragLeave(event)" ondrop="calDrop(event,'${ds}')"><div class="cal-date-n">${d}</div><div class="cal-cell-dots">${dotItems}${more>0?`<div class="cdot-more">+${more}개</div>`:''}</div></div>`;
@@ -3437,13 +3521,18 @@ function renderFullDayTasks(ds){
   }
   const[y,m,d]=ds.split('-');
   document.getElementById('full-sel-date-lbl').textContent=`${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;updateCalTaskTypeOptions();initSidebarOnDateSelect(ds);updateSidebarAssignees();
-  const tasks=getAllTasksForDate(ds);
+  // 버그 수정(사용자 요청으로 점검하다 발견): 이 사이드바 목록은 상단의 프로젝트/담당자/항목 필터를
+  // 전혀 반영하지 않고 항상 그 날짜의 모든 프로젝트 할일을 보여주고 있었음 → 그리드(월/주 보기)와
+  // 동일하게 4개 필터(프로젝트/담당자/유료·무료광고/항목)를 모두 반영하도록 통일함
+  const _dayProjF=getCalProjFilter();
+  const _dayAssigneeF=getAssigneeFilterVal();
+  let tasks=getAllTasksForDate(ds,_dayProjF);
+  tasks=tasks.filter(t=>assigneeMatches(t.assignee,_dayAssigneeF)&&calTypeMatches(t));
+  if(_calFilter==='paid')tasks=tasks.filter(t=>taskIsPaid(t));
+  else if(_calFilter==='free')tasks=tasks.filter(t=>!taskIsPaid(t));
   const PRIO_STYLE={high:'background:var(--rdbg);color:var(--rd)',medium:'background:rgba(255,200,0,.1);color:#b8860b',low:'background:var(--gnbg);color:var(--gn)'};
   const PRIO_LABEL={high:'🔴 High',medium:'🟡 Medium',low:'🟢 Low'};
-  const TYPE_COLOR={meta:'var(--lm)',crm:'var(--or)',inf:'var(--bl)',live:'var(--rd)',content:'var(--gn)',ops:'var(--t3)',meet:'#8a5cf6'};
-  // 사용자 요청: 캘린더에서 어떤 프로젝트/항목(광고매체 등)인지 색깔로 바로 구분되면 좋겠다는 요청 → 채널 라벨 추가
-  const TYPE_LABEL={meta:'📘 Meta',crm:'📨 CRM',inf:'✨ 인플루언서',live:'🔴 라이브',content:'🎨 콘텐츠',ops:'📋 일반',meet:'🗣 미팅'};
-  const TYPE_BG={meta:'var(--lmbg)',crm:'var(--orange-bg)',inf:'var(--blue-bg)',live:'var(--red-bg)',content:'var(--green-bg)',ops:'var(--surf3)',meet:'rgba(138,92,246,.12)'};
+  const _dayVisibleProjs=getVisibleProjects();
 
   document.getElementById('full-task-list').innerHTML=tasks.length
   ?tasks.map((t,i)=>{
@@ -3469,9 +3558,10 @@ function renderFullDayTasks(ds){
           <!-- 사용자 요청: 목록에서 바로 수정(제목 편집)/삭제할 수 있어야 하고, 플랜에서 만든 할일이면 플랜 쪽도 함께 반영되어야 함 -->
           <input class="full-task-text-inp" value="${(t.text||'').replace(/"/g,'&quot;')}" oninput="fullEditTaskText('${t.projId}','${anchorDs}',${t.taskIdx},this.value)" style="width:100%;border:none;background:transparent;padding:0;font-family:inherit;font-size:11px;font-weight:500;${t.done?'text-decoration:line-through;color:var(--t3)':'color:var(--t)'}">
           <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:4px;align-items:center">
-            <!-- 사용자 요청: 프로젝트/항목(광고매체 등)이 색깔로 구분되면 좋겠음 -->
-            <span style="font-size:9px;font-weight:600;color:${t.projColor};display:flex;align-items:center;gap:3px;padding:1px 5px;background:var(--surf2);border-radius:8px"><span style="width:6px;height:6px;border-radius:50%;background:${t.projColor};display:inline-block;flex-shrink:0"></span>${t.projName}</span>
-            <span style="font-size:9px;font-weight:600;padding:1px 5px;border-radius:8px;background:${TYPE_BG[t.type]||'var(--surf3)'};color:${color}">${TYPE_LABEL[t.type]||t.type}</span>
+            <!-- 사용자 요청: 프로젝트/항목(광고매체 등)이 색깔로 구분되면 좋겠고, 목록에서 바로 수정도 가능해야 함
+                 → 기존엔 그냥 텍스트(span)라 고정돼 있었는데, select로 바꿔서 클릭 한 번으로 바로 옮길 수 있게 함 -->
+            <select onclick="event.stopPropagation()" onchange="event.stopPropagation();fullUpdateTaskProject('${t.projId}','${anchorDs}',${t.taskIdx},this.value)" style="font-size:9px;font-weight:600;color:${t.projColor};padding:1px 4px;border:1px solid var(--b2);border-radius:8px;background:var(--surf2);font-family:inherit;max-width:120px">${_dayVisibleProjs.map(vp=>`<option value="${vp.id}"${vp.id===t.projId?' selected':''}>${(vp.name||'').replace(/"/g,'&quot;')}</option>`).join('')}</select>
+            <select onclick="event.stopPropagation()" onchange="event.stopPropagation();fullUpdateTaskType('${t.projId}','${anchorDs}',${t.taskIdx},this.value)" style="font-size:9px;font-weight:600;padding:1px 4px;border-radius:8px;background:${TYPE_BG[t.type]||'var(--surf3)'};color:${color};border:1px solid var(--b2);font-family:inherit">${Object.keys(TYPE_LABEL).map(k=>`<option value="${k}"${k===t.type?' selected':''}>${TYPE_LABEL[k]}</option>`).join('')}</select>
             <!-- 사용자 요청: 캘린더에서 할일 수정할 때 담당자(여러 명)도 날짜도 다 바로 수정 가능해야 함 -->
             <button type="button" class="assignee-picker-trigger" onclick="event.stopPropagation();openAssigneePicker(this,'${(t.assignee||'').replace(/'/g,"\\'")}',function(csv){fullUpdateTaskAssignee('${t.projId}','${anchorDs}',${t.taskIdx},csv);})" style="font-size:9px;padding:1px 5px;background:transparent;border:1px solid var(--b2);border-radius:8px;color:var(--t3);font-family:inherit">${t.assignee?('👤 '+assigneeDisplay(t.assignee)):'👤 담당자'}</button>
             <!-- 사용자 요청: 캘린더에서 예산도 바로 넣고 수정할 수 있어야 하고, 플랜/예산 탭에도 연동되어야 함 -->
@@ -3554,6 +3644,26 @@ function fullUpdateTaskBudget(pid,ds,i,val){
     if(p.plan.groups[gi]?.tasks?.[ti])p.plan.groups[gi].tasks[ti].budget=val;
   }
   save();renderCalView();renderFullDayTasks(ds);if(p.plan)renderPlanResult(p.plan);
+}
+// 사용자 요청: 캘린더 목록에서 할일의 프로젝트도 바로 옮길 수 있어야 함
+// (플랜 그룹은 프로젝트별로 따로 있어서, 다른 프로젝트로 옮기면 원래 플랜 쪽 항목은 그대로 두고
+// 캘린더-플랜 연결 표시(_planRef/_fromPlan)만 끊음 — 데이터를 지우지 않고 안전하게 분리)
+function fullUpdateTaskProject(pid,ds,i,newPid){
+  if(!newPid||newPid===pid)return;
+  const p=getProj(pid),np=getProj(newPid);
+  if(!p||!np||!p.tasks[ds]||!p.tasks[ds][i])return;
+  const t=p.tasks[ds].splice(i,1)[0];if(!t)return;
+  delete t._planRef;delete t._fromPlan;
+  if(!np.tasks[ds])np.tasks[ds]=[];
+  np.tasks[ds].push(t);
+  save();renderCalView();renderFullDayTasks(ds);if(p.plan)renderPlanResult(p.plan);renderQuickAddGroups();
+  toast('프로젝트를 옮겼어요 📁',1500);
+}
+// 사용자 요청: 캘린더 목록에서 항목(채널/유형)도 바로 수정할 수 있어야 함
+function fullUpdateTaskType(pid,ds,i,newType){
+  const p=getProj(pid);if(!p||!p.tasks[ds]||!p.tasks[ds][i])return;
+  p.tasks[ds][i].type=newType;
+  save();renderCalView();renderFullDayTasks(ds);
 }
 // 사용자 요청: 캘린더에서 할일 수정할 때 날짜(시작일)도 드래그 없이 직접 입력해서 바로 옮길 수 있어야 함
 function fullUpdateTaskDate(pid,ds,i,newDs){
@@ -4949,8 +5059,8 @@ function btSaveNewRow(){
 let _editInfId=null,_infFilter='all';
 function infFilterClick(btn){
   _infFilter=btn.dataset.ifilter;
-  document.querySelectorAll('[data-ifilter]').forEach(b=>{b.classList.remove('on','on-all','on-meta','on-crm','on-inf','on-ops','on-live','on-content');});
-  btn.classList.add('on',_infFilter==='all'?'on-all':'on-content');
+  document.querySelectorAll('[data-ifilter]').forEach(b=>{b.classList.remove('on','on-all','on-sel');});
+  btn.classList.add('on',_infFilter==='all'?'on-all':'on-sel');
   renderInfluencers();
 }
 function openInfModal(id){

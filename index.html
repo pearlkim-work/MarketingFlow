@@ -2102,6 +2102,9 @@ function showView(v,btn){
   if(projSelArea){
     projSelArea.style.display=(v==='home'||v==='calendar'||v==='teamcheck')?'none':'flex';
   }
+  // 버그 수정: 광고 탭은 광고를 새로 추가/삭제/상태전환할 때만 renderAds()가 불렸고, 탭을 그냥
+  // 클릭해서 들어올 땐 전혀 호출되지 않아서 #ad-cards가 비어있는 채로(안내 문구조차 없이) 그대로 남아있었음
+  if(v==='ads')renderAds();
   if(v==='revenue')renderRevenue();
   if(v==='utm')renderUtmView();
   if(v==='calendar'){updateCalProjFilter();updateAssigneeFilter();renderCalView();renderFullDayTasks(S.selDate);updateCalProgress();updateSidebarAssignees();}
@@ -6464,6 +6467,8 @@ function renderDashboard(){
   const dow=today.getDay();
   const ws=new Date(today);ws.setDate(today.getDate()-dow);ws.setHours(0,0,0,0);
   const we=new Date(ws);we.setDate(ws.getDate()+6);we.setHours(23,59,59,999);
+  // 마케터가 우선순위를 바로 알 수 있도록: 마감일(또는 종료일)이 지났는데 아직 완료 안 된 할일은 "지연"으로 표시
+  const todayStr=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
   const PROJ_COLS=['#c8f064','#64b8f0','#f0a064','#b89ef0','#f06464','#64e096'];
   const weekTasks=[];
   // 사용자 요청: 여러 날에 걸친 일정은 시작일이 이번 주 밖이어도 기간이 이번 주와 겹치면 나타나야 함
@@ -6473,7 +6478,10 @@ function renderDashboard(){
       tasks.forEach((t,ti)=>{
         const endDate=(t.endDate&&t.endDate>date)?t.endDate:date;
         const de=new Date(endDate);
-        if(de>=ws&&d<=we)weekTasks.push({...t,date,projName:proj.name,projId:proj.id,taskIdx:ti,pc:PROJ_COLS[pi%PROJ_COLS.length]});
+        if(de>=ws&&d<=we){
+          const overdue=!t.done&&endDate<todayStr;
+          weekTasks.push({...t,date,endDate,projName:proj.name,projId:proj.id,taskIdx:ti,pc:PROJ_COLS[pi%PROJ_COLS.length],overdue});
+        }
       });
     });
   });
@@ -6489,7 +6497,7 @@ function renderDashboard(){
   const weekEl=document.getElementById('dash-week-tasks');
   if(weekEl)weekEl.innerHTML=weekTasks.length?`
     <div style="margin-bottom:8px"><div style="height:5px;background:var(--surf3);border-radius:3px;overflow:hidden"><div style="height:100%;width:${wPct}%;background:var(--lm);border-radius:3px;transition:width .6s"></div></div></div>
-    ${weekTasks.slice(0,6).map(t=>{const[,m,d]=t.date.split('-');return`<div style="display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid var(--b)"><div style="width:26px;font-size:10px;color:var(--t3);flex-shrink:0;text-align:center">${parseInt(m)}/${parseInt(d)}</div><div style="width:3px;height:26px;border-radius:2px;background:${t.pc};flex-shrink:0"></div><div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:500;${t.done?'text-decoration:line-through;color:var(--t3)':''};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.text}</div><div style="font-size:9px;color:var(--t3);margin-top:1px">${t.projName} · <span style="color:${typeColor[t.type]||'var(--t3)'}">${typeLabel[t.type]||t.type||'일반'}</span></div></div>${t.done?'<span style="font-size:10px;color:var(--gn)">✓</span>':'<div style="width:6px;height:6px;border-radius:50%;background:var(--or);flex-shrink:0"></div>'}</div>`;}).join('')}
+    ${weekTasks.slice(0,6).map(t=>{const[,m,d]=t.date.split('-');return`<div style="display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid var(--b)"><div style="width:26px;font-size:10px;color:${t.overdue?'var(--rd)':'var(--t3)'};font-weight:${t.overdue?'700':'400'};flex-shrink:0;text-align:center">${parseInt(m)}/${parseInt(d)}</div><div style="width:3px;height:26px;border-radius:2px;background:${t.pc};flex-shrink:0"></div><div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:500;${t.done?'text-decoration:line-through;color:var(--t3)':''};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.text}</div><div style="font-size:9px;color:var(--t3);margin-top:1px">${t.projName} · <span style="color:${typeColor[t.type]||'var(--t3)'}">${typeLabel[t.type]||t.type||'일반'}</span>${t.overdue?' · <span style="color:var(--rd);font-weight:700">⏰ 지연</span>':''}</div></div>${t.done?'<span style="font-size:10px;color:var(--gn)">✓</span>':`<div style="width:6px;height:6px;border-radius:50%;background:${t.overdue?'var(--rd)':'var(--or)'};flex-shrink:0"></div>`}</div>`;}).join('')}
     ${weekTasks.length>6?`<div style="font-size:10px;color:var(--t3);text-align:center;padding:6px 0">+${weekTasks.length-6}개 더</div>`:''}
   `:'<div style="font-size:11px;color:var(--t3);text-align:center;padding:20px 0">이번 주 일정이 없어요</div>';
 

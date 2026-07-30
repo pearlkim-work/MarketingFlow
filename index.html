@@ -1048,13 +1048,14 @@ select:focus{border-color:var(--lm);outline:none}
 
         <input type="text" id="full-task-inp" placeholder="할 일 내용..." onkeydown="if(event.key==='Enter'&&!event.shiftKey)fullAddTask()" style="font-size:12px">
 
-        <!-- 사용자 요청: 날짜 칸을 클릭한 그 날이 시작일이 되고, 여러 날에 걸친 일정이면 종료일도 바로 정할 수 있어야 함
+        <!-- 사용자 요청: 날짜 칸을 클릭한 그 날이 기본 시작일로 채워지되, 필요하면 직접 다른 날로 바꿀 수 있어야 하고
+             여러 날에 걸친 일정이면 종료일도 바로 정할 수 있어야 함
              (예전엔 종료일 입력칸이 "상세 입력"에 숨겨져 있었는데, 그 상세 입력을 여는 버튼 자체가 없어서
-             아예 쓸 수 없었음 → 날짜 범위는 항상 보이는 곳으로 옮기고, 시작일은 선택한 날짜로 자동 고정) -->
+             아예 쓸 수 없었음 → 날짜 범위는 항상 보이는 곳으로 옮김) -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
           <div class="field-g">
             <label class="field-label">시작일</label>
-            <input type="date" id="full-task-startdate" disabled style="font-size:11px;color:var(--t2)">
+            <input type="date" id="full-task-startdate" oninput="this.dataset.userEdited='1'" style="font-size:11px">
           </div>
           <div class="field-g">
             <label class="field-label">종료일 (선택)</label>
@@ -3633,8 +3634,10 @@ function renderFullDayTasks(ds){
   }
   const[y,m,d]=ds.split('-');
   document.getElementById('full-sel-date-lbl').textContent=`${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;updateCalTaskTypeOptions();initSidebarOnDateSelect(ds);updateSidebarAssignees();
-  // 사용자 요청: 일정 추가 칸의 "시작일"은 항상 지금 선택(클릭)한 날짜로 고정
-  const startDateEl=document.getElementById('full-task-startdate');if(startDateEl)startDateEl.value=ds;
+  // 사용자 요청: 일정 추가 칸의 "시작일"은 기본으로 지금 선택(클릭)한 날짜로 채워지되, 사용자가 직접
+  // 수정할 수도 있어야 함 → 날짜를 클릭해서 이 사이드바가 다시 그려질 때마다 값과 "직접 수정함" 표시를
+  // 함께 리셋해서, 새 날짜를 클릭하면 항상 그 날짜로 다시 맞춰지도록 함
+  const startDateEl=document.getElementById('full-task-startdate');if(startDateEl){startDateEl.value=ds;delete startDateEl.dataset.userEdited;}
   const endDateEl=document.getElementById('full-task-enddate');if(endDateEl&&endDateEl.value&&endDateEl.value<ds)endDateEl.value='';
   // 버그 수정(사용자 요청으로 점검하다 발견): 이 사이드바 목록은 상단의 프로젝트/담당자/항목 필터를
   // 전혀 반영하지 않고 항상 그 날짜의 모든 프로젝트 할일을 보여주고 있었음 → 그리드(월/주 보기)와
@@ -3928,11 +3931,16 @@ function fullDuplicateTask(pid,ds,i){
 }
 function fullAddTask(){
   const text=document.getElementById('full-task-inp')?.value.trim();
-  if(!text||!S.selDate)return;
+  // 사용자 요청: 시작일은 클릭한 날짜로 기본 채워지지만 직접 다른 날짜로 바꿀 수도 있어야 함 →
+  // 사용자가 실제로 그 칸을 수정했을 때만(userEdited 표시) 입력값을 쓰고, 그게 아니면 항상 S.selDate를 그대로 씀
+  // (프로그램 코드에서 S.selDate만 바꾸고 이 칸은 안 건드리는 경우에도 항상 올바른 날짜를 쓰기 위함)
+  const startDateEl=document.getElementById('full-task-startdate');
+  const startDate=(startDateEl&&startDateEl.dataset.userEdited&&startDateEl.value)?startDateEl.value:S.selDate;
+  if(!text||!startDate)return;
   const pid=document.getElementById('full-task-proj')?.value;
   const proj=getProj(pid);if(!proj){toast('프로젝트를 먼저 선택해주세요 👆');return;}
   if(!proj.tasks)proj.tasks={};
-  if(!proj.tasks[S.selDate])proj.tasks[S.selDate]=[];
+  if(!proj.tasks[startDate])proj.tasks[startDate]=[];
 
   const typeVal=document.getElementById('full-task-type')?.value||'ops';
   // 담당자 - 여러 명 선택 팝오버(hidden input) 값 우선, 없으면 상세입력의 자유 텍스트 칸(쉼표로 여러 명 입력 가능)을 사용
@@ -3945,7 +3953,7 @@ function fullAddTask(){
 
   // 사용자 요청: 하루짜리가 아니라 여러 날에 걸친 일정일 수도 있으니 종료일을 함께 저장(시작일보다 앞서면 무시)
   const endDateRaw=document.getElementById('full-task-enddate')?.value||'';
-  const endDate=(endDateRaw&&endDateRaw>S.selDate)?endDateRaw:'';
+  const endDate=(endDateRaw&&endDateRaw>startDate)?endDateRaw:'';
   const task={
     text,type:typeVal,done:false,assignee,
     priority:document.getElementById('full-task-priority')?.value||'',
@@ -3971,13 +3979,13 @@ function fullAddTask(){
       // 버그 수정: 캘린더에서 예산을 넣고 플랜 그룹에 연동해서 추가해도, 예전엔 플랜 쪽 할일에는
       // 예산이 복사되지 않아서 예산 탭의 "예산 예측표"(플랜 할일의 budget/date를 기준으로 집계)에
       // 전혀 반영되지 않았음 → 플랜 쪽 할일 생성 시 budget/endDate도 함께 저장
-      g.tasks.push({text,done:false,date:S.selDate,assignee,budget:task.budget||'',endDate:task.endDate||''});
+      g.tasks.push({text,done:false,date:startDate,assignee,budget:task.budget||'',endDate:task.endDate||''});
       task._fromPlan=true;
       task._planRef=gi+'-'+ti;
     }
   }
 
-  proj.tasks[S.selDate].push(task);
+  proj.tasks[startDate].push(task);
 
   // 인풋 초기화
   ['full-task-inp','full-task-budget','full-task-memo','full-task-link','full-task-checklist','full-task-enddate','full-task-assignee','full-task-assignee-val'].forEach(id=>{
@@ -3985,7 +3993,11 @@ function fullAddTask(){
   });
   const asgBtn=document.getElementById('full-task-assignee-btn');if(asgBtn)asgBtn.textContent='👤 담당자';
 
-  save();renderCalView();renderFullDayTasks(S.selDate);
+  save();
+  // 사용자 요청: 시작일을 클릭한 날짜와 다르게 바꿔서 추가했으면, 사이드바도 그 날짜로 따라가서
+  // 방금 추가한 할일을 바로 눈으로 확인할 수 있게 함
+  if(startDate!==S.selDate)fullSelectDate(startDate);
+  else{renderCalView();renderFullDayTasks(S.selDate);}
   if(planGroupId){
     // 플랜 탭도 리렌더 (현재 열려있으면)
     if(document.getElementById('view-plan')?.classList.contains('active'))renderPlanResult(proj.plan);

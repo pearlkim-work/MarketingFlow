@@ -2413,13 +2413,45 @@ function taskIsPaid(t){
 const TYPE_COLOR={meta:'var(--lm)',crm:'var(--or)',inf:'var(--bl)',live:'var(--rd)',content:'var(--gn)',ops:'var(--t3)',meet:'#8a5cf6'};
 const TYPE_LABEL={meta:'📘 Meta',crm:'📨 CRM',inf:'✨ 인플루언서',live:'🔴 라이브',content:'🎨 콘텐츠',ops:'📋 일반',meet:'🗣 미팅'};
 const TYPE_BG={meta:'var(--lmbg)',crm:'var(--orbg)',inf:'var(--blbg)',live:'var(--rdbg)',content:'var(--gnbg)',ops:'var(--surf3)',meet:'rgba(138,92,246,.12)'};
+// 이모지 없는 순수 텍스트 라벨(플랜 그룹 이름과 같은 문자열 공간에서 비교하기 위함)
+const TYPE_PLAIN_LABEL={meta:'Meta',crm:'CRM',inf:'인플루언서',live:'라이브',content:'콘텐츠',ops:'일반',meet:'미팅'};
+// 사용자 요청: 항목 필터에 Meta/CRM/인플루언서/라이브/콘텐츠/일반/미팅 같은 기본 항목만 있는데, 실제로는
+// 프로젝트마다 플랜 탭에서 추가한 항목(예: 네이버, 유튜브, 당근, 그 외 직접 추가한 커스텀 항목명)이 더 많음.
+// 그래서 캘린더 할일이 플랜 그룹과 연결(_planRef)되어 있으면 그 그룹의 실제 이름(예: "네이버")을 항목으로
+// 쓰고, 연결이 없는(직접 캘린더에서 만든) 할일만 위 기본 7개 라벨로 대체 표시함. "공통" 그룹은 "일반"과
+// 같은 의미라 필터에서 헷갈리지 않도록 "일반"으로 합쳐서 취급함.
+function resolveTaskItemName(t){
+  if(!t)return'';
+  const pid=t._projId||t.projId;
+  if(t._planRef&&pid){
+    const proj=getProj(pid);
+    if(proj?.plan?.groups){
+      const gi=parseInt(String(t._planRef).split('-')[0],10);
+      const g=proj.plan.groups[gi];
+      if(g&&g.name)return g.name==='공통'?'일반':g.name;
+    }
+  }
+  return TYPE_PLAIN_LABEL[t.type]||t.type||'일반';
+}
+// 필터 팝오버에 나열할 전체 항목 목록: 기본 7개 + 모든 프로젝트의 플랜 그룹에서 실제로 쓰이는 항목명(커스텀 포함)
+function getCalItemOptions(){
+  const names=[...Object.values(TYPE_PLAIN_LABEL)];
+  const seen=new Set(names);
+  getVisibleProjects().forEach(p=>{
+    (p.plan?.groups||[]).forEach(g=>{
+      if(!g.name||g.name==='공통')return;
+      if(!seen.has(g.name)){seen.add(g.name);names.push(g.name);}
+    });
+  });
+  return names;
+}
 // 사용자 요청: 캘린더에서 프로젝트/담당자뿐 아니라 항목(채널)으로도 필터링하고 싶고, 여러 개를
 // 동시에 선택(예: Meta+인플루언서)해서 그 항목들만 모아볼 수 있어야 함 → 담당자 필터 옆에 다중선택 팝오버 추가
 let _calTypeFilter=[];
-function calTypeMatches(t){return _calTypeFilter.length===0||_calTypeFilter.includes(t.type);}
+function calTypeMatches(t){return _calTypeFilter.length===0||_calTypeFilter.includes(resolveTaskItemName(t));}
 function calTypeFilterLabel(){
   if(!_calTypeFilter.length)return'🏷 전체 항목';
-  return '🏷 '+_calTypeFilter.map(k=>(TYPE_LABEL[k]||k).replace(/^[^\s]+\s/,'')).join(', ');
+  return '🏷 '+_calTypeFilter.join(', ');
 }
 function openCalTypePicker(triggerEl){
   document.querySelectorAll('.type-picker-pop').forEach(m=>m.remove());
@@ -2428,14 +2460,14 @@ function openCalTypePicker(triggerEl){
   pop.className='assignee-picker-pop type-picker-pop';
   pop.style.left=Math.max(4,Math.min(rect.left,(window.innerWidth||400)-180))+'px';
   pop.style.top=(rect.bottom+4)+'px';
-  pop.innerHTML=Object.keys(TYPE_LABEL).map(k=>{
-    const checked=_calTypeFilter.includes(k);
-    return`<label onclick="event.stopPropagation()"><input type="checkbox" ${checked?'checked':''} onchange="calTypePickerToggle('${k}',this.checked)">${TYPE_LABEL[k]}</label>`;
+  pop.innerHTML=getCalItemOptions().map(name=>{
+    const checked=_calTypeFilter.includes(name);
+    return`<label onclick="event.stopPropagation()"><input type="checkbox" ${checked?'checked':''} onchange="calTypePickerToggle(${JSON.stringify(name)},this.checked)">${name}</label>`;
   }).join('');
   document.body.appendChild(pop);
 }
-function calTypePickerToggle(type,checked){
-  if(checked){if(!_calTypeFilter.includes(type))_calTypeFilter.push(type);}else{_calTypeFilter=_calTypeFilter.filter(t=>t!==type);}
+function calTypePickerToggle(name,checked){
+  if(checked){if(!_calTypeFilter.includes(name))_calTypeFilter.push(name);}else{_calTypeFilter=_calTypeFilter.filter(n=>n!==name);}
   const btn=document.getElementById('cal-type-filter-btn');if(btn)btn.textContent=calTypeFilterLabel();
   calRefreshAll();
 }
@@ -2855,7 +2887,10 @@ function updateCalProgress(){
   // 항목/유료·무료광고)와 정확히 같은 기준으로 계산되도록 통일
   const progProjF = getCalProjFilter();
   const progProjs = progProjF ? getVisibleProjects().filter(p=>p.id===progProjF) : getVisibleProjects();
-  const progMatches = t => assigneeMatches(t.assignee, assigneeF) && calTypeMatches(t) &&
+  // 버그 수정: calTypeMatches는 _planRef가 있는 할일의 실제 플랜 그룹 이름(예: 네이버/유튜브/당근)을
+  // 알아내려면 소속 프로젝트(_projId)가 필요한데, 여기서도 그 값 없이 넘기고 있어서 커스텀 항목 필터가
+  // 진행률 계산에는 전혀 반영되지 않았음 → project를 함께 받아 _projId를 붙여서 검사
+  const progMatches = (t,p) => assigneeMatches(t.assignee, assigneeF) && calTypeMatches({...t,_projId:p.id}) &&
     (_calFilter!=='paid'||taskIsPaid(t)) && (_calFilter!=='free'||!taskIsPaid(t));
 
   if(_calMode === 'week'){
@@ -2872,7 +2907,7 @@ function updateCalProgress(){
         const endOf=t=>(t.endDate&&t.endDate>ds)?t.endDate:ds;
         ts.forEach(t => {
           if(!(ds<=weStr && endOf(t)>=wsStr))return; // 구간 겹침 체크(한 번만 카운트)
-          if(!progMatches(t)) return;
+          if(!progMatches(t,p)) return;
           total++; if(t.done) done++;
         });
       });
@@ -2893,7 +2928,7 @@ function updateCalProgress(){
       Object.entries(p.tasks||{}).forEach(([ds,ts]) => {
         if(ds.startsWith(prefix)){
           ts.forEach(t => {
-            if(!progMatches(t)) return;
+            if(!progMatches(t,p)) return;
             total++; if(t.done) done++;
           });
         }
@@ -3000,7 +3035,10 @@ function getFilteredTasks(ds){
       if(!assigneeMatches(t.assignee,assigneeF))return;
       if(typeF==='paid'&&!taskIsPaid(t))return;
       if(typeF==='free'&&taskIsPaid(t))return;
-      if(!calTypeMatches(t))return;
+      // 버그 수정: calTypeMatches()는 _planRef가 있는 할일의 실제 항목명(플랜 그룹 이름)을 알아내려면
+      // 어느 프로젝트 소속인지(_projId)가 필요한데, 여기선 그 값을 붙이기 전에 검사하고 있어서
+      // 늘 "소속 프로젝트 없음" 상태로 판정되어 커스텀 항목(네이버/유튜브/당근 등) 필터가 항상 빗나갔음
+      if(!calTypeMatches({...t,_projId:p.id}))return;
       tasks.push({...t,_projId:p.id,_taskIdx:ti,_projName:p.name,_projColor:p.color||'var(--lm)'});
     });
   });
@@ -3063,7 +3101,9 @@ function renderWeekCal(){
         if(!assigneeMatches(t.assignee,assigneeF))return;
         if(typeF==='paid'&&!taskIsPaid(t))return;
         if(typeF==='free'&&taskIsPaid(t))return;
-        if(!calTypeMatches(t))return;
+        // 버그 수정: 위 getFilteredTasks와 동일하게, _projId를 붙이기 전에 검사하면 커스텀 항목(플랜
+        // 그룹 이름) 판별이 항상 실패하므로 여기서도 미리 _projId를 붙여서 검사함
+        if(!calTypeMatches({...t,_projId:p.id}))return;
         tasks.push({...t,_projId:p.id,_taskIdx:t._anchorIdx,_anchorDate:t._anchorDate,_projName:p.name,_projColor:projColor(_pColorIdx<0?0:_pColorIdx)});
       });
     });
@@ -3085,7 +3125,12 @@ function renderWeekCal(){
         <div style="font-size:9px;color:${t._projColor};font-weight:600;padding-left:15px;display:flex;align-items:center;gap:3px"><span style="width:6px;height:6px;border-radius:50%;background:${t._projColor};display:inline-block;flex-shrink:0"></span>${t._projName}</div>
       </div>`;
     }).join('');
-    return`<div class="week-daycol" ondragover="calDragOver(event)" ondragleave="calDragLeave(event)" ondrop="calDrop(event,'${ds}')" style="border-right:1px solid var(--b);${i===6?'border-right:none':''}background:${isToday?'rgba(200,240,100,.04)':'var(--surf)'}">
+    // 사용자 요청: 주 보기에서 "+ 추가" 버튼을 정확히 눌러야만 오른쪽 사이드바 날짜가 바뀌던 문제 →
+    // 날짜 칸(요일 헤더/빈 공간/할일 카드의 비-조작 영역 등) 어디를 클릭해도 그 날짜가 바로 선택되도록
+    // 칸 전체에 onclick을 둠(체크박스/텍스트수정/삭제/드래그처럼 클릭이 다른 동작을 하는 요소들은
+    // 이미 각자 event.stopPropagation()으로 막고 있어서 서로 충돌하지 않음)
+    const isSelDay=S.selDate===ds;
+    return`<div class="week-daycol" onclick="fullSelectDate('${ds}')" ondragover="calDragOver(event)" ondragleave="calDragLeave(event)" ondrop="calDrop(event,'${ds}')" style="border-right:1px solid var(--b);${i===6?'border-right:none':''}background:${isSelDay?'rgba(124,75,194,.07)':(isToday?'rgba(200,240,100,.04)':'var(--surf)')};${isSelDay?'outline:1px solid rgba(124,75,194,.35);outline-offset:-2px;':''}cursor:pointer">
       <div style="padding:6px 8px;border-bottom:1px solid var(--b);background:${isToday?'rgba(200,240,100,.12)':'var(--surf2)'};position:sticky;top:0;z-index:1">
         <div style="display:flex;align-items:center;justify-content:space-between">
           <div>
@@ -3097,7 +3142,7 @@ function renderWeekCal(){
       </div>
       <div style="padding:5px;min-height:80px;overflow-y:auto;max-height:calc(100vh - 280px)">
         ${taskHtml}
-        <div onclick="S.selDate='${ds}';renderFullDayTasks('${ds}')" style="width:100%;padding:4px;border:1px dashed var(--b2);border-radius:3px;text-align:center;color:var(--t3);font-size:10px;cursor:pointer;margin-top:2px" onmouseover="this.style.borderColor='#8bc34a';this.style.color='#4a7a00'" onmouseout="this.style.borderColor='var(--b2)';this.style.color='var(--t3)'">+ 추가</div>
+        <div style="width:100%;padding:4px;border:1px dashed var(--b2);border-radius:3px;text-align:center;color:var(--t3);font-size:10px;cursor:pointer;margin-top:2px" onmouseover="this.style.borderColor='#8bc34a';this.style.color='#4a7a00'" onmouseout="this.style.borderColor='var(--b2)';this.style.color='var(--t3)'">+ 추가</div>
       </div>
     </div>`;
   }).join('');

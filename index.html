@@ -1048,6 +1048,20 @@ select:focus{border-color:var(--lm);outline:none}
 
         <input type="text" id="full-task-inp" placeholder="할 일 내용..." onkeydown="if(event.key==='Enter'&&!event.shiftKey)fullAddTask()" style="font-size:12px">
 
+        <!-- 사용자 요청: 날짜 칸을 클릭한 그 날이 시작일이 되고, 여러 날에 걸친 일정이면 종료일도 바로 정할 수 있어야 함
+             (예전엔 종료일 입력칸이 "상세 입력"에 숨겨져 있었는데, 그 상세 입력을 여는 버튼 자체가 없어서
+             아예 쓸 수 없었음 → 날짜 범위는 항상 보이는 곳으로 옮기고, 시작일은 선택한 날짜로 자동 고정) -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
+          <div class="field-g">
+            <label class="field-label">시작일</label>
+            <input type="date" id="full-task-startdate" disabled style="font-size:11px;color:var(--t2)">
+          </div>
+          <div class="field-g">
+            <label class="field-label">종료일 (선택)</label>
+            <input type="date" id="full-task-enddate" style="font-size:11px">
+          </div>
+        </div>
+
         <!-- 프로젝트 선택 -->
         <select id="full-task-proj" onchange="updateSidebarPlanGroups()" style="font-size:11px;font-family:inherit">
           <option value="">📁 프로젝트 선택</option>
@@ -1073,11 +1087,15 @@ select:focus{border-color:var(--lm);outline:none}
           <option value="">🗂 플랜 그룹 (선택)</option>
         </select>
 
+        <!-- 버그 수정: 이 "상세 입력" 열기 버튼이 실제로는 없어서(toggleDetailForm은 정의만 있고 호출할 방법이 없었음)
+             아래 예산/메모/링크/체크리스트/우선순위 칸을 켤 방법이 전혀 없었음 → 버튼을 다시 추가 -->
+        <button type="button" id="btn-toggle-detail" class="btn-ghost" onclick="toggleDetailForm()" style="font-size:11px;padding:6px 8px;text-align:left">+ 상세</button>
+
         <!-- 상세 입력 (기본 숨김) -->
         <div id="detail-form" style="display:none;flex-direction:column;gap:5px">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
             <div class="field-g">
-              <label class="field-label">담당자</label>
+              <label class="field-label">담당자 (직접 입력)</label>
               <input type="text" id="full-task-assignee" placeholder="예) 진주, 규리" style="font-size:11px">
             </div>
             <div class="field-g">
@@ -1089,11 +1107,6 @@ select:focus{border-color:var(--lm);outline:none}
                 <option value="low">🟢 Low</option>
               </select>
             </div>
-          </div>
-          <!-- 사용자 요청: 할일이 하루짜리가 아니라 여러 날에 걸친 일정일 수도 있으니 종료일을 선택할 수 있게 함 -->
-          <div class="field-g">
-            <label class="field-label">종료일 (선택 · 여러 날에 걸친 일정이면)</label>
-            <input type="date" id="full-task-enddate" style="font-size:11px">
           </div>
           <div class="field-g">
             <label class="field-label">예산</label>
@@ -2521,7 +2534,12 @@ function openCalTypePicker(triggerEl){
   pop.style.top=(rect.bottom+4)+'px';
   pop.innerHTML=getCalItemOptions().map(name=>{
     const checked=_calTypeFilter.includes(name);
-    return`<label onclick="event.stopPropagation()"><input type="checkbox" ${checked?'checked':''} onchange="calTypePickerToggle(${JSON.stringify(name)},this.checked)">${name}</label>`;
+    // 버그 수정: JSON.stringify(name)이 만드는 큰따옴표가 onchange="..." 속성의 큰따옴표와 그대로 충돌해서
+    // (예: onchange="calTypePickerToggle("Meta",this.checked)") 속성값이 중간에 끊겨버리고 나머지가
+    // 깨진 속성으로 남아 실제로는 calTypePickerToggle이 전혀 호출되지 않던 문제(체크해도 아무 반응 없음).
+    // &quot;로 이스케이프해서 속성 안에 안전하게 들어가도록 수정.
+    const nameAttr=JSON.stringify(name).replace(/"/g,'&quot;');
+    return`<label onclick="event.stopPropagation()"><input type="checkbox" ${checked?'checked':''} onchange="calTypePickerToggle(${nameAttr},this.checked)">${name}</label>`;
   }).join('');
   document.body.appendChild(pop);
 }
@@ -3615,6 +3633,9 @@ function renderFullDayTasks(ds){
   }
   const[y,m,d]=ds.split('-');
   document.getElementById('full-sel-date-lbl').textContent=`${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;updateCalTaskTypeOptions();initSidebarOnDateSelect(ds);updateSidebarAssignees();
+  // 사용자 요청: 일정 추가 칸의 "시작일"은 항상 지금 선택(클릭)한 날짜로 고정
+  const startDateEl=document.getElementById('full-task-startdate');if(startDateEl)startDateEl.value=ds;
+  const endDateEl=document.getElementById('full-task-enddate');if(endDateEl&&endDateEl.value&&endDateEl.value<ds)endDateEl.value='';
   // 버그 수정(사용자 요청으로 점검하다 발견): 이 사이드바 목록은 상단의 프로젝트/담당자/항목 필터를
   // 전혀 반영하지 않고 항상 그 날짜의 모든 프로젝트 할일을 보여주고 있었음 → 그리드(월/주 보기)와
   // 동일하게 4개 필터(프로젝트/담당자/유료·무료광고/항목)를 모두 반영하도록 통일함
@@ -4733,8 +4754,10 @@ function renderProducts(){
     const allTags=new Set();
     getVisibleProducts().forEach(p=>(p.tags||[]).forEach(t=>allTags.add(t)));
     const curFilter=S.prodTypeFilter||'all';
+    // 버그 수정: JSON.stringify(tag)의 큰따옴표가 onclick="..." 속성의 큰따옴표와 충돌해서
+    // 속성이 중간에 끊기고(캘린더 항목 필터와 동일한 버그) 태그 버튼을 눌러도 아무 반응이 없던 문제 방지
     tagContainer.innerHTML=`<button class="cal-ftag${curFilter==='all'?' on':''}" onclick="setProdTagFilter('all')">전체</button>`+
-      [...allTags].map(tag=>`<button class="cal-ftag${curFilter===tag?' on':''}" onclick="setProdTagFilter(${JSON.stringify(tag)})">#${tag}</button>`).join('');
+      [...allTags].map(tag=>`<button class="cal-ftag${curFilter===tag?' on':''}" onclick="setProdTagFilter(${JSON.stringify(tag).replace(/"/g,'&quot;')})">#${tag}</button>`).join('');
   }
 
   refreshProdProjFilter();const projFilter=prodProjFilterVal();const typeFilter=S.prodTypeFilter||'all';

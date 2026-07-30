@@ -735,6 +735,9 @@ select:focus{border-color:var(--lm);outline:none}
     <button class="nav-tab" onclick="showView('mynote',this)" title="나만의 기록장">📝 <span id="nav-mynote-label">내 기록장</span></button>
   </div>
   <div class="nav-right" id="pdf-hide" style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0">
+    <!-- 사용자 요청: 프로젝트/할일/회의록/기록장을 통틀어 검색할 방법이 없어서, 프로젝트가 늘어날수록
+         "그때 그거 어디 적어놨더라" 하는 상황이 늘어날 것 같다는 피드백에 따라 전체 검색 추가 -->
+    <button onclick="openGlobalSearch()" title="전체 검색 (Ctrl/Cmd+K)" style="padding:4px 9px;border:1px solid var(--b2);border-radius:var(--rs);background:transparent;color:var(--t2);font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap">🔍 검색</button>
     <select class="proj-sel" id="proj-sel" onchange="switchProj()" style="max-width:130px">
       <option value="">프로젝트 선택</option>
     </select>
@@ -806,7 +809,11 @@ select:focus{border-color:var(--lm);outline:none}
         <div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:14px 16px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
             <div style="font-size:12px;font-weight:700">📅 이번 주 할 일</div>
-            <div id="dash-week-pct" style="font-size:11px;font-weight:700;color:var(--lm)"></div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <!-- 사용자 요청: 로그인한 사람 기준으로 전체 프로젝트에서 내 할 일만 모아볼 수 있는 전역 필터 -->
+              <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--t2);cursor:pointer;user-select:none"><input type="checkbox" id="dash-my-tasks-only" onchange="renderDashboard()" style="width:auto;margin:0">내 할 일만</label>
+              <div id="dash-week-pct" style="font-size:11px;font-weight:700;color:var(--lm)"></div>
+            </div>
           </div>
           <div id="dash-week-tasks"></div>
         </div>
@@ -930,6 +937,11 @@ select:focus{border-color:var(--lm);outline:none}
         <button class="btn-ch-add" onclick="addCustomChannel()">+</button>
       </div>
 
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        <button type="button" onclick="openSavePlanTemplateModal()" style="flex:1;padding:7px;background:var(--surf2);border:1px solid var(--b2);border-radius:var(--rs);color:var(--t2);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">💾 템플릿 저장</button>
+        <button type="button" onclick="openLoadPlanTemplateModal()" style="flex:1;padding:7px;background:var(--surf2);border:1px solid var(--b2);border-radius:var(--rs);color:var(--t2);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">📂 템플릿 불러오기</button>
+      </div>
+
       <div class="divider"></div>
       <div id="plan-btn-area" style="display:flex;gap:6px;position:sticky;bottom:0;background:var(--surf);padding-top:8px;margin-top:auto">
         <button id="btn-gen" onclick="genPlan()" style="flex:1;padding:11px;background:#C8F064;color:#1a1917;border:none;border-radius:var(--rs);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">플랜 생성 →</button>
@@ -1036,7 +1048,11 @@ select:focus{border-color:var(--lm);outline:none}
         <button class="cal-ftag" data-filter="paid" onclick="calFilterClick(this)">💰 유료광고</button>
         <button class="cal-ftag" data-filter="free" onclick="calFilterClick(this)">🌱 무료광고</button>
       </div>
-      <div id="proj-colors" class="proj-colors"></div>
+      <!-- 사용자 요청: 프로젝트가 늘어날수록 색상 범례가 한 줄로 계속 길어져 답답해지니 접었다 펼 수 있게 함 -->
+      <div style="margin-bottom:2px">
+        <button type="button" id="proj-colors-toggle-btn" class="btn-ghost" onclick="toggleProjColorsLegend()" style="font-size:10px;padding:2px 8px;color:var(--t2)">🎨 프로젝트 색상 보기 ▾</button>
+      </div>
+      <div id="proj-colors" class="proj-colors" style="display:none"></div>
       <!-- 사용자 요청: 마우스로 휙휙 넘길 수 있게(휠/트랙패드 스크롤로 이전/다음 달·주 이동) -->
       <div class="cal-grid" id="full-cal-grid" onwheel="calWheelNav(event)"></div>
     </div>
@@ -1060,6 +1076,24 @@ select:focus{border-color:var(--lm);outline:none}
           <div class="field-g">
             <label class="field-label">종료일 (선택)</label>
             <input type="date" id="full-task-enddate" style="font-size:11px">
+          </div>
+        </div>
+
+        <!-- 사용자 요청: "매주 화요일 SNS 발행"처럼 주기적으로 반복되는 할일을 매번 손으로 넣는 대신
+             반복 설정으로 한 번에 등록할 수 있게 함 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
+          <div class="field-g">
+            <label class="field-label">반복</label>
+            <select id="full-task-repeat" onchange="updateRepeatCountVisibility()" style="font-size:11px;font-family:inherit">
+              <option value="">반복 없음</option>
+              <option value="daily">매일</option>
+              <option value="weekly">매주</option>
+              <option value="monthly">매월</option>
+            </select>
+          </div>
+          <div class="field-g" id="full-task-repeat-count-wrap" style="display:none">
+            <label class="field-label">반복 횟수</label>
+            <input type="number" id="full-task-repeat-count" min="2" max="52" value="4" style="font-size:11px">
           </div>
         </div>
 
@@ -1173,6 +1207,45 @@ select:focus{border-color:var(--lm);outline:none}
       <div style="flex:1"></div>
       <button class="btn-confirm" onclick="closeBudgetSummaryModal()">닫기</button>
     </div>
+  </div>
+</div>
+
+<!-- ══ PLAN TEMPLATE SAVE MODAL ══ -->
+<div class="modal-bg" id="plan-tpl-save-modal" style="display:none">
+  <div class="modal" style="width:420px">
+    <div class="modal-title">💾 플랜 템플릿으로 저장</div>
+    <div style="font-size:11px;color:var(--t3);margin-bottom:10px">현재 선택된 항목(채널)과 각 항목별 할 일 목록(제목만)이 템플릿으로 저장돼요. 예산/날짜/담당자는 저장되지 않아요.</div>
+    <div class="field-g">
+      <label class="field-label">템플릿 이름</label>
+      <input type="text" id="plan-tpl-name-inp" placeholder="예) 여름 기획전 플랜">
+    </div>
+    <div class="modal-btns">
+      <button class="btn-ghost" onclick="closeSavePlanTemplateModal()">취소</button>
+      <button class="btn-confirm" onclick="confirmSavePlanTemplate()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PLAN TEMPLATE LOAD MODAL ══ -->
+<div class="modal-bg" id="plan-tpl-load-modal" style="display:none">
+  <div class="modal" style="width:460px;max-height:70vh;display:flex;flex-direction:column">
+    <div class="modal-title">📂 플랜 템플릿 불러오기</div>
+    <div style="font-size:11px;color:var(--t3);margin-bottom:10px">불러오면 현재 플랜에 항목과 할 일이 추가돼요(기존 내용은 지워지지 않아요).</div>
+    <div id="plan-tpl-load-body" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:8px"></div>
+    <div class="modal-btns">
+      <div style="flex:1"></div>
+      <button class="btn-confirm" onclick="closeLoadPlanTemplateModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ GLOBAL SEARCH MODAL ══ -->
+<!-- 사용자 요청: 프로젝트/할일/회의록/기록장을 통틀어 검색할 방법이 없어서 프로젝트가 늘어날수록
+     "그때 그거 어디 적어놨더라" 하는 순간이 늘어날 것 같다는 피드백 → 전체 검색 추가 -->
+<div class="modal-bg" id="global-search-modal" style="display:none;align-items:flex-start;padding-top:80px">
+  <div class="modal" style="width:560px;max-height:70vh;display:flex;flex-direction:column">
+    <input type="text" id="gs-input" placeholder="🔍 프로젝트, 할일, 회의록, 기록장 검색..." oninput="renderGlobalSearchResults()" onkeydown="if(event.key==='Escape')closeGlobalSearch()" style="font-size:14px;padding:10px 12px;margin-bottom:10px">
+    <div id="gs-results" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:12px"></div>
   </div>
 </div>
 
@@ -2068,7 +2141,7 @@ function projColor(idx){return PROJ_COLORS[idx%PROJ_COLORS.length]}
 
 // ── STATE ──
 let S={
-  projects:[],curProjId:null,meetings:[],products:[],influencers:[],personalNotes:{},mtgFolders:[],
+  projects:[],curProjId:null,meetings:[],products:[],influencers:[],personalNotes:{},mtgFolders:[],planTemplates:[],
   planCalY:new Date().getFullYear(),planCalM:new Date().getMonth(),
   fullCalY:new Date().getFullYear(),fullCalM:new Date().getMonth(),
   selDate:null,planSelDate:null,editAdId:null,editProdId:null,
@@ -2088,7 +2161,7 @@ function scheduleSupa(){
   if(typeof supaSync==='function'){clearTimeout(_syncTimer);_syncTimer=setTimeout(supaSync,1500);}
 }
 async function save(){try{if(window.storage){await window.storage.set('nnb-v8',JSON.stringify(S));}else{localStorage.setItem('nnb-v8',JSON.stringify(S));}}catch(e){try{localStorage.setItem('nnb-v8',JSON.stringify(S));}catch(e2){}}scheduleSupa();}
-async function load(){try{let data=null;if(window.storage){const r=await window.storage.get('nnb-v8');if(r&&r.value)data=JSON.parse(r.value);}if(!data){const ls=localStorage.getItem('nnb-v8');if(ls)data=JSON.parse(ls);}if(data)Object.assign(S,{projects:data.projects||[],curProjId:data.curProjId||null,meetings:data.meetings||[],products:data.products||[],influencers:data.influencers||[],personalNotes:data.personalNotes||{},mtgFolders:data.mtgFolders||[]});normalizeProjectsData();normalizePersonalNotes();normalizeOrgTags();}catch(e){}}
+async function load(){try{let data=null;if(window.storage){const r=await window.storage.get('nnb-v8');if(r&&r.value)data=JSON.parse(r.value);}if(!data){const ls=localStorage.getItem('nnb-v8');if(ls)data=JSON.parse(ls);}if(data)Object.assign(S,{projects:data.projects||[],curProjId:data.curProjId||null,meetings:data.meetings||[],products:data.products||[],influencers:data.influencers||[],personalNotes:data.personalNotes||{},mtgFolders:data.mtgFolders||[],planTemplates:data.planTemplates||[]});normalizeProjectsData();normalizePersonalNotes();normalizeOrgTags();}catch(e){}}
 
 // ── VIEWS ──
 function showView(v,btn){
@@ -2255,6 +2328,13 @@ function refreshProjSelects(){
   if(ppf){const cur=ppf.value;ppf.innerHTML='<option value="all">전체 프로젝트</option>'+getVisibleProjects().map(p=>`<option value="${p.id}">${p.name}</option>`).join('');if(cur)ppf.value=cur;else if(S.curProjId)ppf.value=S.curProjId;}
   btRefreshProjSel();qtRefreshProj();rpRefreshProjSel();
   document.getElementById('proj-colors').innerHTML=getVisibleProjects().map((p,i)=>`<div class="proj-color-item"><div class="pcd" style="background:${projColor(i)}"></div>${p.name}</div>`).join('');
+}
+// 사용자 요청: 프로젝트 색상 범례를 접었다 펼 수 있게 함(프로젝트가 많아지면 한 줄이 너무 길어져서)
+let _projColorsOpen=false;
+function toggleProjColorsLegend(){
+  _projColorsOpen=!_projColorsOpen;
+  const el=document.getElementById('proj-colors');if(el)el.style.display=_projColorsOpen?'flex':'none';
+  const btn=document.getElementById('proj-colors-toggle-btn');if(btn)btn.textContent=_projColorsOpen?'🎨 프로젝트 색상 숨기기 ▴':'🎨 프로젝트 색상 보기 ▾';
 }
 let _autosaveTimer=null;
 function autosavePlanInput(){
@@ -2832,6 +2912,222 @@ function syncPlanGroups(){
   save();renderPlanResult(p.plan);
 }
 
+// ── PLAN TEMPLATE (저장/불러오기) ──
+// 사용자 요청: 비슷한 유형의 캠페인이 반복될 때 매번 채널/할일 구성을 새로 짜지 않도록,
+// 현재 플랜의 "구조"(선택된 항목 + 항목별 할일 제목)만 템플릿으로 저장했다가 다른 프로젝트에서 불러올 수 있게 함.
+// 예산/날짜/담당자/완료여부처럼 프로젝트마다 달라지는 값은 템플릿에 포함하지 않음.
+function openSavePlanTemplateModal(){
+  const p=getCurProj();
+  if(!p){toast('프로젝트를 먼저 선택해봐요 👆');return;}
+  const chs=[...document.querySelectorAll('#ch-chips input[type=checkbox]:checked')];
+  if(!chs.length){toast('저장할 항목을 먼저 선택해봐요 👆');return;}
+  const nameInp=document.getElementById('plan-tpl-name-inp');
+  if(nameInp)nameInp.value=(p.name?p.name+' 템플릿':'');
+  document.getElementById('plan-tpl-save-modal').style.display='flex';
+}
+function closeSavePlanTemplateModal(){
+  document.getElementById('plan-tpl-save-modal').style.display='none';
+}
+function confirmSavePlanTemplate(){
+  const p=getCurProj();if(!p)return;
+  const name=document.getElementById('plan-tpl-name-inp')?.value.trim();
+  if(!name){toast('템플릿 이름을 입력해봐요 👆');return;}
+  const chEls=[...document.querySelectorAll('#ch-chips input[type=checkbox]:checked')];
+  const chs=chEls.map(el=>el.dataset.ch);
+  // 채널별 할일 제목 목록: 현재 플랜 그룹에 저장된 할일이 있으면 그 제목만 가져오고, 없으면 빈 목록
+  const groups=chs.map(ch=>{
+    const g=(p.plan?.groups||[]).find(g=>g._ch===ch||g.name===ch);
+    return{_ch:ch,tasks:(g?.tasks||[]).filter(t=>(t.text||'').trim()).map(t=>({text:t.text}))};
+  });
+  if(!Array.isArray(S.planTemplates))S.planTemplates=[];
+  S.planTemplates.push({id:'tpl-'+Date.now(),name,org:(_mfUser&&_mfUser.org)||'',chs,groups,createdAt:Date.now()});
+  save();
+  closeSavePlanTemplateModal();
+  toast('플랜 템플릿으로 저장했어요 💾',2500);
+}
+function deletePlanTemplate(id){
+  if(!confirm('이 템플릿을 삭제할까요?'))return;
+  S.planTemplates=(S.planTemplates||[]).filter(t=>t.id!==id);
+  save();
+  renderPlanTemplateLoadList();
+}
+function openLoadPlanTemplateModal(){
+  const p=getCurProj();
+  if(!p){toast('프로젝트를 먼저 선택해봐요 👆');return;}
+  renderPlanTemplateLoadList();
+  document.getElementById('plan-tpl-load-modal').style.display='flex';
+}
+function closeLoadPlanTemplateModal(){
+  document.getElementById('plan-tpl-load-modal').style.display='none';
+}
+function renderPlanTemplateLoadList(){
+  const body=document.getElementById('plan-tpl-load-body');if(!body)return;
+  const tpls=visibleByOrg(S.planTemplates||[]).sort((a,b)=>b.createdAt-a.createdAt);
+  if(!tpls.length){body.innerHTML='<div style="text-align:center;padding:20px;color:var(--t3);font-size:12px">아직 저장된 템플릿이 없어요</div>';return;}
+  body.innerHTML=tpls.map(t=>{
+    const chCount=(t.chs||[]).length;
+    const taskCount=(t.groups||[]).reduce((s,g)=>s+(g.tasks||[]).length,0);
+    return`<div style="border:1px solid var(--b2);border-radius:var(--rs);padding:10px 12px;display:flex;align-items:center;gap:10px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;color:var(--t)">${t.name}</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:2px">항목 ${chCount}개 · 할일 ${taskCount}개</div>
+      </div>
+      <button class="btn-ghost" style="font-size:11px;padding:5px 10px" onclick="applyPlanTemplate('${t.id}')">불러오기</button>
+      <span onclick="deletePlanTemplate('${t.id}')" style="font-size:12px;color:var(--t3);cursor:pointer;padding:2px 4px">✕</span>
+    </div>`;
+  }).join('');
+}
+function applyPlanTemplate(tplId){
+  const p=getCurProj();if(!p)return;
+  const tpl=(S.planTemplates||[]).find(t=>t.id===tplId);if(!tpl)return;
+  if(!p.plan){p.plan={name:p.name,groups:[{id:'g-common',name:'공통',color:'#aaa',tasks:[]}],createdAt:Date.now()};}
+  if(!p.plan.groups)p.plan.groups=[{id:'g-common',name:'공통',color:'#aaa',tasks:[]}];
+  // 1) 템플릿에 저장된 항목(채널)들을 왼쪽 체크박스에서 체크(없으면 행 생성)
+  (tpl.chs||[]).forEach(ch=>{
+    const el=document.querySelector('#ch-chips input[data-ch="'+ch+'"]');
+    if(el)el.checked=true;
+    else document.getElementById('ch-chips').appendChild(createChannelRow(ch,true));
+  });
+  // 2) 체크박스 상태 기준으로 플랜 그룹 동기화(항목 그룹 생성/색상/예산탭 연결은 기존 로직 그대로 재사용)
+  syncPlanGroups();
+  // 3) 템플릿의 항목별 할일 제목을 해당 그룹에 추가(이미 같은 제목이 있으면 중복 추가하지 않음)
+  let added=0;
+  (tpl.groups||[]).forEach(tg=>{
+    const group=p.plan.groups.find(g=>g._ch===tg._ch)||p.plan.groups.find(g=>g.name===tg._ch);
+    if(!group)return;
+    if(!group.tasks)group.tasks=[];
+    (tg.tasks||[]).forEach(tt=>{
+      if(!tt.text||!tt.text.trim())return;
+      if(group.tasks.some(t=>t.text===tt.text))return;
+      group.tasks.push({text:tt.text,done:false,date:'',assignee:'',budget:0});
+      added++;
+    });
+  });
+  save();
+  renderPlanResult(p.plan);
+  renderQuickAddGroups();
+  updatePlanButtons();
+  closeLoadPlanTemplateModal();
+  toast(added?`템플릿에서 할 일 ${added}개를 불러왔어요 📂`:'항목만 불러왔어요(추가된 할 일 없음)',2500);
+}
+
+// ── 전체 검색(프로젝트/할일/회의록/기록장) ──
+// 사용자 요청: 프로젝트 수가 늘어날수록 "그때 그거 어디 적어놨더라" 하는 상황이 늘어나므로,
+// 앱 전체를 한 번에 훑어서 원하는 곳으로 바로 이동할 수 있는 검색 기능
+function openGlobalSearch(){
+  document.getElementById('global-search-modal').style.display='flex';
+  const inp=document.getElementById('gs-input');
+  if(inp){inp.value='';inp.focus();}
+  renderGlobalSearchResults();
+}
+function closeGlobalSearch(){
+  document.getElementById('global-search-modal').style.display='none';
+}
+document.addEventListener('keydown',function(e){
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){
+    e.preventDefault();
+    openGlobalSearch();
+  }else if(e.key==='Escape'){
+    const m=document.getElementById('global-search-modal');
+    if(m&&m.style.display==='flex')closeGlobalSearch();
+  }
+});
+function gsGoToProject(projId){
+  closeGlobalSearch();
+  const sel=document.getElementById('proj-sel');if(sel)sel.value=projId;
+  switchProj();
+  showView('plan',document.querySelector('.nav-tab[title="마케팅 플랜 생성"]'));
+}
+function gsGoToTask(projId,ds){
+  closeGlobalSearch();
+  const filterSel=document.getElementById('cal-proj-filter');if(filterSel)filterSel.value='';
+  showView('calendar',document.querySelector('.nav-tab[title="일정 관리"]'));
+  fullSelectDate(ds);
+}
+function gsGoToMeeting(mtgId){
+  closeGlobalSearch();
+  showView('meeting',document.querySelector('.nav-tab[title="회의록"]'));
+  renderMtgDetail(mtgId);
+}
+function gsGoToNote(noteId){
+  closeGlobalSearch();
+  showView('mynote',document.querySelector('.nav-tab[title="나만의 기록장"]'));
+  _curNoteId=noteId;
+  renderMyNoteList();renderMyNoteDetail(noteId);
+}
+function renderGlobalSearchResults(){
+  const body=document.getElementById('gs-results');if(!body)return;
+  const q=(document.getElementById('gs-input')?.value||'').trim().toLowerCase();
+  if(!q){body.innerHTML='<div style="text-align:center;padding:24px;color:var(--t3);font-size:12px">프로젝트, 할일, 회의록, 기록장을 통틀어 검색해요</div>';return;}
+  const MAX_PER_SECTION=6;
+  const sections=[];
+
+  // 1) 프로젝트
+  const projHits=getVisibleProjects().filter(p=>
+    (p.name||'').toLowerCase().includes(q)||(p.memo||'').toLowerCase().includes(q)||(p.target||'').toLowerCase().includes(q)
+  ).slice(0,MAX_PER_SECTION);
+  if(projHits.length){
+    sections.push({icon:'📁',title:'프로젝트',items:projHits.map(p=>
+      `<div class="gs-item" onclick="gsGoToProject('${p.id}')" style="padding:8px 10px;border-radius:var(--rs);cursor:pointer;border:1px solid var(--b2)">
+        <div style="font-size:12px;font-weight:600;color:var(--t)">${p.name}</div>
+        ${p.memo?`<div style="font-size:11px;color:var(--t3);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.memo}</div>`:''}
+      </div>`
+    )});
+  }
+
+  // 2) 할일(캘린더/플랜)
+  const taskHits=[];
+  getVisibleProjects().forEach(p=>{
+    Object.entries(p.tasks||{}).forEach(([ds,list])=>{
+      (list||[]).forEach(t=>{
+        if((t.text||'').toLowerCase().includes(q)||(t.memo||'').toLowerCase().includes(q)){
+          taskHits.push({proj:p,ds,task:t});
+        }
+      });
+    });
+  });
+  if(taskHits.length){
+    sections.push({icon:'📌',title:'할일',items:taskHits.slice(0,MAX_PER_SECTION).map(h=>
+      `<div class="gs-item" onclick="gsGoToTask('${h.proj.id}','${h.ds}')" style="padding:8px 10px;border-radius:var(--rs);cursor:pointer;border:1px solid var(--b2)">
+        <div style="font-size:12px;font-weight:600;color:var(--t)${h.task.done?';text-decoration:line-through;color:var(--t3)':''}">${h.task.text}</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:2px">${h.proj.name} · ${h.ds}</div>
+      </div>`
+    )});
+  }
+
+  // 3) 회의록
+  const mtgHits=getVisibleMeetings().filter(m=>
+    (m.title||'').toLowerCase().includes(q)||(m.notes||'').toLowerCase().includes(q)
+  ).slice(0,MAX_PER_SECTION);
+  if(mtgHits.length){
+    sections.push({icon:'🗣',title:'회의록',items:mtgHits.map(m=>
+      `<div class="gs-item" onclick="gsGoToMeeting('${m.id}')" style="padding:8px 10px;border-radius:var(--rs);cursor:pointer;border:1px solid var(--b2)">
+        <div style="font-size:12px;font-weight:600;color:var(--t)">${m.title}</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:2px">${m.date||''}</div>
+      </div>`
+    )});
+  }
+
+  // 4) 내 기록장 (본인 것만 - 다른 사람 개인 기록장까지 검색되면 안 됨)
+  const noteHits=getMyNotes().filter(n=>
+    (n.title||'').toLowerCase().includes(q)||(n.notes||'').toLowerCase().includes(q)
+  ).slice(0,MAX_PER_SECTION);
+  if(noteHits.length){
+    sections.push({icon:'📝',title:'내 기록장',items:noteHits.map(n=>
+      `<div class="gs-item" onclick="gsGoToNote('${n.id}')" style="padding:8px 10px;border-radius:var(--rs);cursor:pointer;border:1px solid var(--b2)">
+        <div style="font-size:12px;font-weight:600;color:var(--t)">${n.title}</div>
+      </div>`
+    )});
+  }
+
+  if(!sections.length){body.innerHTML='<div style="text-align:center;padding:24px;color:var(--t3);font-size:12px">검색 결과가 없어요</div>';return;}
+  body.innerHTML=sections.map(sec=>`
+    <div>
+      <div style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:6px">${sec.icon} ${sec.title}</div>
+      <div style="display:flex;flex-direction:column;gap:5px">${sec.items.join('')}</div>
+    </div>
+  `).join('');
+}
 
 function toggleTask(el,ds,projId,taskIdx){
   const proj=getProj(projId);if(!proj)return;
@@ -3688,6 +3984,7 @@ function renderFullDayTasks(ds){
             <!-- 사용자 요청: 캘린더에서 예산도 바로 넣고 수정할 수 있어야 하고, 플랜/예산 탭에도 연동되어야 함 -->
             <span style="font-size:9px;color:${t.budget?'#5a9e00':'var(--t3)'};display:flex;align-items:center;gap:2px">💰<input type="text" inputmode="decimal" value="${fmtNum(t.budget)}" placeholder="예산" oninput="event.stopPropagation();fmtNumInput(this)" onclick="event.stopPropagation()" onchange="event.stopPropagation();fullUpdateTaskBudget('${t.projId}','${anchorDs}',${t.taskIdx},numVal(this.value))" style="font-size:9px;padding:0 2px;border:1px solid var(--b2);border-radius:3px;background:var(--surf);color:inherit;width:64px"></span>
             ${t.priority?`<span style="font-size:9px;padding:1px 5px;border-radius:8px;${PRIO_STYLE[t.priority]||''}">${PRIO_LABEL[t.priority]||''}</span>`:''}
+            ${t.recurId?`<span title="반복 일정" style="font-size:9px;padding:1px 5px;border-radius:8px;background:var(--surf3);color:var(--t2)">🔁 반복</span>`:''}
             ${t.link?`<a href="${t.link}" target="_blank" style="font-size:9px;color:var(--bl)">🔗 링크</a>`:''}
             <!-- 사용자 요청: 상세 메모(서식 있는 긴 메모)가 있으면 우클릭 안 해도 바로 눌러서 볼 수 있게 배지도 하나 둠 -->
             ${hasTaskDetail(t)?`<button type="button" onclick="event.stopPropagation();openTaskDetailModal('${t.projId}','${anchorDs}',${t.taskIdx})" style="font-size:9px;padding:1px 6px;background:var(--surf3);border:1px solid var(--b2);border-radius:8px;color:var(--t2);cursor:pointer;font-family:inherit">📄 상세</button>`:''}
@@ -3932,6 +4229,11 @@ function fullDuplicateTask(pid,ds,i){
   p.tasks[ds].push(dup);
   save();renderCalView();renderFullDayTasks(ds);toast('할 일을 복제했어요 📋',1500);
 }
+function updateRepeatCountVisibility(){
+  const repeatType=document.getElementById('full-task-repeat')?.value||'';
+  const wrap=document.getElementById('full-task-repeat-count-wrap');
+  if(wrap)wrap.style.display=repeatType?'flex':'none';
+}
 function fullAddTask(){
   const text=document.getElementById('full-task-inp')?.value.trim();
   // 사용자 요청: 시작일은 클릭한 날짜로 기본 채워지지만 직접 다른 날짜로 바꿀 수도 있어야 함 →
@@ -3990,11 +4292,34 @@ function fullAddTask(){
 
   proj.tasks[startDate].push(task);
 
+  // 사용자 요청: "매주 화요일 SNS 발행"처럼 반복되는 할일을 매번 손으로 넣지 않도록, 반복 설정 시
+  // 지정한 횟수만큼 이후 날짜에도 같은 할일을 자동으로 만들어줌. 플랜 그룹 연동/여러 날 종료일처럼
+  // 프로젝트마다 다시 확인해야 하는 값은 반복 생성분에는 옮기지 않고(복잡도↑ 대비 실효 낮음), 첫 할일에만 적용.
+  const repeatType=document.getElementById('full-task-repeat')?.value||'';
+  if(repeatType){
+    let repeatCount=parseInt(document.getElementById('full-task-repeat-count')?.value)||1;
+    repeatCount=Math.max(2,Math.min(52,repeatCount)); // 최소 2회(처음+1번 더), 최대 52회로 무한 생성 방지
+    const recurId='r-'+Date.now()+Math.random().toString(36).slice(2);
+    task.recurId=recurId; // 첫 할일에도 표시해서 "반복 일정"임을 알 수 있게 함
+    const[sy,sm,sd]=startDate.split('-').map(Number);
+    for(let i=1;i<repeatCount;i++){
+      const nd=new Date(sy,sm-1,sd);
+      if(repeatType==='daily')nd.setDate(nd.getDate()+i);
+      else if(repeatType==='weekly')nd.setDate(nd.getDate()+i*7);
+      else if(repeatType==='monthly')nd.setMonth(nd.getMonth()+i);
+      const nds=nd.getFullYear()+'-'+String(nd.getMonth()+1).padStart(2,'0')+'-'+String(nd.getDate()).padStart(2,'0');
+      if(!proj.tasks[nds])proj.tasks[nds]=[];
+      proj.tasks[nds].push({text,type:typeVal,done:false,assignee,priority:task.priority,budget:task.budget,memo:task.memo,link:task.link,endDate:'',checklist:JSON.parse(JSON.stringify(checklist)),recurId,createdAt:Date.now()+i});
+    }
+  }
+
   // 인풋 초기화
   ['full-task-inp','full-task-budget','full-task-memo','full-task-link','full-task-checklist','full-task-enddate','full-task-assignee','full-task-assignee-val'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value='';
   });
   const asgBtn=document.getElementById('full-task-assignee-btn');if(asgBtn)asgBtn.textContent='👤 담당자';
+  const repeatSel=document.getElementById('full-task-repeat');if(repeatSel)repeatSel.value='';
+  updateRepeatCountVisibility();
 
   save();
   // 사용자 요청: 시작일을 클릭한 날짜와 다르게 바꿔서 추가했으면, 사이드바도 그 날짜로 따라가서
@@ -6486,6 +6811,12 @@ function renderDashboard(){
     });
   });
   weekTasks.sort((a,b)=>a.date.localeCompare(b.date));
+  // 사용자 요청: 로그인한 사람 기준으로 전체 프로젝트에서 "내 할 일만" 걸러볼 수 있는 전역 필터
+  const myTasksOnly=!!document.getElementById('dash-my-tasks-only')?.checked;
+  // 버그 방지: 필터링 안 할 때 scopedWeekTasks가 weekTasks와 같은 배열을 그대로 가리키면,
+  // 아래에서 weekTasks를 비우는 순간 scopedWeekTasks도 같이 비어버려서 도로 채울 내용이 없어짐 → 항상 복사본을 만들어야 함
+  const scopedWeekTasks=(myTasksOnly&&_mfUser?.name)?weekTasks.filter(t=>assigneeList(t.assignee).includes(_mfUser.name)):weekTasks.slice();
+  weekTasks.length=0;weekTasks.push(...scopedWeekTasks);
   const wDone=weekTasks.filter(t=>t.done).length;
   const wPct=weekTasks.length?Math.round(wDone/weekTasks.length*100):0;
   const weekPctEl=document.getElementById('dash-week-pct');
@@ -6499,7 +6830,7 @@ function renderDashboard(){
     <div style="margin-bottom:8px"><div style="height:5px;background:var(--surf3);border-radius:3px;overflow:hidden"><div style="height:100%;width:${wPct}%;background:var(--lm);border-radius:3px;transition:width .6s"></div></div></div>
     ${weekTasks.slice(0,6).map(t=>{const[,m,d]=t.date.split('-');return`<div style="display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid var(--b)"><div style="width:26px;font-size:10px;color:${t.overdue?'var(--rd)':'var(--t3)'};font-weight:${t.overdue?'700':'400'};flex-shrink:0;text-align:center">${parseInt(m)}/${parseInt(d)}</div><div style="width:3px;height:26px;border-radius:2px;background:${t.pc};flex-shrink:0"></div><div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:500;${t.done?'text-decoration:line-through;color:var(--t3)':''};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.text}</div><div style="font-size:9px;color:var(--t3);margin-top:1px">${t.projName} · <span style="color:${typeColor[t.type]||'var(--t3)'}">${typeLabel[t.type]||t.type||'일반'}</span>${t.overdue?' · <span style="color:var(--rd);font-weight:700">⏰ 지연</span>':''}</div></div>${t.done?'<span style="font-size:10px;color:var(--gn)">✓</span>':`<div style="width:6px;height:6px;border-radius:50%;background:${t.overdue?'var(--rd)':'var(--or)'};flex-shrink:0"></div>`}</div>`;}).join('')}
     ${weekTasks.length>6?`<div style="font-size:10px;color:var(--t3);text-align:center;padding:6px 0">+${weekTasks.length-6}개 더</div>`:''}
-  `:'<div style="font-size:11px;color:var(--t3);text-align:center;padding:20px 0">이번 주 일정이 없어요</div>';
+  `:`<div style="font-size:11px;color:var(--t3);text-align:center;padding:20px 0">${myTasksOnly?'이번 주엔 내 할 일이 없어요':'이번 주 일정이 없어요'}</div>`;
 
   // 버그 수정: 아래 4개 카드(광고 성과 랭킹/채널별 ROAS 분석/채널별 예산 vs 집행/프로젝트 진행률)는
   // 컨테이너만 있고 실제로 채워주는 코드가 없어서 항상 빈 화면이었음. 실제 데이터로 렌더링함.

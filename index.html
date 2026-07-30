@@ -563,6 +563,16 @@ input::placeholder,textarea::placeholder{color:var(--t3)}
 .note-table-ctxmenu{position:fixed;z-index:2000;background:var(--surf);border:1px solid var(--b2);border-radius:var(--r-sm);box-shadow:0 4px 16px rgba(0,0,0,.15);padding:4px;min-width:140px}
 .note-table-ctxmenu button{display:block;width:100%;text-align:left;padding:7px 10px;font-size:12px;background:transparent;border:none;color:var(--t);cursor:pointer;border-radius:4px;font-family:inherit}
 .note-table-ctxmenu button:hover{background:var(--surf2)}
+/* 사용자 요청: 할일을 마우스 우클릭하면 수정/삭제/복제 메뉴가 뜨게 함 */
+.task-ctxmenu{position:fixed;z-index:2000;background:var(--surf);border:1px solid var(--b2);border-radius:var(--r-sm);box-shadow:0 4px 16px rgba(0,0,0,.15);padding:4px;min-width:120px}
+.task-ctxmenu button{display:block;width:100%;text-align:left;padding:7px 10px;font-size:12px;background:transparent;border:none;color:var(--t);cursor:pointer;border-radius:4px;font-family:inherit}
+.task-ctxmenu button:hover{background:var(--surf2)}
+/* 사용자 요청: 할일 담당자를 여러 명 선택할 수 있는 체크박스 팝오버 */
+.assignee-picker-pop{position:fixed;z-index:2000;background:var(--surf);border:1px solid var(--b2);border-radius:var(--r-sm);box-shadow:0 4px 16px rgba(0,0,0,.15);padding:6px;min-width:130px;max-height:220px;overflow-y:auto}
+.assignee-picker-pop label{display:flex;align-items:center;gap:6px;padding:5px 6px;font-size:11px;cursor:pointer;border-radius:4px;color:var(--t);white-space:nowrap}
+.assignee-picker-pop label:hover{background:var(--surf2)}
+.assignee-picker-pop input[type=checkbox]{cursor:pointer}
+.assignee-picker-trigger{cursor:pointer}
 /* 토글(접기/펼치기) 블록 — 화살표를 눌러야만 접히고 펼쳐짐(네이티브 <details> 대신 직접 구현해서,
    본문을 클릭해도 다시 편집할 수 없어지는 문제를 없앰). 의미 없는 배경색은 제거함 */
 .note-toggle{margin:4px 0}
@@ -924,10 +934,9 @@ select:focus{border-color:var(--lm);outline:none}
         <select id="plan-quick-group" style="font-size:11px;padding:5px 8px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);font-family:inherit;flex:1;min-width:80px">
           <option value="">그룹 선택</option>
         </select>
-        <select id="plan-quick-assignee" style="font-size:11px;padding:5px 8px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);font-family:inherit;flex:1;min-width:80px">
-          <option value="">👤 담당자</option>
-          <option value="전체">👥 전체</option>
-        </select>
+        <!-- 사용자 요청: 여러 명 선택 가능 -->
+        <input type="hidden" id="plan-quick-assignee" value="">
+        <button type="button" id="plan-quick-assignee-btn" class="assignee-picker-trigger" onclick="openAssigneePicker(this,document.getElementById('plan-quick-assignee').value,function(csv){document.getElementById('plan-quick-assignee').value=csv;document.getElementById('plan-quick-assignee-btn').textContent=csv?('👤 '+assigneeDisplay(csv)):'👤 담당자';})" style="font-size:11px;padding:5px 8px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);font-family:inherit;flex:1;min-width:80px;text-align:left;color:var(--t2)">👤 담당자</button>
         <input type="date" id="plan-quick-date" style="font-size:11px;padding:5px 8px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);font-family:inherit">
         <input type="text" id="plan-quick-budget" placeholder="예산" style="font-size:11px;padding:5px 8px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);font-family:inherit;width:70px">
         <button onclick="quickAddPlanTask()" style="padding:5px 16px;background:#C8F064;color:#1a1917;border:none;border-radius:var(--rs);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">+ 추가</button>
@@ -1039,11 +1048,9 @@ select:focus{border-color:var(--lm);outline:none}
           <option value="">📁 프로젝트 선택</option>
         </select>
 
-        <!-- 담당자 -->
-        <select id="full-task-assignee-sel" style="font-size:11px;font-family:inherit">
-          <option value="">👤 담당자</option>
-          <option value="전체">👥 전체</option>
-        </select>
+        <!-- 담당자 (사용자 요청: 여러 명 선택 가능) -->
+        <input type="hidden" id="full-task-assignee-val" value="">
+        <button type="button" id="full-task-assignee-btn" class="assignee-picker-trigger" onclick="openAssigneePicker(this,document.getElementById('full-task-assignee-val').value,function(csv){document.getElementById('full-task-assignee-val').value=csv;document.getElementById('full-task-assignee-btn').textContent=csv?('👤 '+assigneeDisplay(csv)):'👤 담당자';})" style="font-size:11px;font-family:inherit;background:var(--surf2);border:1px solid var(--b2);border-radius:var(--rs);padding:6px 8px;color:var(--t2);text-align:left">👤 담당자</button>
 
         <!-- 채널/유형 -->
         <select id="full-task-type" style="font-size:11px" onchange="updateSidebarPlanGroups()">
@@ -2321,7 +2328,7 @@ function quickAddPlanTask(){
   save();
   renderPlanResult(p.plan);
   renderQuickAddGroups();
-  renderFullCal();
+  renderCalView();
   if(S.selDate===date&&date)renderFullDayTasks(date);
   toast('할 일 추가됐어요 ✓',1500);
 }
@@ -2333,11 +2340,53 @@ function getAssigneeOpts(cur){
     ...getVisibleUsers().map(u=>'<option value="'+u.name+'"'+(cur===u.name?' selected':'')+'>'+u.name+'</option>')
   ].join('');
 }
+// 사용자 요청: 할일 담당자를 한 명이 아니라 두 명, 세 명, 네 명... 여러 명 선택할 수 있어야 함.
+// 데이터는 예전처럼 문자열 하나(assignee)에 그대로 저장하되, 여러 명이면 쉼표로 구분해서 저장함
+// (하위 호환: 기존에 한 명만 저장돼있던 데이터도 그대로 정상 동작함)
+function assigneeList(str){return(str||'').split(',').map(s=>s.trim()).filter(Boolean);}
+function assigneeDisplay(str){return assigneeList(str).join(', ');}
+function assigneeMatches(str,filterName){
+  if(!filterName)return true;
+  const list=assigneeList(str);
+  if(list.includes('전체'))return true;
+  return list.includes(filterName);
+}
+// 담당자 여러 명 선택용 공용 팝오버(체크박스 방식). trigger 버튼을 누르면 열리고,
+// 체크할 때마다 onChange(csv)가 바로 호출되어 저장됨. 팝오버 밖을 클릭하면 닫힘.
+let _asgPickerCtx=null;
+function openAssigneePicker(triggerEl,currentCSV,onChange){
+  document.querySelectorAll('.assignee-picker-pop').forEach(m=>m.remove());
+  const rect=triggerEl.getBoundingClientRect?triggerEl.getBoundingClientRect():{left:0,bottom:0};
+  const selected=assigneeList(currentCSV);
+  const pop=document.createElement('div');
+  pop.className='assignee-picker-pop';
+  pop.style.left=Math.max(4,Math.min(rect.left,(window.innerWidth||400)-160))+'px';
+  pop.style.top=(rect.bottom+4)+'px';
+  const rows=['전체',...getVisibleUsers().map(u=>u.name)];
+  pop.innerHTML=rows.map(name=>{
+    const checked=selected.includes(name);
+    const label=name==='전체'?'👥 전체':'👤 '+name;
+    return`<label onclick="event.stopPropagation()"><input type="checkbox" ${checked?'checked':''} onchange="assigneePickerToggle('${name.replace(/'/g,"\\'")}',this.checked)">${label}</label>`;
+  }).join('');
+  document.body.appendChild(pop);
+  _asgPickerCtx={csv:currentCSV||'',onChange};
+}
+function assigneePickerToggle(name,checked){
+  if(!_asgPickerCtx)return;
+  let list=assigneeList(_asgPickerCtx.csv);
+  if(checked){if(!list.includes(name))list.push(name);}else{list=list.filter(n=>n!==name);}
+  _asgPickerCtx.csv=list.join(',');
+  _asgPickerCtx.onChange(_asgPickerCtx.csv);
+}
+document.addEventListener('click',function(e){
+  if(e.target.closest('.assignee-picker-pop')||e.target.closest('.assignee-picker-trigger'))return;
+  document.querySelectorAll('.assignee-picker-pop').forEach(m=>m.remove());
+  _asgPickerCtx=null;
+});
 
 function renderQuickAddGroups(){
   const p=getCurProj();
   const sel=document.getElementById('plan-quick-group');
-  const asel=document.getElementById('plan-quick-assignee');
   if(!sel)return;
 
   // 그룹 옵션
@@ -2345,13 +2394,8 @@ function renderQuickAddGroups(){
   const curGroup=sel.value;
   sel.innerHTML='<option value="">그룹 선택 (공통)</option>'+
     groups.map(g=>`<option value="${g.id}"${g.id===curGroup?' selected':''}>${g.name}</option>`).join('');
-
-  // 담당자 옵션
-  if(asel){
-    const curA=asel.value;
-    asel.innerHTML='<option value="">👤 담당자</option><option value="전체">👥 전체</option>'+
-      getVisibleUsers().map(u=>`<option value="${u.name}"${u.name===curA?' selected':''}>${u.name}</option>`).join('');
-  }
+  // 담당자(여러 명 선택 팝오버)는 openAssigneePicker가 열릴 때마다 getVisibleUsers()를 그대로 다시 읽어오므로
+  // 별도의 옵션 미리 채워두기가 필요 없음
 }
 
 function addPlanGoal(){
@@ -2507,7 +2551,7 @@ function genPlan(){
   const groups=[{id:'g-common',name:'공통',color:'#aaa',tasks:[]}];
   chs.forEach(ch=>{groups.push({id:'g-'+ch.replace(/\s/g,'')+Date.now(),name:TN[ch]||ch,color:TC[ch]||'var(--lm)',_ch:ch,tasks:[]});});
   const plan={name:document.getElementById('p-name')?.value.trim()||p.name||'',budget:document.getElementById('p-budget')?.value.trim()||'',period:document.getElementById('p-period')?.value.trim()||'',target:document.getElementById('p-target')?.value.trim()||'',memo:document.getElementById('p-memo')?.value.trim()||'',channels:chs,groups,createdAt:Date.now()};
-  p.plan=plan;applyChBudgetsToProject(p);save();renderPlanResult(plan);renderQuickAddGroups();renderFullCal();updatePlanButtons();toast('플랜 틀 생성! 할 일을 직접 입력해봐요 ✏️',3000);
+  p.plan=plan;applyChBudgetsToProject(p);save();renderPlanResult(plan);renderQuickAddGroups();renderCalView();updatePlanButtons();toast('플랜 틀 생성! 할 일을 직접 입력해봐요 ✏️',3000);
 }
 
 // 항목(채널)별 계획 예산을 그룹 + 예산탭 데이터에 반영
@@ -2593,14 +2637,14 @@ function renderPlanResult(plan,editMode=false){
   const groupsHtml=plan.groups.map((g,gi)=>{
     const gc=TC[g.name]||g.color||'var(--lm)';
     const gd=(g.tasks||[]).filter(t=>t.done).length;
-    const rowHtml=(t,ti)=>`<div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--rs);margin-bottom:5px;padding:8px 10px">
+    const rowHtml=(t,ti)=>`<div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--rs);margin-bottom:5px;padding:8px 10px" oncontextmenu="planTaskCtxMenu(event,${gi},${ti})">
         <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
           <div onclick="togglePT(${gi},${ti})" style="width:15px;height:15px;border-radius:3px;border:1.5px solid ${t.done?gc:'var(--b3)'};background:${t.done?gc:'transparent'};flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center">${t.done?'<span style="font-size:8px;color:#fff;font-weight:700">✓</span>':''}</div>
           <input value="${(t.text||'').replace(/"/g,'&quot;')}" onchange="updatePT(${gi},${ti},'text',this.value)" style="flex:1;min-width:0;background:transparent;border:none;font-size:11px;color:${t.done?'var(--t3)':'var(--t)'};${t.done?'text-decoration:line-through;':''}font-family:inherit;outline:none" placeholder="할 일 입력...">
           <button onclick="deletePT(${gi},${ti})" style="border:none;background:transparent;color:var(--t3);font-size:11px;cursor:pointer">✕</button>
         </div>
         <div style="display:flex;gap:6px;padding-left:22px">
-          <select onchange="updatePT(${gi},${ti},'assignee',this.value)" style="font-size:10px;padding:2px 6px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:var(--t3);flex:1;max-width:110px;font-family:inherit">${getAssigneeOpts(t.assignee||'')}</select>
+          <button type="button" class="assignee-picker-trigger" onclick="openAssigneePicker(this,'${(t.assignee||'').replace(/'/g,"\\'")}',function(csv){updatePTAssignee(${gi},${ti},csv);})" style="font-size:10px;padding:2px 6px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:var(--t3);flex:1;max-width:110px;font-family:inherit;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.assignee?('👤 '+assigneeDisplay(t.assignee)):'👤 담당자'}</button>
           <input type="date" value="${t.date||''}" onchange="updatePTDate(${gi},${ti},this.value)" style="font-size:10px;padding:2px 6px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:${t.date?'var(--lm)':'var(--t3)'};flex:1;font-family:inherit">
           ${t.date?`<input type="date" value="${t.endDate||''}" onchange="updatePTEndDate(${gi},${ti},this.value)" title="종료일(선택·여러 날 일정이면)" min="${t.date}" style="font-size:10px;padding:2px 6px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:${t.endDate?'var(--lm)':'var(--t3)'};flex:1;font-family:inherit">`:''}
           <input type="number" value="${t.budget||''}" onchange="updatePT(${gi},${ti},'budget',this.value)" placeholder="예산(원)" min="0" style="font-size:10px;padding:2px 6px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:${t.budget?'#5a9e00':'var(--t3)'};width:80px;font-family:inherit">
@@ -2713,7 +2757,7 @@ function updateCalProgress(){
         const endOf=t=>(t.endDate&&t.endDate>ds)?t.endDate:ds;
         ts.forEach(t => {
           if(!(ds<=weStr && endOf(t)>=wsStr))return; // 구간 겹침 체크(한 번만 카운트)
-          if(assigneeF && t.assignee !== assigneeF) return;
+          if(!assigneeMatches(t.assignee,assigneeF)) return;
           total++; if(t.done) done++;
         });
       });
@@ -2734,7 +2778,7 @@ function updateCalProgress(){
       Object.entries(p.tasks||{}).forEach(([ds,ts]) => {
         if(ds.startsWith(prefix)){
           ts.forEach(t => {
-            if(assigneeF && t.assignee !== assigneeF) return;
+            if(!assigneeMatches(t.assignee,assigneeF)) return;
             total++; if(t.done) done++;
           });
         }
@@ -2838,7 +2882,7 @@ function getFilteredTasks(ds){
   const projs=projF?S.projects.filter(p=>p.id===projF):getVisibleProjects();
   projs.forEach(p=>{
     (p.tasks[ds]||[]).forEach((t,ti)=>{
-      if(assigneeF&&t.assignee!==assigneeF)return;
+      if(!assigneeMatches(t.assignee,assigneeF))return;
       if(typeF!=='all'&&t.type!==typeF)return;
       tasks.push({...t,_projId:p.id,_taskIdx:ti,_projName:p.name,_projColor:p.color||'var(--lm)'});
     });
@@ -2853,7 +2897,7 @@ function calcCompletionRate(projId, assignee){
   projs.forEach(p=>{
     Object.values(p.tasks||{}).forEach(ts=>{
       ts.forEach(t=>{
-        if(assignee&&t.assignee!==assignee)return;
+        if(!assigneeMatches(t.assignee,assignee))return;
         total++;if(t.done)done++;
       });
     });
@@ -2893,11 +2937,15 @@ function renderWeekCal(){
     // 필터 적용 (사용자 요청: 여러 날에 걸친 일정이면 그 기간의 모든 날짜 칸에 나타나야 함)
     let tasks=[];
     const projs=projF?S.projects.filter(p=>p.id===projF):getVisibleProjects();
+    // 사용자 요청: 주 보기에서도 월 보기처럼 프로젝트마다 색깔이 구분되어야 함(색은 전체 프로젝트 목록 기준 인덱스로
+    // 계산해서, 같은 프로젝트면 월/주 보기에서 항상 같은 색이 나오도록 함)
+    const _weekColorProjs=getVisibleProjects();
     projs.forEach(p=>{
+      const _pColorIdx=_weekColorProjs.findIndex(vp=>vp.id===p.id);
       getTasksOverlappingDate(p,ds).forEach(t=>{
-        if(assigneeF&&t.assignee!==assigneeF)return;
+        if(!assigneeMatches(t.assignee,assigneeF))return;
         if(typeF&&typeF!=='all'&&t.type!==typeF)return;
-        tasks.push({...t,_projId:p.id,_taskIdx:t._anchorIdx,_anchorDate:t._anchorDate,_projName:p.name});
+        tasks.push({...t,_projId:p.id,_taskIdx:t._anchorIdx,_anchorDate:t._anchorDate,_projName:p.name,_projColor:projColor(_pColorIdx<0?0:_pColorIdx)});
       });
     });
     const total=tasks.length,done=tasks.filter(t=>t.done).length;
@@ -2907,15 +2955,15 @@ function renderWeekCal(){
       const aDs=t._anchorDate||ds;
       // 사용자 요청: 주 보기 할일도 목록에서 바로 수정(제목)/삭제할 수 있어야 하고,
       // 마우스로 끌어서 다른 날로 옮길 수 있어야 함(드래그는 월 보기와 동일한 calDragStart/calDrop 재사용)
-      return`<div draggable="true" ondragstart="event.stopPropagation();calDragStart(event,'${t._projId}','${aDs}',${t._taskIdx})" ondragend="calDragEnd(event)" style="margin-bottom:3px;padding:4px 6px;background:var(--surf);border-left:2px solid ${c};border-radius:3px;border-top:1px solid var(--b);border-right:1px solid var(--b);border-bottom:1px solid var(--b)">
+      return`<div draggable="true" ondragstart="event.stopPropagation();calDragStart(event,'${t._projId}','${aDs}',${t._taskIdx})" ondragend="calDragEnd(event)" oncontextmenu="event.stopPropagation();calTaskCtxMenu(event,'${t._projId}','${aDs}',${t._taskIdx})" style="margin-bottom:3px;padding:4px 6px;background:var(--surf);border-left:2px solid ${c};border-radius:3px;border-top:1px solid var(--b);border-right:1px solid var(--b);border-bottom:1px solid var(--b)">
         <div style="display:flex;align-items:flex-start;gap:4px">
           <div onclick="event.stopPropagation();toggleTaskInline(this,'${aDs}','${t._projId}',${t._taskIdx})" style="width:11px;height:11px;border-radius:2px;border:1.5px solid ${t.done?c:'var(--b3)'};background:${t.done?c:'transparent'};flex-shrink:0;margin-top:1px;cursor:pointer"></div>
           <input class="full-task-text-inp" value="${(t.text||'').replace(/"/g,'&quot;')}" oninput="fullEditTaskText('${t._projId}','${aDs}',${t._taskIdx},this.value)" onclick="event.stopPropagation()" style="flex:1;min-width:0;border:none;background:transparent;padding:0;font-family:inherit;font-size:11px;${t.done?'text-decoration:line-through;color:var(--t3)':'color:var(--t)'};line-height:1.3">
           <button class="task-del" title="삭제" onclick="event.stopPropagation();fullDel('${t._projId}','${aDs}',${t._taskIdx})" style="flex-shrink:0;width:14px;height:14px">✕</button>
         </div>
-        ${t.assignee?`<div style="font-size:9px;color:var(--t3);padding-left:15px">👤 ${t.assignee}</div>`:''}
+        ${t.assignee?`<div style="font-size:9px;color:var(--t3);padding-left:15px">👤 ${assigneeDisplay(t.assignee)}</div>`:''}
         ${t.endDate&&t.endDate>aDs?`<div style="font-size:9px;color:var(--lm);padding-left:15px">📅 ${aDs.slice(5)}~${t.endDate.slice(5)}</div>`:''}
-        <div style="font-size:9px;color:var(--t3);padding-left:15px">${t._projName}</div>
+        <div style="font-size:9px;color:${t._projColor};font-weight:600;padding-left:15px;display:flex;align-items:center;gap:3px"><span style="width:6px;height:6px;border-radius:50%;background:${t._projColor};display:inline-block;flex-shrink:0"></span>${t._projName}</div>
       </div>`;
     }).join('');
     return`<div class="week-daycol" ondragover="calDragOver(event)" ondragleave="calDragLeave(event)" ondrop="calDrop(event,'${ds}')" style="border-right:1px solid var(--b);${i===6?'border-right:none':''}background:${isToday?'rgba(200,240,100,.04)':'var(--surf)'}">
@@ -2948,10 +2996,55 @@ function toggleTaskInline(el, ds, projId, taskIdx){
 
 function togglePT(gi,ti){const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(!t)return;t.done=!t.done;const p=getCurProj();if(t.date&&p.tasks[t.date]){const ct=p.tasks[t.date].find(c=>c._planRef===gi+'-'+ti);if(ct)ct.done=t.done;}save();renderPlanResult(p.plan);if(S.selDate)renderFullDayTasks(S.selDate);}
 function updatePT(gi,ti,field,val){const g=getPG();if(!g)return;if(ti===-1){if(g[gi])g[gi].name=val;}else{if(g[gi]?.tasks?.[ti])g[gi].tasks[ti][field]=val;}save();}
-function updatePTDate(gi,ti,date){const p=getCurProj();if(!p||!p.plan)return;const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(!t)return;if(t.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}t.date=date;if(t.endDate&&date&&t.endDate<=date)t.endDate='';if(date){if(!p.tasks[date])p.tasks[date]=[];const ex=p.tasks[date].find(c=>c._planRef===gi+'-'+ti);if(ex){ex.text=t.text;ex.done=t.done;ex.endDate=t.endDate||'';}else{p.tasks[date].push({text:t.text||'(제목 없음)',type:'ops',done:t.done,assignee:t.assignee||'',endDate:t.endDate||'',_planRef:gi+'-'+ti,_fromPlan:true});}}save();renderPlanResult(p.plan);renderFullCal();if(S.selDate===date)renderFullDayTasks(date);toast('캘린더에 반영됐어요 📅',1800);}
-function updatePTEndDate(gi,ti,val){const p=getCurProj();if(!p||!p.plan)return;const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(!t)return;const endDate=(val&&t.date&&val>t.date)?val:'';t.endDate=endDate;if(t.date&&p.tasks[t.date]){const ct=p.tasks[t.date].find(c=>c._planRef===gi+'-'+ti);if(ct)ct.endDate=endDate;}save();renderPlanResult(p.plan);renderFullCal();if(S.selDate)renderFullDayTasks(S.selDate);}
+// 사용자 요청: 담당자를 여러 명 선택할 수 있어야 하고, 캘린더 쪽에 이미 동기화된 할일이면 거기에도 반영되어야 함
+function updatePTAssignee(gi,ti,csv){
+  const p=getCurProj();if(!p||!p.plan)return;
+  const g=getPG();if(!g)return;
+  const t=g[gi]?.tasks?.[ti];if(!t)return;
+  t.assignee=csv;
+  if(t.date&&p.tasks[t.date]){
+    const ct=p.tasks[t.date].find(c=>c._planRef===gi+'-'+ti);
+    if(ct)ct.assignee=csv;
+  }
+  save();renderPlanResult(p.plan);renderCalView();if(S.selDate)renderFullDayTasks(S.selDate);
+}
+function updatePTDate(gi,ti,date){const p=getCurProj();if(!p||!p.plan)return;const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(!t)return;if(t.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}t.date=date;if(t.endDate&&date&&t.endDate<=date)t.endDate='';if(date){if(!p.tasks[date])p.tasks[date]=[];const ex=p.tasks[date].find(c=>c._planRef===gi+'-'+ti);if(ex){ex.text=t.text;ex.done=t.done;ex.endDate=t.endDate||'';}else{p.tasks[date].push({text:t.text||'(제목 없음)',type:'ops',done:t.done,assignee:t.assignee||'',endDate:t.endDate||'',_planRef:gi+'-'+ti,_fromPlan:true});}}save();renderPlanResult(p.plan);renderCalView();if(S.selDate===date)renderFullDayTasks(date);toast('캘린더에 반영됐어요 📅',1800);}
+function updatePTEndDate(gi,ti,val){const p=getCurProj();if(!p||!p.plan)return;const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(!t)return;const endDate=(val&&t.date&&val>t.date)?val:'';t.endDate=endDate;if(t.date&&p.tasks[t.date]){const ct=p.tasks[t.date].find(c=>c._planRef===gi+'-'+ti);if(ct)ct.endDate=endDate;}save();renderPlanResult(p.plan);renderCalView();if(S.selDate)renderFullDayTasks(S.selDate);}
 function addPT(gi){const g=getPG();if(!g)return;if(!g[gi].tasks)g[gi].tasks=[];g[gi].tasks.push({text:'',done:false,date:'',assignee:''});save();renderPlanResult(getCurProj().plan);}
-function deletePT(gi,ti){const p=getCurProj();if(!p||!p.plan)return;const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(t?.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}g[gi].tasks.splice(ti,1);_reindexPlanRefsAfterTaskDelete(p,gi,ti);save();renderPlanResult(p.plan);renderFullCal();renderQuickAddGroups();}
+function deletePT(gi,ti){const p=getCurProj();if(!p||!p.plan)return;const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(t?.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}g[gi].tasks.splice(ti,1);_reindexPlanRefsAfterTaskDelete(p,gi,ti);save();renderPlanResult(p.plan);renderCalView();renderQuickAddGroups();}
+// 사용자 요청: 플랜 할일도 마우스 우클릭하면 수정/삭제/복제 메뉴가 뜨게 함
+let _planCtxRowEl=null;
+function planTaskCtxMenu(e,gi,ti){
+  e.preventDefault();
+  document.querySelectorAll('.task-ctxmenu').forEach(m=>m.remove());
+  _planCtxRowEl=e.currentTarget;
+  const menu=document.createElement('div');
+  menu.className='task-ctxmenu';
+  menu.style.left=e.clientX+'px';menu.style.top=e.clientY+'px';
+  menu.innerHTML=`<button onclick="planTaskCtxEdit()">✏️ 수정</button><button onclick="duplicatePT(${gi},${ti})">📋 복제</button><button onclick="deletePT(${gi},${ti})">🗑 삭제</button>`;
+  document.body.appendChild(menu);
+  setTimeout(()=>{document.addEventListener('click',function closeMenu(){menu.remove();document.removeEventListener('click',closeMenu);},{once:true});},0);
+}
+function planTaskCtxEdit(){
+  document.querySelectorAll('.task-ctxmenu').forEach(m=>m.remove());
+  const inp=_planCtxRowEl?.querySelector('input:not([type])');
+  if(inp){inp.focus();inp.select();}
+}
+// 사용자 요청: 플랜 할일을 그대로 복제할 수 있어야 함(우클릭 메뉴 → 복제). 캘린더에도 날짜가 있으면 같이 반영됨
+function duplicatePT(gi,ti){
+  document.querySelectorAll('.task-ctxmenu').forEach(m=>m.remove());
+  const p=getCurProj();if(!p||!p.plan)return;
+  const g=getPG();if(!g||!g[gi]?.tasks?.[ti])return;
+  const orig=g[gi].tasks[ti];
+  const dup={...orig,done:false};
+  g[gi].tasks.push(dup); // 맨 뒤에 추가(중간에 끼워넣으면 기존 항목들의 인덱스가 밀려 캘린더 쪽 _planRef가 깨짐)
+  const newTi=g[gi].tasks.length-1;
+  if(dup.date){
+    if(!p.tasks[dup.date])p.tasks[dup.date]=[];
+    p.tasks[dup.date].push({text:dup.text||'(제목 없음)',type:'ops',done:false,assignee:dup.assignee||'',endDate:dup.endDate||'',_planRef:gi+'-'+newTi,_fromPlan:true});
+  }
+  save();renderPlanResult(p.plan);renderCalView();if(S.selDate)renderFullDayTasks(S.selDate);toast('할 일을 복제했어요 📋',1500);
+}
 function addGroup(){const p=getCurProj();if(!p||!p.plan)return;if(!p.plan.groups)p.plan.groups=[];p.plan.groups.push({id:'g-'+Date.now(),name:'새 그룹',color:'var(--lm)',tasks:[]});save();renderPlanResult(p.plan);renderQuickAddGroups();setTimeout(()=>{const inputs=document.querySelectorAll('[onchange*="updatePT"]');if(inputs.length)inputs[inputs.length-1].select();},50);}
 function deleteGroup(gi){const p=getCurProj();if(!p||!p.plan?.groups)return;(p.plan.groups[gi]?.tasks||[]).forEach((t,ti)=>{if(t.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}});
   // 이 항목(그룹)에 연동돼있던 회의록 액션 아이템은 연동이 끊기므로, 사라지기 전 마지막 값을 로컬로 되돌려 보존하고 연동 해제
@@ -2961,7 +3054,7 @@ function deleteGroup(gi){const p=getCurProj();if(!p||!p.plan?.groups)return;(p.p
       if(agi===gi){_mtgActionRefreshCache(a);a._planRef=null;a._linkProjId=null;a._linkGroupId=null;a.projId='';a.groupId='';}
     }
   }));
-  p.plan.groups.splice(gi,1);_reindexPlanRefsAfterGroupDelete(p,gi);save();renderPlanResult(p.plan);renderFullCal();}
+  p.plan.groups.splice(gi,1);_reindexPlanRefsAfterGroupDelete(p,gi);save();renderPlanResult(p.plan);renderCalView();}
 function togglePlanTask(ch, taskIdx){
   const proj=getCurProj();
   if(!proj||!proj.plan)return;
@@ -3070,7 +3163,7 @@ function planAddTask(){
   if(!proj.tasks[S.planSelDate])proj.tasks[S.planSelDate]=[];
   proj.tasks[S.planSelDate].push({text,type,done:false,_planRef:gi+'-'+ti,_fromPlan:true});
   document.getElementById('plan-task-inp').value='';
-  save();renderMiniCal();renderPlanResult(proj.plan);renderQuickAddGroups();renderFullCal();
+  save();renderMiniCal();renderPlanResult(proj.plan);renderQuickAddGroups();renderCalView();
   toast('할 일 추가됐어요 ✓',1200);
 }
 function planToggleTask(ds,i){
@@ -3119,7 +3212,7 @@ function calFilterClick(btn){
     b.classList.remove('on','on-all','on-meta','on-crm','on-inf','on-ops','on-live','on-content');
   });
   btn.classList.add('on','on-'+_calFilter);
-  renderFullCal();
+  renderCalView();
 }
 // 버그 수정: 캘린더가 "주" 보기 모드일 때 ‹/› 버튼을 눌러도 다음/이전 주로 안 넘어가던 문제.
 // 예전엔 이 함수가 항상 월(month) 기준으로만 이동해서, 주 보기 상태에서 눌러도 반영이 안 됐음.
@@ -3173,20 +3266,26 @@ function renderFullCal(){
   const today=new Date();today.setHours(0,0,0,0);
   let html='';
   ['일','월','화','수','목','금','토'].forEach(d=>html+=`<div class="cal-dow">${d}</div>`);
-  const prevLast=new Date(y,m,0).getDate();
-  for(let i=startDow-1;i>=0;i--)html+=`<div class="cal-cell other-m-cell"><div class="cal-date-n">${prevLast-i}</div></div>`;
-  for(let d=1;d<=total;d++){
-    const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const isToday=new Date(y,m,d).getTime()===today.getTime();
+  // 버그 수정: 이전/다음 달로 넘어가는 회색 칸(다른 달 날짜)은 예전엔 숫자만 있고 onclick/ondrop이
+  // 전혀 없어서, 할일을 그 칸으로 드래그해서 옮기려 하면(달을 넘어가는 이동) 아무 반응이 없었음.
+  // 그래서 이전/현재/다음 달 칸이 모두 같은 렌더 로직(실제 날짜 계산 + 클릭/드래그/할일 표시)을 쓰도록 통일함.
+  const cellHtml=(y2,m2,d,isOther)=>{
+    const ds=`${y2}-${String(m2+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday=new Date(y2,m2,d).getTime()===today.getTime();
     const isSel=S.selDate===ds;
     let tasks=getAllTasksForDate(ds);
     if(_calFilter!=='all')tasks=tasks.filter(t=>t.type===_calFilter);
     const shown=tasks.slice(0,3);const more=tasks.length-3;
     const dotItems=shown.map(t=>`<div class="cdot ${t.type}${t.done?' done':''}" draggable="true" ondragstart="calDragStart(event,'${t.projId}','${t._anchorDate}',${t.taskIdx})" ondragend="calDragEnd(event)"><div class="cdot-proj-dot" style="background:${t.projColor}"></div>${t.text}${t.endDate&&t.endDate>t._anchorDate?` <span style="opacity:.6;font-size:9px">~${t.endDate.slice(5)}</span>`:''}</div>`).join('');
-    html+=`<div class="cal-cell${isToday?' today-cell':''}${isSel?' sel-cell':''}" onclick="fullSelectDate('${ds}')" ondragover="calDragOver(event)" ondragleave="calDragLeave(event)" ondrop="calDrop(event,'${ds}')"><div class="cal-date-n">${d}</div><div class="cal-cell-dots">${dotItems}${more>0?`<div class="cdot-more">+${more}개</div>`:''}</div></div>`;
-  }
+    return`<div class="cal-cell${isOther?' other-m-cell':''}${isToday?' today-cell':''}${isSel?' sel-cell':''}" onclick="fullSelectDate('${ds}')" ondragover="calDragOver(event)" ondragleave="calDragLeave(event)" ondrop="calDrop(event,'${ds}')"><div class="cal-date-n">${d}</div><div class="cal-cell-dots">${dotItems}${more>0?`<div class="cdot-more">+${more}개</div>`:''}</div></div>`;
+  };
+  const prevLast=new Date(y,m,0).getDate();
+  const prevM=m===0?11:m-1,prevY=m===0?y-1:y;
+  for(let i=startDow-1;i>=0;i--)html+=cellHtml(prevY,prevM,prevLast-i,true);
+  for(let d=1;d<=total;d++)html+=cellHtml(y,m,d,false);
   const total2=Math.ceil((startDow+total)/7)*7;
-  for(let d=1;d<=total2-(startDow+total);d++)html+=`<div class="cal-cell other-m-cell"><div class="cal-date-n">${d}</div></div>`;
+  const nextM=m===11?0:m+1,nextY=m===11?y+1:y;
+  for(let d=1;d<=total2-(startDow+total);d++)html+=cellHtml(nextY,nextM,d,true);
   document.getElementById('full-cal-grid').innerHTML=html;
 }
 function calDragStart(e,projId,fromDate,taskIdx){_drag={projId,fromDate,taskIdx};e.dataTransfer.effectAllowed='move';e.currentTarget.style.opacity='0.4';}
@@ -3222,7 +3321,7 @@ function calDrop(e,toDate){
   _drag={};
   save();renderCalView();if(S.selDate)renderFullDayTasks(S.selDate);if(proj.plan)renderPlanResult(proj.plan);
 }
-function fullSelectDate(ds){S.selDate=ds;renderFullCal();renderFullDayTasks(ds);}
+function fullSelectDate(ds){S.selDate=ds;renderCalView();renderFullDayTasks(ds);}
 
 function updateCalTaskTypeOptions(){
   const sel=document.getElementById('full-task-type');
@@ -3271,7 +3370,7 @@ function renderFullDayTasks(ds){
 
     const anchorDs=t._anchorDate||ds;
     const isRange=t.endDate&&t.endDate>anchorDs;
-    return`<div style="background:var(--surf2);border-radius:var(--rs);border:1px solid var(--b);border-left:3px solid ${color};padding:9px 10px;margin-bottom:5px" draggable="true" ondragstart="calDragStart(event,'${t.projId}','${anchorDs}',${t.taskIdx})" ondragend="calDragEnd(event)">
+    return`<div style="background:var(--surf2);border-radius:var(--rs);border:1px solid var(--b);border-left:3px solid ${color};padding:9px 10px;margin-bottom:5px" draggable="true" ondragstart="calDragStart(event,'${t.projId}','${anchorDs}',${t.taskIdx})" ondragend="calDragEnd(event)" oncontextmenu="calTaskCtxMenu(event,'${t.projId}','${anchorDs}',${t.taskIdx})">
       <div style="display:flex;align-items:flex-start;gap:7px">
         <!-- 버그 수정: getAllTasksForDate()가 만드는 필드명은 밑줄 없는 projId/taskIdx인데
              여기서는 밑줄 붙은 _projId/_taskIdx를 읽고 있어서 항상 undefined였고,
@@ -3281,12 +3380,13 @@ function renderFullDayTasks(ds){
           <!-- 사용자 요청: 목록에서 바로 수정(제목 편집)/삭제할 수 있어야 하고, 플랜에서 만든 할일이면 플랜 쪽도 함께 반영되어야 함 -->
           <input class="full-task-text-inp" value="${(t.text||'').replace(/"/g,'&quot;')}" oninput="fullEditTaskText('${t.projId}','${anchorDs}',${t.taskIdx},this.value)" style="width:100%;border:none;background:transparent;padding:0;font-family:inherit;font-size:11px;font-weight:500;${t.done?'text-decoration:line-through;color:var(--t3)':'color:var(--t)'}">
           <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:4px;align-items:center">
-            ${t.assignee?`<span style="font-size:9px;color:var(--t3)">👤 ${t.assignee}</span>`:''}
+            <!-- 사용자 요청: 캘린더에서 할일 수정할 때 담당자(여러 명)도 날짜도 다 바로 수정 가능해야 함 -->
+            <button type="button" class="assignee-picker-trigger" onclick="event.stopPropagation();openAssigneePicker(this,'${(t.assignee||'').replace(/'/g,"\\'")}',function(csv){fullUpdateTaskAssignee('${t.projId}','${anchorDs}',${t.taskIdx},csv);})" style="font-size:9px;padding:1px 5px;background:transparent;border:1px solid var(--b2);border-radius:8px;color:var(--t3);font-family:inherit">${t.assignee?('👤 '+assigneeDisplay(t.assignee)):'👤 담당자'}</button>
             ${t.budget?`<span style="font-size:9px;color:var(--t3)">💰 ${t.budget}</span>`:''}
             ${t.priority?`<span style="font-size:9px;padding:1px 5px;border-radius:8px;${PRIO_STYLE[t.priority]||''}">${PRIO_LABEL[t.priority]||''}</span>`:''}
             ${t.link?`<a href="${t.link}" target="_blank" style="font-size:9px;color:var(--bl)">🔗 링크</a>`:''}
-            <!-- 사용자 요청: 하루짜리가 아니라 여러 날에 걸친 일정일 수도 있으니 종료일을 지정/확인할 수 있게 함 -->
-            <span style="font-size:9px;color:var(--t3);display:flex;align-items:center;gap:2px">📅~<input type="date" value="${t.endDate||''}" min="${anchorDs}" onchange="fullUpdateTaskEndDate('${t.projId}','${anchorDs}',${t.taskIdx},this.value)" style="font-size:9px;padding:0 2px;border:1px solid var(--b2);border-radius:3px;background:var(--surf);color:var(--t2);width:88px"></span>
+            <!-- 사용자 요청: 하루짜리가 아니라 여러 날에 걸친 일정일 수도 있으니 시작일/종료일을 직접 바꿀 수 있게 함 -->
+            <span style="font-size:9px;color:var(--t3);display:flex;align-items:center;gap:2px">📅<input type="date" value="${anchorDs}" onclick="event.stopPropagation()" onchange="event.stopPropagation();fullUpdateTaskDate('${t.projId}','${anchorDs}',${t.taskIdx},this.value)" style="font-size:9px;padding:0 2px;border:1px solid var(--b2);border-radius:3px;background:var(--surf);color:var(--t2);width:88px">~<input type="date" value="${t.endDate||''}" min="${anchorDs}" onclick="event.stopPropagation()" onchange="event.stopPropagation();fullUpdateTaskEndDate('${t.projId}','${anchorDs}',${t.taskIdx},this.value)" style="font-size:9px;padding:0 2px;border:1px solid var(--b2);border-radius:3px;background:var(--surf);color:var(--t2);width:88px"></span>
             ${isRange?`<span style="font-size:9px;color:var(--lm);font-weight:600">(${anchorDs.slice(5)}~${t.endDate.slice(5)} 기간)</span>`:''}
           </div>
           ${t.memo?`<div style="font-size:10px;color:var(--t2);margin-top:4px;padding:4px 6px;background:var(--surf3);border-radius:4px;line-height:1.5">${t.memo}</div>`:''}
@@ -3338,6 +3438,65 @@ function fullUpdateTaskEndDate(pid,ds,i,val){
   t.endDate=(val&&val>ds)?val:''; // 시작일보다 앞서거나 같으면 그냥 하루짜리로 취급(끄기)
   save();renderCalView();renderFullDayTasks(ds);
 }
+// 사용자 요청: 캘린더에서 할일 수정할 때 담당자(여러 명)도 바로 수정할 수 있어야 하고, 플랜에 연동된 할일이면 그쪽도 함께 반영되어야 함
+function fullUpdateTaskAssignee(pid,ds,i,csv){
+  const p=getProj(pid);if(!p||!p.tasks[ds]||!p.tasks[ds][i])return;
+  const t=p.tasks[ds][i];t.assignee=csv;
+  if(t._planRef&&p.plan?.groups){
+    const[gi,ti]=t._planRef.split('-').map(Number);
+    if(p.plan.groups[gi]?.tasks?.[ti])p.plan.groups[gi].tasks[ti].assignee=csv;
+  }
+  save();renderCalView();renderFullDayTasks(ds);if(p.plan)renderPlanResult(p.plan);
+}
+// 사용자 요청: 캘린더에서 할일 수정할 때 날짜(시작일)도 드래그 없이 직접 입력해서 바로 옮길 수 있어야 함
+function fullUpdateTaskDate(pid,ds,i,newDs){
+  const p=getProj(pid);if(!p||!p.tasks[ds]||!p.tasks[ds][i]||!newDs||newDs===ds)return;
+  const t=p.tasks[ds].splice(i,1)[0];if(!t)return;
+  // 기간(종료일)이 있는 일정이면 드래그 이동과 동일하게 기간 길이를 그대로 유지한 채 종료일도 같이 밀림
+  if(t.endDate&&t.endDate>ds){
+    const fy=ds.split('-').map(Number),ty=newDs.split('-').map(Number);
+    const fromMs=new Date(fy[0],fy[1]-1,fy[2]).getTime(),toMs=new Date(ty[0],ty[1]-1,ty[2]).getTime();
+    const deltaDays=Math.round((toMs-fromMs)/86400000);
+    t.endDate=shiftDateStr(t.endDate,deltaDays);
+  }
+  if(!p.tasks[newDs])p.tasks[newDs]=[];p.tasks[newDs].push(t);
+  if(t._planRef&&p.plan?.groups){
+    const[gi,ti]=t._planRef.split('-').map(Number);
+    if(p.plan.groups[gi]?.tasks?.[ti]){p.plan.groups[gi].tasks[ti].date=newDs;p.plan.groups[gi].tasks[ti].endDate=t.endDate||'';}
+  }
+  save();renderCalView();renderFullDayTasks(newDs);if(p.plan)renderPlanResult(p.plan);
+  toast('날짜를 옮겼어요 📅',1500);
+}
+// 사용자 요청: 할일을 마우스 우클릭하면 수정/삭제/복제 메뉴가 뜨게 함(캘린더 쪽 - 월/주 보기 공용)
+let _taskCtxRowEl=null;
+function calTaskCtxMenu(e,pid,ds,i){
+  e.preventDefault();
+  document.querySelectorAll('.task-ctxmenu').forEach(m=>m.remove());
+  _taskCtxRowEl=e.currentTarget;
+  const menu=document.createElement('div');
+  menu.className='task-ctxmenu';
+  menu.style.left=e.clientX+'px';menu.style.top=e.clientY+'px';
+  menu.innerHTML=`<button onclick="calTaskCtxEdit()">✏️ 수정</button><button onclick="fullDuplicateTask('${pid}','${ds}',${i})">📋 복제</button><button onclick="fullDel('${pid}','${ds}',${i})">🗑 삭제</button>`;
+  document.body.appendChild(menu);
+  setTimeout(()=>{document.addEventListener('click',function closeMenu(){menu.remove();document.removeEventListener('click',closeMenu);},{once:true});},0);
+}
+function calTaskCtxEdit(){
+  document.querySelectorAll('.task-ctxmenu').forEach(m=>m.remove());
+  const inp=_taskCtxRowEl?.querySelector('.full-task-text-inp');
+  if(inp){inp.focus();inp.select();}
+}
+// 사용자 요청: 할일을 그대로 복제할 수 있어야 함(우클릭 메뉴 → 복제)
+function fullDuplicateTask(pid,ds,i){
+  document.querySelectorAll('.task-ctxmenu').forEach(m=>m.remove());
+  const p=getProj(pid);if(!p||!p.tasks[ds]||!p.tasks[ds][i])return;
+  const orig=p.tasks[ds][i];
+  // 복제본은 플랜/회의록 연동(_planRef, _mtgId)을 끊어서 독립적인 캘린더 전용 할일로 만듦
+  // (안 그러면 두 캘린더 항목이 같은 플랜/회의록 데이터를 가리키게 되어 데이터가 꼬임)
+  const dup={...orig,done:false,checklist:(orig.checklist||[]).map(c=>({...c,done:false}))};
+  delete dup._planRef;delete dup._fromPlan;delete dup._mtgId;delete dup._anchorDate;delete dup._anchorIdx;
+  p.tasks[ds].push(dup);
+  save();renderCalView();renderFullDayTasks(ds);toast('할 일을 복제했어요 📋',1500);
+}
 function fullAddTask(){
   const text=document.getElementById('full-task-inp')?.value.trim();
   if(!text||!S.selDate)return;
@@ -3347,8 +3506,8 @@ function fullAddTask(){
   if(!proj.tasks[S.selDate])proj.tasks[S.selDate]=[];
 
   const typeVal=document.getElementById('full-task-type')?.value||'ops';
-  // 담당자 - 새 셀렉트 우선
-  const assignee=document.getElementById('full-task-assignee-sel')?.value||
+  // 담당자 - 여러 명 선택 팝오버(hidden input) 값 우선, 없으면 상세입력의 자유 텍스트 칸(쉼표로 여러 명 입력 가능)을 사용
+  const assignee=document.getElementById('full-task-assignee-val')?.value||
                  document.getElementById('full-task-assignee')?.value?.trim()||'';
   const planGroupId=document.getElementById('full-task-plan-group')?.value||'';
 
@@ -3389,11 +3548,12 @@ function fullAddTask(){
   proj.tasks[S.selDate].push(task);
 
   // 인풋 초기화
-  ['full-task-inp','full-task-budget','full-task-memo','full-task-link','full-task-checklist','full-task-enddate'].forEach(id=>{
+  ['full-task-inp','full-task-budget','full-task-memo','full-task-link','full-task-checklist','full-task-enddate','full-task-assignee','full-task-assignee-val'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value='';
   });
+  const asgBtn=document.getElementById('full-task-assignee-btn');if(asgBtn)asgBtn.textContent='👤 담당자';
 
-  save();renderFullCal();renderFullDayTasks(S.selDate);
+  save();renderCalView();renderFullDayTasks(S.selDate);
   if(planGroupId){
     // 플랜 탭도 리렌더 (현재 열려있으면)
     if(document.getElementById('view-plan')?.classList.contains('active'))renderPlanResult(proj.plan);
@@ -4035,7 +4195,7 @@ function renderTeamCheck(){
   // 팀원별
   const membersEl=document.getElementById('sprint-members');
   if(membersEl) membersEl.innerHTML=getVisibleUsers().map(u=>{
-    const mt=allTasks.filter(t=>t.assignee===u.name||t.assignee==='전체');
+    const mt=allTasks.filter(t=>assigneeMatches(t.assignee,u.name));
     const md=mt.filter(t=>t.done).length;
     const mp=mt.length?Math.round(md/mt.length*100):0;
     const mOver=mt.filter(t=>!t.done&&t._date<today_str);
@@ -4058,7 +4218,7 @@ function renderTeamCheck(){
     <div style="padding:8px 12px;background:var(--surf);border:1px solid var(--b);border-left:3px solid ${t._date<today_str?'var(--rd)':'var(--or)'};border-radius:var(--rs);display:flex;gap:8px;align-items:center">
       <div style="flex:1">
         <div style="font-size:11px;font-weight:500">${t.text}</div>
-        <div style="font-size:10px;color:var(--t3)">${t._projName}${t.assignee?' · 👤 '+t.assignee:''}${t._date?' · 📅 '+t._date:''}</div>
+        <div style="font-size:10px;color:var(--t3)">${t._projName}${t.assignee?' · 👤 '+assigneeDisplay(t.assignee):''}${t._date?' · 📅 '+t._date:''}</div>
       </div>
       ${t._date<today_str?'<span style="font-size:10px;color:var(--rd);font-weight:700">초과</span>':''}
     </div>`).join('')+(undone.length>10?`<div style="text-align:center;font-size:11px;color:var(--t3);padding:8px">+${undone.length-10}건 더</div>`:'')
@@ -6539,7 +6699,7 @@ setInterval(async ()=>{
     if(activeTab){
       const view = activeTab.getAttribute('onclick')?.match(/showView\('(\w+)'/)?.[1];
       if(view === 'home') renderDashboard();
-      else if(view === 'calendar') { renderFullCal(); renderFullDayTasks(S.selDate); }
+      else if(view === 'calendar') { renderCalView(); renderFullDayTasks(S.selDate); }
       else if(view === 'progress') renderProgress();
       else if(view === 'settings') renderSettings();
     }

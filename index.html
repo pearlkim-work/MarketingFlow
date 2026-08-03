@@ -5441,6 +5441,20 @@ function collectBudgetedPlanTasks(projs){
   });
   return items;
 }
+// 사용자 요청: "전체 프로젝트"에서 이 예상 소진 예산을 월별뿐 아니라 주차(그 달의 몇 번째 7일
+// 구간인지) 단위로도 볼 수 있게 해달라는 요청 → 월별/주차 토글 추가.
+// 주차 계산은 달력의 주(일~토) 경계가 아니라 "그 달 1일부터 7일씩 끊었을 때 몇 번째 구간인지"를
+// 보는 간단한 방식(1~7일=1주차, 8~14일=2주차...)을 씀 — 팀에서 흔히 쓰는 "N주차" 표기와 같음
+let _btForecastGran='month';
+function setBudgetForecastGranularity(g){
+  if(_btForecastGran===g)return;
+  _btForecastGran=g;
+  renderBudgetForecastSection();
+}
+function weekOfMonth(dateStr){
+  const day=parseInt((dateStr||'').split('-')[2],10)||1;
+  return Math.ceil(day/7);
+}
 function renderBudgetForecastSection(){
   const el=document.getElementById('bt-forecast-section');if(!el)return;
   const projId=document.getElementById('bt-proj-sel')?.value;
@@ -5452,26 +5466,39 @@ function renderBudgetForecastSection(){
   const items=collectBudgetedPlanTasks(projs);
   if(!items.length){el.style.display='none';return;}
   el.style.display='block';
-  const byMonth={};
+  const gran=_btForecastGran;
+  const byGroup={};
   items.forEach(it=>{
     const [y,m]=it.date.split('-');
-    const mk=`${y}-${m}`;
-    if(!byMonth[mk])byMonth[mk]={y:parseInt(y),m:parseInt(m),items:[],total:0};
-    byMonth[mk].items.push(it);
-    byMonth[mk].total+=it.budget;
+    let gk,label;
+    if(gran==='week'){
+      const w=weekOfMonth(it.date);
+      gk=`${y}-${m}-W${w}`;
+      label=`${parseInt(y,10)}년 ${parseInt(m,10)}월 ${w}주차`;
+    }else{
+      gk=`${y}-${m}`;
+      label=`${parseInt(y,10)}년 ${parseInt(m,10)}월`;
+    }
+    if(!byGroup[gk])byGroup[gk]={label,items:[],total:0};
+    byGroup[gk].items.push(it);
+    byGroup[gk].total+=it.budget;
   });
-  const sortedMonths=Object.keys(byMonth).sort();
+  const sortedKeys=Object.keys(byGroup).sort();
+  const granBtn=(val,label)=>`<button type="button" onclick="setBudgetForecastGranularity('${val}')" style="padding:4px 10px;border-radius:var(--rs);border:1px solid var(--b2);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;${gran===val?'background:var(--bl);color:#fff;border-color:var(--bl)':'background:var(--surf);color:var(--t2)'}">${label}</button>`;
   el.innerHTML=`
-    <div style="font-size:13px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;justify-content:space-between">
-      <span>📅 예상 소진 예산 (월별 · 할일 기준)</span>
-      <span style="font-size:11px;color:var(--t3)">${isAll?'전체 프로젝트':projs[0]?.name||''}</span>
+    <div style="font-size:13px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <span>📅 예상 소진 예산 (${gran==='week'?'주차별':'월별'} · 할일 기준)</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="display:flex;gap:4px">${granBtn('month','월별')}${granBtn('week','주차')}</div>
+        <span style="font-size:11px;color:var(--t3)">${isAll?'전체 프로젝트':projs[0]?.name||''}</span>
+      </div>
     </div>
-    <div style="font-size:10px;color:var(--t3);margin-bottom:10px">할일에 넣어둔 예산을 날짜 기준으로 월별로 모아서 보여줘요. 실제 집행 확정 전 참고용이에요(위 예산 표의 실집행 칸이 확정값).</div>
-    ${sortedMonths.map(mk=>{
-      const g=byMonth[mk];
+    <div style="font-size:10px;color:var(--t3);margin-bottom:10px">할일에 넣어둔 예산을 날짜 기준으로 ${gran==='week'?'주차별':'월별'}로 모아서 보여줘요. 실제 집행 확정 전 참고용이에요(위 예산 표의 실집행 칸이 확정값).</div>
+    ${sortedKeys.map(gk=>{
+      const g=byGroup[gk];
       return`<div style="margin-bottom:10px;border:1px solid var(--b);border-radius:var(--rs);overflow:hidden">
         <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--surf2)">
-          <span style="font-size:12px;font-weight:700">${g.y}년 ${g.m}월</span>
+          <span style="font-size:12px;font-weight:700">${g.label}</span>
           <span style="font-size:12px;font-weight:700;color:var(--lm)">${g.total.toLocaleString()}원</span>
         </div>
         <div>

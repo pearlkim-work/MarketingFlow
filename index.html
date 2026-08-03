@@ -2072,7 +2072,13 @@ select:focus{border-color:var(--lm);outline:none}
     <div style="padding:22px 22px 0;flex-shrink:0">
       <div class="modal-title" id="task-detail-modal-title">상세 내용</div>
     </div>
-    <div style="overflow-y:auto;flex:1;min-height:0;padding:13px 22px 22px;display:flex;flex-direction:column;gap:13px">
+    <!-- 버그 수정: 위 스크롤 영역을 display:flex;flex-direction:column으로 만들었더니, 안에 있는
+         #tned-detail(메모 에디터)이 "flex 아이템"이 되어 기본 flex-shrink:1 때문에 내용이 아무리 길어도
+         min-height(180px)로 눌려버리고, 눌려서 넘친 내용은 overflow:visible이라 박스 테두리 밖으로
+         그대로 삐져나와 보이는 버그가 있었음(실제 라이브에서 재현: 에디터 높이가 계산상 180px로 고정
+         되어 있었음). 스크롤 영역을 flex 대신 그냥 block으로 바꿔서 각 자식이 flex 압축 없이 항상
+         자기 내용만큼 온전히 커지도록 함(간격은 각 블록에 이미 있는 margin-bottom으로 충분히 유지됨) -->
+    <div style="overflow-y:auto;flex:1;min-height:0;padding:13px 22px 22px">
 
     <!-- 사용자 요청: 캘린더에서 할일을 클릭 한 번으로 열면 제목/프로젝트/항목/담당자/날짜/예산까지
          한 번에 보고 바로 수정할 수 있어야 함 → 캘린더 쪽 항목(ds/i)이 있는 할일에서만 보임

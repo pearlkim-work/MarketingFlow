@@ -5625,7 +5625,18 @@ function collectBudgetedPlanTasks(projs){
     (p.plan?.groups||[]).forEach(g=>{
       (g.tasks||[]).forEach(t=>{
         if(!t.budget||!t.date)return;
-        items.push({projName:p.name,projId:p.id,group:g.name,text:t.text||'(제목 없음)',budget:parseFloat(t.budget)||0,date:t.date,assignee:t.assignee||'',done:!!t.done});
+        items.push({projName:p.name,projId:p.id,group:g.name==='공통'?'일반':g.name,text:t.text||'(제목 없음)',budget:parseFloat(t.budget)||0,date:t.date,assignee:t.assignee||'',done:!!t.done});
+      });
+    });
+    // 사용자 요청("캘린더에 예산이 들어있는데 예산탭엔 없다"): 플랜 그룹에 한 번도 연결(_planRef)된 적
+    // 없는 순수 캘린더 할일은 예전엔 여기서 아예 안 잡혀서, 캘린더에서 직접 예산/날짜를 넣어도 예상
+    // 소진 예산(예산 탭)에는 전혀 반영되지 않았음. _planRef가 있는 할일은 위에서 플랜 쪽 기준으로 이미
+    // 집계했으니 여기서는 제외(중복 방지)하고, 연결이 없는 할일만 "일반"으로 잡아서 추가로 집계함
+    Object.entries(p.tasks||{}).forEach(([ds,arr])=>{
+      (arr||[]).forEach(t=>{
+        if(t._planRef)return;
+        if(!t.budget||!ds)return;
+        items.push({projName:p.name,projId:p.id,group:'일반',text:t.text||'(제목 없음)',budget:parseFloat(t.budget)||0,date:ds,assignee:t.assignee||'',done:!!t.done});
       });
     });
   });

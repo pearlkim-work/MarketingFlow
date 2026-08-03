@@ -3764,7 +3764,9 @@ function renderMiniCal(){
     const isSel=S.planSelDate===ds;
     const tasks=proj?getTasksOverlappingDate(proj,ds):[];
     const shown=tasks.slice(0,2);const more=tasks.length-2;
-    html+=`<div class="mini-cell${isToday?' today':''}${isSel?' selected':''}" onclick="planSelectDate('${ds}')"><div class="mini-date">${d}</div><div class="mini-dots">${shown.map(t=>`<div class="mini-dot ${t.type}${t.done?' done':''}">${t.text}</div>`).join('')}${more>0?`<div class="mini-more">+${more}</div>`:''}</div></div>`;
+    // 버그 수정: 여기도 t.type 기준 CSS 클래스(mini-dot.meta/crm/...)로만 색이 정해져서 플랜 그룹
+    // 연결 여부와 무관하게 커스텀 항목은 다 같은 회색으로 뭉뚱그려 보였음 → 실제 항목 색을 그대로 씀
+    html+=`<div class="mini-cell${isToday?' today':''}${isSel?' selected':''}" onclick="planSelectDate('${ds}')"><div class="mini-date">${d}</div><div class="mini-dots">${shown.map(t=>{const badge=getTaskItemBadge({...t,_projId:proj?.id});return`<div class="mini-dot${t.done?' done':''}" style="background:${badge.bg};color:${badge.color}">${t.text}</div>`;}).join('')}${more>0?`<div class="mini-more">+${more}</div>`:''}</div></div>`;
   }
   const total2=Math.ceil((startDow+total)/7)*7;
   for(let d=1;d<=total2-(startDow+total);d++)html+=`<div class="mini-cell other-m"><div class="mini-date">${d}</div></div>`;
@@ -3942,7 +3944,14 @@ function renderFullCal(){
     if(_calFilter==='paid')tasks=tasks.filter(t=>taskIsPaid(t));
     else if(_calFilter==='free')tasks=tasks.filter(t=>!taskIsPaid(t));
     const shown=tasks.slice(0,3);const more=tasks.length-3;
-    const dotItems=shown.map(t=>`<div class="cdot ${t.type}${t.done?' done':''}" title="${t.projName} · ${t.text}" draggable="true" ondragstart="calDragStart(event,'${t.projId}','${t._anchorDate}',${t.taskIdx})" ondragend="calDragEnd(event)" oncontextmenu="event.stopPropagation();calTaskCtxMenu(event,'${t.projId}','${t._anchorDate}',${t.taskIdx})"><div class="cdot-proj-dot" style="background:${t.projColor}"></div>${t.text}${t.endDate&&t.endDate>t._anchorDate?` <span style="opacity:.6;font-size:9px">~${t.endDate.slice(5)}</span>`:''}</div>`).join('');
+    // 버그 수정: 월 보기 점(dot)의 색이 t.type 기준 CSS 클래스(cdot.meta/crm/...)로만 정해져서,
+    // 플랜 그룹과 연결된 할일이라도(_planRef, 보통 type은 기본값 'ops') 항상 회색 "일반"으로만 보이고
+    // 프로젝트별 커스텀 항목(오가닉 컨텐츠 등)은 서로 구분이 안 됐음 → getTaskItemBadge()로 실제
+    // 연결된 항목의 색을 인라인 스타일로 입혀서 항목별로 정확히 구분되어 보이게 함
+    const dotItems=shown.map(t=>{
+      const badge=getTaskItemBadge(t);
+      return`<div class="cdot${t.done?' done':''}" style="background:${badge.bg};color:${badge.color}" title="${t.projName} · ${badge.label} · ${t.text}" draggable="true" ondragstart="calDragStart(event,'${t.projId}','${t._anchorDate}',${t.taskIdx})" ondragend="calDragEnd(event)" oncontextmenu="event.stopPropagation();calTaskCtxMenu(event,'${t.projId}','${t._anchorDate}',${t.taskIdx})" onclick="event.stopPropagation();openTaskDetailModal('${t.projId}','${t._anchorDate}',${t.taskIdx})"><div class="cdot-proj-dot" style="background:${t.projColor}"></div>${t.text}${t.endDate&&t.endDate>t._anchorDate?` <span style="opacity:.6;font-size:9px">~${t.endDate.slice(5)}</span>`:''}</div>`;
+    }).join('');
     return`<div class="cal-cell${isOther?' other-m-cell':''}${isToday?' today-cell':''}${isSel?' sel-cell':''}" onclick="fullSelectDate('${ds}')" ondragover="calDragOver(event)" ondragleave="calDragLeave(event)" ondrop="calDrop(event,'${ds}')"><div class="cal-date-n">${d}</div><div class="cal-cell-dots">${dotItems}${more>0?`<div class="cdot-more">+${more}개</div>`:''}</div></div>`;
   };
   const prevLast=new Date(y,m,0).getDate();
@@ -5605,9 +5614,18 @@ function collectBudgetedPlanTasks(projs){
 // 주차 계산은 달력의 주(일~토) 경계가 아니라 "그 달 1일부터 7일씩 끊었을 때 몇 번째 구간인지"를
 // 보는 간단한 방식(1~7일=1주차, 8~14일=2주차...)을 씀 — 팀에서 흔히 쓰는 "N주차" 표기와 같음
 let _btForecastGran='month';
+// 사용자 요청: 모든 월/주차를 한 번에 다 나열하지 말고, "몇 월/몇 주차인지" 직접 골라서 그 기간만
+// 볼 수 있게 함 → 지금 선택된 기간의 키(월이면 "YYYY-MM", 주차면 "YYYY-MM-Wn"). 비어있으면
+// renderBudgetForecastSection이 알아서 오늘이 속한 기간(있으면)이나 첫 기간을 자동으로 골라줌
+let _btForecastPeriod='';
 function setBudgetForecastGranularity(g){
   if(_btForecastGran===g)return;
   _btForecastGran=g;
+  _btForecastPeriod=''; // 단위(월/주차)를 바꾸면 선택을 초기화해서 새 단위 기준으로 다시 자동 선택되게 함
+  renderBudgetForecastSection();
+}
+function setBudgetForecastPeriod(key){
+  _btForecastPeriod=key;
   renderBudgetForecastSection();
 }
 function weekOfMonth(dateStr){
@@ -5626,50 +5644,74 @@ function renderBudgetForecastSection(){
   if(!items.length){el.style.display='none';return;}
   el.style.display='block';
   const gran=_btForecastGran;
-  const byGroup={};
+  const byPeriod={};
   items.forEach(it=>{
     const [y,m]=it.date.split('-');
-    let gk,label;
+    let pk,label;
     if(gran==='week'){
       const w=weekOfMonth(it.date);
-      gk=`${y}-${m}-W${w}`;
+      pk=`${y}-${m}-W${w}`;
       label=`${parseInt(y,10)}년 ${parseInt(m,10)}월 ${w}주차`;
     }else{
-      gk=`${y}-${m}`;
+      pk=`${y}-${m}`;
       label=`${parseInt(y,10)}년 ${parseInt(m,10)}월`;
     }
-    if(!byGroup[gk])byGroup[gk]={label,items:[],total:0};
-    byGroup[gk].items.push(it);
-    byGroup[gk].total+=it.budget;
+    if(!byPeriod[pk])byPeriod[pk]={label,items:[],total:0};
+    byPeriod[pk].items.push(it);
+    byPeriod[pk].total+=it.budget;
   });
-  const sortedKeys=Object.keys(byGroup).sort();
+  const sortedKeys=Object.keys(byPeriod).sort();
+  // 선택된 기간이 없거나(처음 열었을 때) 더는 존재하지 않으면(다른 프로젝트로 바꿔서 그 기간에 데이터가
+  // 없어진 경우 등) 오늘이 속한 기간이 있으면 그걸로, 없으면 가장 이른 기간으로 자동 선택
+  if(!_btForecastPeriod||!byPeriod[_btForecastPeriod]){
+    const now=new Date();
+    const ny=String(now.getFullYear()),nm=String(now.getMonth()+1).padStart(2,'0');
+    const todayKey=gran==='week'?`${ny}-${nm}-W${weekOfMonth(now.getFullYear()+'-'+nm+'-'+String(now.getDate()).padStart(2,'0'))}`:`${ny}-${nm}`;
+    _btForecastPeriod=byPeriod[todayKey]?todayKey:sortedKeys[0];
+  }
+  const curPeriod=byPeriod[_btForecastPeriod];
   const granBtn=(val,label)=>`<button type="button" onclick="setBudgetForecastGranularity('${val}')" style="padding:4px 10px;border-radius:var(--rs);border:1px solid var(--b2);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;${gran===val?'background:var(--bl);color:#fff;border-color:var(--bl)':'background:var(--surf);color:var(--t2)'}">${label}</button>`;
+  const periodSelHtml=`<select onchange="setBudgetForecastPeriod(this.value)" style="font-size:11px;font-weight:600;padding:4px 8px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf);color:var(--t)">${sortedKeys.map(k=>`<option value="${k}"${k===_btForecastPeriod?' selected':''}>${byPeriod[k].label}</option>`).join('')}</select>`;
+  // 사용자 요청: "같은 항목은 묶어줘 — 메타끼리, 카톡끼리" → 선택된 기간 안에서 항목(플랜 그룹 이름)별로
+  // 다시 묶고, 항목별 소계가 큰 순서로 보여줌. 프로젝트는 이미 위에서 선택해서 보고 있으므로(전체/단일)
+  // 항목 묶음 안에서는 프로젝트 이름을 작은 태그로만 곁들임(전체 프로젝트를 볼 때 구분용)
+  const byItem={};
+  curPeriod.items.forEach(it=>{
+    if(!byItem[it.group])byItem[it.group]={items:[],total:0};
+    byItem[it.group].items.push(it);
+    byItem[it.group].total+=it.budget;
+  });
+  const sortedItemKeys=Object.keys(byItem).sort((a,b)=>byItem[b].total-byItem[a].total);
   el.innerHTML=`
     <div style="font-size:13px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
       <span>📅 예상 소진 예산 (${gran==='week'?'주차별':'월별'} · 할일 기준)</span>
-      <div style="display:flex;align-items:center;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <div style="display:flex;gap:4px">${granBtn('month','월별')}${granBtn('week','주차')}</div>
+        ${periodSelHtml}
         <span style="font-size:11px;color:var(--t3)">${isAll?'전체 프로젝트':projs[0]?.name||''}</span>
       </div>
     </div>
     <div style="font-size:10px;color:var(--t3);margin-bottom:10px">할일에 넣어둔 예산을 날짜 기준으로 ${gran==='week'?'주차별':'월별'}로 모아서 보여줘요. 실제 집행 확정 전 참고용이에요(위 예산 표의 실집행 칸이 확정값).</div>
-    ${sortedKeys.map(gk=>{
-      const g=byGroup[gk];
-      return`<div style="margin-bottom:10px;border:1px solid var(--b);border-radius:var(--rs);overflow:hidden">
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--surf2)">
-          <span style="font-size:12px;font-weight:700">${g.label}</span>
-          <span style="font-size:12px;font-weight:700;color:var(--lm)">${g.total.toLocaleString()}원</span>
-        </div>
-        <div>
-          ${g.items.map(it=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-top:1px solid var(--b);font-size:11px">
+    <div style="border:1px solid var(--b);border-radius:var(--rs);overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--surf2)">
+        <span style="font-size:12px;font-weight:700">${curPeriod.label}</span>
+        <span style="font-size:12px;font-weight:700;color:var(--lm)">${curPeriod.total.toLocaleString()}원</span>
+      </div>
+      ${sortedItemKeys.map(gname=>{
+        const ig=byItem[gname];
+        return`<div style="border-top:1px solid var(--b)">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 12px;background:var(--surf3)">
+            <span style="font-size:10px;font-weight:700;color:var(--t2)">${gname}</span>
+            <span style="font-size:10px;font-weight:700;color:var(--t2)">${ig.total.toLocaleString()}원</span>
+          </div>
+          ${ig.items.map(it=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 12px 6px 20px;border-top:1px solid var(--b);font-size:11px">
             <span style="flex:1;min-width:0;${it.done?'text-decoration:line-through;color:var(--t3)':''}">${it.text}</span>
             ${isAll?`<span style="font-size:9px;color:var(--t3);padding:1px 6px;background:var(--surf2);border-radius:8px;white-space:nowrap">${it.projName}</span>`:''}
-            <span style="font-size:9px;color:var(--t3);padding:1px 6px;background:var(--surf3);border-radius:8px;white-space:nowrap">${it.group}</span>
             <span style="font-weight:600;color:var(--t);white-space:nowrap">${it.budget.toLocaleString()}원</span>
           </div>`).join('')}
-        </div>
-      </div>`;
-    }).join('')}
+        </div>`;
+      }).join('')}
+    </div>
   `;
 }
 

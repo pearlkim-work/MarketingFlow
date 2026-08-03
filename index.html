@@ -585,6 +585,18 @@ input::placeholder,textarea::placeholder{color:var(--t3)}
 .note-toggle-arrow:hover{color:var(--t)}
 .note-toggle-body{padding:2px 2px 2px 16px;font-size:12px}
 .notes-editor a{color:var(--bl,#1a78c2);text-decoration:underline;cursor:pointer}
+/* 사용자 요청: 메모(할일/회의록/기록장 공통)에서 "* " 치면 점 목록, "1) " 치면 번호 목록으로 자동 변환되고
+   Tab으로 들여쓰면 노션처럼 ●→○→■ 순서로 마커가 바뀌게 함. 목록 자체(생성/Enter로 이어쓰기/들여쓰기)는
+   브라우저 기본 리스트 기능을 쓰고, 마커 모양만 여기서 커스텀함(줄글 안에 "네이티브 li"의 기본 •/1. 대신) */
+.notes-editor ul,.notes-editor ol{margin:2px 0;padding-left:22px}
+.notes-editor ul{list-style:none}
+.notes-editor ul>li{position:relative}
+.notes-editor ul>li::before{content:'●';position:absolute;left:-16px;top:0;font-size:6px;line-height:2.2;color:var(--t2)}
+.notes-editor ul ul>li::before{content:'';width:5px;height:5px;top:8px;left:-15px;border:1.3px solid var(--t2);border-radius:50%;background:transparent}
+.notes-editor ul ul ul>li::before{content:'■';font-size:7px;top:1px}
+.notes-editor ol{list-style:none;counter-reset:mfnum}
+.notes-editor ol>li{position:relative;counter-increment:mfnum}
+.notes-editor ol>li::before{content:counter(mfnum) ')';position:absolute;left:-22px;top:0;color:var(--t2)}
 /* Mtg folder */
 .mtg-folder-header{display:flex;align-items:center;gap:7px;padding:8px 10px;cursor:pointer;user-select:none;border-bottom:1px solid var(--b)}
 .mtg-folder-header:hover{background:var(--surf2)}
@@ -2052,8 +2064,15 @@ select:focus{border-color:var(--lm);outline:none}
      기본으로는 숨겨두고 우클릭(또는 "상세등록/상세수정" 버튼)으로 이 모달을 열었을 때만 보이게 함.
      캘린더/플랜 어느 쪽에서 등록해도 서로 그대로 연동됨(_planRef로 양쪽에 동시 저장). -->
 <div class="modal-bg" id="task-detail-modal" style="display:none">
-  <div class="modal" style="width:560px;max-height:82vh;overflow-y:auto">
-    <div class="modal-title" id="task-detail-modal-title">상세 내용</div>
+  <div class="modal" style="width:560px;max-height:82vh;overflow:hidden;padding:0">
+    <!-- 버그 수정: 완료/삭제 버튼 줄을 sticky로 고정하려 했으나, 메모가 아주 길어지면(체감상 스크롤이
+         깊어지면) 브라우저가 sticky 위치 계산을 이상하게 해서 버튼이 화면 밖으로 사라지는 버그가 있었음
+         (실제로 라이브에서 재현/확인함). sticky 대신 아예 이 버튼 줄을 스크롤 영역 밖으로 빼서(별도의
+         고정 영역으로 분리) 스크롤 위치와 완전히 무관하게 항상 보이도록 구조 자체를 바꿈 -->
+    <div style="padding:22px 22px 0;flex-shrink:0">
+      <div class="modal-title" id="task-detail-modal-title">상세 내용</div>
+    </div>
+    <div style="overflow-y:auto;flex:1;min-height:0;padding:13px 22px 22px;display:flex;flex-direction:column;gap:13px">
 
     <!-- 사용자 요청: 캘린더에서 할일을 클릭 한 번으로 열면 제목/프로젝트/항목/담당자/날짜/예산까지
          한 번에 보고 바로 수정할 수 있어야 함 → 캘린더 쪽 항목(ds/i)이 있는 할일에서만 보임
@@ -2099,10 +2118,11 @@ select:focus{border-color:var(--lm);outline:none}
     <div class="notes-editor" id="tned-detail" contenteditable="true" style="min-height:180px"
       oninput="saveTaskDetailNote(this)"
       onpaste="setTimeout(()=>saveTaskDetailNote(document.getElementById('tned-detail')),0)"
+      onkeydown="notesEditorKeydown(event)"
     ></div>
-    <!-- 사용자 요청: 내용이 길어서 완료/삭제 버튼을 보려면 매번 스크롤해야 했음 → 이 버튼 줄을
-         모달 하단에 고정(sticky)해서 스크롤 위치와 상관없이 항상 바로 보이고 눌리게 함 -->
-    <div class="modal-btns" style="position:sticky;bottom:-22px;margin:8px -22px -22px;padding:12px 22px;background:var(--surf);border-top:1px solid var(--b2)">
+    </div>
+    <!-- 완료/삭제 버튼 줄: 위 스크롤 영역 밖에 있는 별도 고정 구역이라 스크롤을 아무리 내려도 항상 보임 -->
+    <div class="modal-btns" style="flex-shrink:0;padding:12px 22px;background:var(--surf);border-top:1px solid var(--b2)">
       <button class="btn-cancel" onclick="deleteTaskDetailNote()" style="color:var(--rd);border-color:rgba(194,32,32,.3)">🗑 서식 메모 삭제</button>
       <button type="button" id="td-delete-task-btn" onclick="deleteTaskDetailWholeTask()" style="display:none;padding:7px 14px;border-radius:var(--rs);border:1px solid var(--rd);background:var(--rd);color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">🗑 할일 삭제</button>
       <div style="flex:1"></div>
@@ -3602,6 +3622,8 @@ function renderWeekCal(){
     });
     const total=tasks.length,done=tasks.filter(t=>t.done).length;
     const pct=total?Math.round(done/total*100):0;
+    // 사용자 요청: 주별 예상 예산 말고 하루하루도 각 날짜 칸 위쪽(요일/완료율 옆)에 보이면 좋겠음
+    const dayBudget=tasks.reduce((s,t)=>s+(parseFloat(t.budget)||0),0);
     const taskHtml=tasks.map(t=>{
       // 버그 수정: 카드 왼쪽 테두리/체크박스 색이 플랜 그룹과 연결된 할일이라도 t.type(보통 기본값
       // 'ops') 기준으로만 정해져서 늘 회색으로 보였음 → getTaskItemBadge()로 실제 연결된 항목의 색을 씀
@@ -3636,7 +3658,10 @@ function renderWeekCal(){
             <span style="font-size:10px;font-weight:600;color:${color}">${DAYS[i]}</span>
             <span style="font-size:14px;font-weight:${isToday?800:600};color:${color};margin-left:3px">${d.getDate()}</span>
           </div>
-          ${total?`<span style="font-size:9px;color:${pct===100?'#4a7a00':'var(--t3)'};font-weight:600">${pct}%</span>`:''}
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex-shrink:0">
+            ${total?`<span style="font-size:9px;color:${pct===100?'#4a7a00':'var(--t3)'};font-weight:600">${pct}%</span>`:''}
+            ${dayBudget?`<span style="font-size:9px;color:#5a9e00;font-weight:600;white-space:nowrap">💰₩${fmtNum(dayBudget)}</span>`:''}
+          </div>
         </div>
       </div>
       <div style="padding:5px;min-height:80px;overflow-y:auto;max-height:calc(100vh - 280px)">
@@ -4873,6 +4898,7 @@ function renderMyNoteDetail(id){
         style="min-height:220px"
         oninput="saveMyNoteContent('${id}', this)"
         onpaste="setTimeout(()=>saveMyNoteContent('${id}',document.getElementById('pned-${id}')),0)"
+        onkeydown="notesEditorKeydown(event)"
       >${n.notesHtml||''}</div>
     </div>
   </div>`;
@@ -4968,6 +4994,7 @@ function renderMtgDetail(id){
           style="min-height:120px"
           oninput="saveMtgNotes('${id}', this)"
           onpaste="setTimeout(()=>saveMtgNotes('${id}',document.getElementById('ned-${id}')),0)"
+          onkeydown="notesEditorKeydown(event)"
         >${mtg.notesHtml||mtg.notes?.replace(/\n/g,'<br>')||''}</div>
       </div><div class="mtg-section"><div class="mtg-section-header"><div class="mtg-section-title">✅ 액션 아이템</div><div style="display:flex;gap:6px"><button class="btn-add-item" onclick="openActionImportModal('${id}')">📥 다른 회의에서 가져오기</button><button class="btn-add-item" onclick="addAction('${id}')">+ 추가</button></div></div><div class="action-items-list" id="action-list-${id}">${actionHtml||'<div style="font-size:11px;color:var(--t3)">액션 아이템을 추가해봐요</div>'}</div></div></div>`;
 }
@@ -6639,6 +6666,43 @@ function ntbInsertLink(targetId){
   }else{
     const text=(prompt('링크에 표시할 글자','링크')||url).trim();
     document.execCommand('insertHTML',false,`<a href="${url}" target="_blank" rel="noopener">${text}</a>`);
+  }
+}
+// 사용자 요청: 할일 메모/회의록/기록장 어디서든 "* " 또는 "- "를 치면 점 목록으로, "1) " 또는 "1. "을
+// 치면 번호 목록으로 자동 변환되고, Tab/Shift+Tab으로 들여쓰기/내어쓰기 하면 노션처럼 마커가
+// ●→○→■ 순서로 바뀌게 함(마커 모양은 CSS에서 처리, 여기선 변환 트리거와 Tab 들여쓰기만 담당).
+// 목록 생성 후 Enter로 다음 줄 이어쓰기(번호 자동 증가 포함)와 빈 줄에서 Enter 두 번 누르면 목록에서
+// 빠져나오는 동작은 브라우저의 기본 리스트(<ul>/<ol>) 동작을 그대로 재사용함(직접 구현하지 않음).
+function notesEditorKeydown(e){
+  const sel=window.getSelection&&window.getSelection();
+  if(!sel||!sel.rangeCount)return;
+  const range=sel.getRangeAt(0);
+
+  if(e.key==='Tab'){
+    const startEl=range.startContainer.nodeType===1?range.startContainer:range.startContainer.parentElement;
+    const li=startEl&&startEl.closest&&startEl.closest('li');
+    if(li){
+      e.preventDefault();
+      document.execCommand(e.shiftKey?'outdent':'indent');
+    }
+    return;
+  }
+
+  if(e.key===' '&&range.collapsed&&range.startContainer.nodeType===3){
+    const node=range.startContainer;
+    const textBefore=node.textContent.slice(0,range.startOffset);
+    const isBulletMarker=/^[*-]$/.test(textBefore);
+    const numMatch=textBefore.match(/^(\d+)[.)]$/);
+    if(isBulletMarker||numMatch){
+      e.preventDefault();
+      node.textContent=node.textContent.slice(range.startOffset);
+      const newRange=document.createRange();
+      newRange.setStart(node,0);
+      newRange.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+      document.execCommand(isBulletMarker?'insertUnorderedList':'insertOrderedList');
+    }
   }
 }
 // 회의록/기록장에서 공통으로 쓰는 서식 툴바 (targetId = 적용할 contenteditable div의 id)

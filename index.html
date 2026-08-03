@@ -2582,6 +2582,38 @@ function resolveTaskItemName(t){
   }
   return TYPE_PLAIN_LABEL[t.type]||t.type||'일반';
 }
+// 사용자 요청("부안은 항목이 더 많았던 걸로 기억하는데"): 캘린더 할일 목록의 항목(채널) 배지가
+// 플랜 그룹과 연결(_planRef)된 할일이라도 t.type(보통 기본값 'ops'='일반')만 보여주고, 고를 수 있는
+// 목록도 고정 7개(Meta/CRM/인플루언서/라이브/콘텐츠/일반/미팅)뿐이라 프로젝트별 커스텀 항목(오가닉
+// 컨텐츠, 커뮤니티제휴, 카카오 채널 등)은 배지에 아예 안 보이고 고를 수도 없었음(항목 필터 팝오버는
+// resolveTaskItemName()으로 이미 이렇게 고쳐져 있었는데 이 배지만 안 고쳐져 있었던 것).
+// 이 함수는 배지에 보여줄 라벨/색/드롭다운 옵션을 한 번에 만들어줌 — 플랜 연결이 있으면 그 프로젝트의
+// 실제 플랜 그룹 전체를, 없으면(순수 캘린더 할일) 기존처럼 고정 7개를 보여줌
+function getTaskItemBadge(t){
+  const pid=t?._projId||t?.projId;
+  const proj=pid?getProj(pid):null;
+  const groups=proj?.plan?.groups;
+  if(t?._planRef&&groups&&groups.length){
+    const gi=parseInt(String(t._planRef).split('-')[0],10);
+    const g=groups[gi];
+    if(g){
+      return{
+        isGroup:true,
+        label:g.name==='공통'?'일반':g.name,
+        color:g.color||'var(--t3)',
+        bg:'var(--surf3)',
+        options:groups.map((gg,idx)=>`<option value="g:${idx}"${idx===gi?' selected':''}>${(gg.name==='공통'?'일반':gg.name).replace(/"/g,'&quot;')}</option>`).join('')
+      };
+    }
+  }
+  return{
+    isGroup:false,
+    label:TYPE_PLAIN_LABEL[t?.type]||'일반',
+    color:TYPE_COLOR[t?.type]||'var(--t3)',
+    bg:TYPE_BG[t?.type]||'var(--surf3)',
+    options:Object.keys(TYPE_LABEL).map(k=>`<option value="t:${k}"${k===t?.type?' selected':''}>${TYPE_LABEL[k]}</option>`).join('')
+  };
+}
 // 필터 팝오버에 나열할 전체 항목 목록: 기본 7개 + 모든 프로젝트의 플랜 그룹에서 실제로 쓰이는 항목명(커스텀 포함)
 function getCalItemOptions(){
   const names=[...Object.values(TYPE_PLAIN_LABEL)];
@@ -3985,7 +4017,8 @@ function renderFullDayTasks(ds){
 
   document.getElementById('full-task-list').innerHTML=tasks.length
   ?tasks.map((t,i)=>{
-    const color=TYPE_COLOR[t.type]||'var(--t3)';
+    const badge=getTaskItemBadge(t);
+    const color=badge.color;
     const anchorDs=t._anchorDate||ds;
     const isRange=t.endDate&&t.endDate>anchorDs;
     // 사용자 요청: 우선순위/링크/메모/체크리스트를 목록에 항상 펼쳐두면 너무 길어지므로, 기본으로는
@@ -4004,7 +4037,7 @@ function renderFullDayTasks(ds){
             <!-- 사용자 요청: 프로젝트/항목(광고매체 등)이 색깔로 구분되면 좋겠고, 목록에서 바로 수정도 가능해야 함
                  → 기존엔 그냥 텍스트(span)라 고정돼 있었는데, select로 바꿔서 클릭 한 번으로 바로 옮길 수 있게 함 -->
             <select onclick="event.stopPropagation()" onchange="event.stopPropagation();fullUpdateTaskProject('${t.projId}','${anchorDs}',${t.taskIdx},this.value)" style="font-size:9px;font-weight:600;color:${t.projColor};padding:1px 4px;border:1px solid var(--b2);border-radius:8px;background:var(--surf2);font-family:inherit;max-width:120px">${_dayVisibleProjs.map(vp=>`<option value="${vp.id}"${vp.id===t.projId?' selected':''}>${(vp.name||'').replace(/"/g,'&quot;')}</option>`).join('')}</select>
-            <select onclick="event.stopPropagation()" onchange="event.stopPropagation();fullUpdateTaskType('${t.projId}','${anchorDs}',${t.taskIdx},this.value)" style="font-size:9px;font-weight:600;padding:1px 4px;border-radius:8px;background:${TYPE_BG[t.type]||'var(--surf3)'};color:${color};border:1px solid var(--b2);font-family:inherit">${Object.keys(TYPE_LABEL).map(k=>`<option value="${k}"${k===t.type?' selected':''}>${TYPE_LABEL[k]}</option>`).join('')}</select>
+            <select onclick="event.stopPropagation()" onchange="event.stopPropagation();fullUpdateTaskItem('${t.projId}','${anchorDs}',${t.taskIdx},this.value)" style="font-size:9px;font-weight:600;padding:1px 4px;border-radius:8px;background:${badge.bg};color:${color};border:1px solid var(--b2);font-family:inherit">${badge.options}</select>
             <!-- 사용자 요청: 캘린더에서 할일 수정할 때 담당자(여러 명)도 날짜도 다 바로 수정 가능해야 함 -->
             <button type="button" class="assignee-picker-trigger" onclick="event.stopPropagation();openAssigneePicker(this,'${(t.assignee||'').replace(/'/g,"\\'")}',function(csv){fullUpdateTaskAssignee('${t.projId}','${anchorDs}',${t.taskIdx},csv);})" style="font-size:9px;padding:1px 5px;background:transparent;border:1px solid var(--b2);border-radius:8px;color:var(--t3);font-family:inherit">${t.assignee?('👤 '+assigneeDisplay(t.assignee)):'👤 담당자'}</button>
             <!-- 사용자 요청: 캘린더에서 예산도 바로 넣고 수정할 수 있어야 하고, 플랜/예산 탭에도 연동되어야 함 -->
@@ -4105,6 +4138,33 @@ function fullUpdateTaskType(pid,ds,i,newType){
   const p=getProj(pid);if(!p||!p.tasks[ds]||!p.tasks[ds][i])return;
   p.tasks[ds][i].type=newType;
   save();renderCalView();renderFullDayTasks(ds);
+}
+// 캘린더 항목(채널) 배지에서 값을 바꿨을 때 호출됨. getTaskItemBadge()가 만든 옵션 값 형식을 그대로 받음:
+// "g:<그룹인덱스>"면 이 프로젝트의 실제 플랜 그룹으로 옮기고(플랜 연결 유지), "t:<타입키>"면 예전처럼
+// 고정 7개 타입 중 하나로만 표시 값을 바꿈(플랜 연결이 없는 순수 캘린더 할일용, 기존 동작 그대로)
+function fullUpdateTaskItem(pid,ds,i,value){
+  if(typeof value==='string'&&value.startsWith('t:')){fullUpdateTaskType(pid,ds,i,value.slice(2));return;}
+  if(typeof value!=='string'||!value.startsWith('g:'))return;
+  const newGi=parseInt(value.slice(2),10);
+  const p=getProj(pid);if(!p||!p.tasks[ds]||!p.tasks[ds][i])return;
+  const t=p.tasks[ds][i];
+  if(!p.plan?.groups?.[newGi])return;
+  if(!t._planRef)return; // 플랜 연결이 없는 할일엔 그룹 옵션 자체가 안 보이므로 원래 여기 올 일이 없음(방어)
+  const[oldGi,oldTi]=String(t._planRef).split('-').map(Number);
+  if(oldGi===newGi)return; // 같은 그룹 선택이면 아무 것도 안 함
+  const oldGroup=p.plan.groups[oldGi];
+  const planTask=oldGroup?.tasks?.[oldTi];
+  if(planTask)oldGroup.tasks.splice(oldTi,1);
+  // 옛 그룹에서 빼낸 뒤에 남아있던 다른 할일들의 _planRef(캘린더/회의록 액션 아이템)도 인덱스가
+  // 하나씩 당겨진 만큼 같이 보정해야 함(deletePT와 완전히 같은 상황이라 같은 헬퍼를 재사용)
+  _reindexPlanRefsAfterTaskDelete(p,oldGi,oldTi);
+  const newGroup=p.plan.groups[newGi];
+  if(!newGroup.tasks)newGroup.tasks=[];
+  newGroup.tasks.push(planTask||{text:t.text,done:!!t.done,date:t.date||ds,assignee:t.assignee||'',budget:t.budget||0});
+  const newTi=newGroup.tasks.length-1;
+  t._planRef=newGi+'-'+newTi;
+  save();renderCalView();renderFullDayTasks(ds);renderPlanResult(p.plan);renderQuickAddGroups();
+  toast('항목을 옮겼어요 📁',1500);
 }
 // 사용자 요청: 캘린더에서 할일 수정할 때 날짜(시작일)도 드래그 없이 직접 입력해서 바로 옮길 수 있어야 함
 function fullUpdateTaskDate(pid,ds,i,newDs){

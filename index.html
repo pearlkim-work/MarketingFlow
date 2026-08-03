@@ -2100,7 +2100,9 @@ select:focus{border-color:var(--lm);outline:none}
       oninput="saveTaskDetailNote(this)"
       onpaste="setTimeout(()=>saveTaskDetailNote(document.getElementById('tned-detail')),0)"
     ></div>
-    <div class="modal-btns">
+    <!-- 사용자 요청: 내용이 길어서 완료/삭제 버튼을 보려면 매번 스크롤해야 했음 → 이 버튼 줄을
+         모달 하단에 고정(sticky)해서 스크롤 위치와 상관없이 항상 바로 보이고 눌리게 함 -->
+    <div class="modal-btns" style="position:sticky;bottom:-22px;margin:8px -22px -22px;padding:12px 22px;background:var(--surf);border-top:1px solid var(--b2)">
       <button class="btn-cancel" onclick="deleteTaskDetailNote()" style="color:var(--rd);border-color:rgba(194,32,32,.3)">🗑 서식 메모 삭제</button>
       <button type="button" id="td-delete-task-btn" onclick="deleteTaskDetailWholeTask()" style="display:none;padding:7px 14px;border-radius:var(--rs);border:1px solid var(--rd);background:var(--rd);color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">🗑 할일 삭제</button>
       <div style="flex:1"></div>
@@ -3634,7 +3636,7 @@ function renderWeekCal(){
       </div>
       <div style="padding:5px;min-height:80px;overflow-y:auto;max-height:calc(100vh - 280px)">
         ${taskHtml}
-        <div style="width:100%;padding:4px;border:1px dashed var(--b2);border-radius:3px;text-align:center;color:var(--t3);font-size:10px;cursor:pointer;margin-top:2px" onmouseover="this.style.borderColor='#8bc34a';this.style.color='#4a7a00'" onmouseout="this.style.borderColor='var(--b2)';this.style.color='var(--t3)'">+ 추가</div>
+        <div onclick="event.stopPropagation();quickCreateTaskFromWeek('${ds}')" style="width:100%;padding:4px;border:1px dashed var(--b2);border-radius:3px;text-align:center;color:var(--t3);font-size:10px;cursor:pointer;margin-top:2px" onmouseover="this.style.borderColor='#8bc34a';this.style.color='#4a7a00'" onmouseout="this.style.borderColor='var(--b2)';this.style.color='var(--t3)'">+ 추가</div>
       </div>
     </div>`;
   }).join('');
@@ -4364,6 +4366,23 @@ function _openTaskDetail(pid,ref){
 function openTaskDetailModal(pid,ds,i){_openTaskDetail(pid,{ds,i});}
 // 플랜 탭 각 항목의 "상세수정/상세등록" 버튼으로 여는 진입점
 function openTaskDetailModalFromPlan(pid,gi,ti){_openTaskDetail(pid,{gi,ti});}
+// 사용자 요청: 주간 보기의 "+ 추가"를 누르면 새 창(상세 모달)이 바로 뜨면서 제목/프로젝트/항목/담당자/
+// 예산까지 한 번에 입력할 수 있어야 함 → 그 날짜에 빈 할일을 하나 만들어두고 곧바로 상세 모달을 염
+// (상세 모달의 모든 칸은 입력 즉시 자동저장되니, 별도의 "만들기" 폼 없이 여기서 바로 다 채우면 됨)
+function quickCreateTaskFromWeek(ds){
+  const filterSel=document.getElementById('cal-proj-filter');
+  const filterVal=filterSel&&filterSel.value&&filterSel.value!=='all'?filterSel.value:'';
+  const pid=filterVal||getVisibleProjects()[0]?.id;
+  const proj=pid?getProj(pid):null;
+  if(!proj){toast('프로젝트를 먼저 만들어주세요 👆');return;}
+  if(!proj.tasks)proj.tasks={};
+  if(!proj.tasks[ds])proj.tasks[ds]=[];
+  proj.tasks[ds].push({text:'',type:'ops',done:false,assignee:'',budget:'',endDate:'',createdAt:Date.now()});
+  const newIdx=proj.tasks[ds].length-1;
+  save();
+  openTaskDetailModal(pid,ds,newIdx);
+  setTimeout(()=>{const t=document.getElementById('td-title');if(t){t.focus();t.select();}},30);
+}
 // 지금 열려있는 상세 모달의 대상(캘린더 쪽/플랜 쪽 중 있는 쪽 모두)에 한 필드 값을 그대로 써줌
 // (budget/assignee/date처럼 다른 곳들과 동일하게, _planRef로 연동된 할일이면 양쪽에 함께 반영됨)
 function _taskDetailWriteField(field,value){

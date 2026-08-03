@@ -2610,19 +2610,28 @@ function getTaskItemBadge(t){
   const pid=t?._projId||t?.projId;
   const proj=pid?getProj(pid):null;
   const groups=proj?.plan?.groups;
-  if(t?._planRef&&groups&&groups.length){
-    const gi=parseInt(String(t._planRef).split('-')[0],10);
-    const g=groups[gi];
-    if(g){
-      return{
-        isGroup:true,
-        label:g.name==='공통'?'일반':g.name,
-        color:g.color||'var(--t3)',
-        bg:'var(--surf3)',
-        options:groups.map((gg,idx)=>`<option value="g:${idx}"${idx===gi?' selected':''}>${(gg.name==='공통'?'일반':gg.name).replace(/"/g,'&quot;')}</option>`).join('')
-      };
+  // 사용자 요청("캘린더에서 클릭해서 항목을 봐도 아직 연동안된거같애"): 아직 플랜 그룹에 한 번도
+  // 연결(_planRef)된 적 없는 순수 캘린더 할일이라도, 그 프로젝트에 플랜 그룹이 있으면 고정 7개
+  // 목록이 아니라 이 프로젝트의 실제 항목 목록을 보여주고 그 중 하나로 바로 연결할 수 있어야 함
+  // (전엔 _planRef가 있을 때만 실제 그룹을 보여주고, 없으면 무조건 고정 7개만 보여줘서 "부안" 같은
+  // 프로젝트의 커스텀 항목들이 안 보이는 문제가 그대로 남아있었음)
+  if(groups&&groups.length){
+    let gi=t?._planRef?parseInt(String(t._planRef).split('-')[0],10):-1;
+    if(gi<0||!groups[gi]){
+      // 아직 연결 안 된 할일은 "공통"(=일반) 그룹을 기본 선택값으로 보여줌(있으면), 없으면 첫 그룹
+      const commonIdx=groups.findIndex(g=>g.name==='공통');
+      gi=commonIdx>=0?commonIdx:0;
     }
+    const g=groups[gi];
+    return{
+      isGroup:true,
+      label:g.name==='공통'?'일반':g.name,
+      color:g.color||'var(--t3)',
+      bg:'var(--surf3)',
+      options:groups.map((gg,idx)=>`<option value="g:${idx}"${idx===gi?' selected':''}>${(gg.name==='공통'?'일반':gg.name).replace(/"/g,'&quot;')}</option>`).join('')
+    };
   }
+  // 이 프로젝트엔 플랜 자체가 없는 경우(플랜 그룹이 아예 없음)에만 기존처럼 고정 7개로 표시
   return{
     isGroup:false,
     label:TYPE_PLAIN_LABEL[t?.type]||'일반',
@@ -4181,7 +4190,20 @@ function fullUpdateTaskItem(pid,ds,i,value){
   const p=getProj(pid);if(!p||!p.tasks[ds]||!p.tasks[ds][i])return;
   const t=p.tasks[ds][i];
   if(!p.plan?.groups?.[newGi])return;
-  if(!t._planRef)return; // 플랜 연결이 없는 할일엔 그룹 옵션 자체가 안 보이므로 원래 여기 올 일이 없음(방어)
+  // 사용자 요청: 플랜에 한 번도 연결된 적 없는(직접 캘린더에서 만든) 할일도 여기서 실제 항목을
+  // 고르면 그 자리에서 바로 플랜 쪽에 새로 연결되어야 함(이제 getTaskItemBadge가 이런 할일에도
+  // 실제 그룹 목록을 보여주므로, 고르는 즉시 연동이 만들어지지 않으면 그냥 무시되는 반쪽짜리 기능이 됨)
+  if(!t._planRef){
+    const newGroup=p.plan.groups[newGi];
+    if(!newGroup.tasks)newGroup.tasks=[];
+    newGroup.tasks.push({text:t.text,done:!!t.done,date:ds,assignee:t.assignee||'',budget:t.budget||0,endDate:t.endDate||''});
+    const newTi=newGroup.tasks.length-1;
+    t._planRef=newGi+'-'+newTi;
+    t._fromPlan=true;
+    save();renderCalView();renderFullDayTasks(ds);renderPlanResult(p.plan);renderQuickAddGroups();
+    toast('항목을 연결했어요 📁',1500);
+    return;
+  }
   const[oldGi,oldTi]=String(t._planRef).split('-').map(Number);
   if(oldGi===newGi)return; // 같은 그룹 선택이면 아무 것도 안 함
   const oldGroup=p.plan.groups[oldGi];

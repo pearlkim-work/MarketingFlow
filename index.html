@@ -2055,6 +2055,22 @@ select:focus{border-color:var(--lm);outline:none}
   <div class="modal" style="width:560px;max-height:82vh;overflow-y:auto">
     <div class="modal-title" id="task-detail-modal-title">상세 내용</div>
 
+    <!-- 사용자 요청: 캘린더에서 할일을 클릭 한 번으로 열면 제목/프로젝트/항목/담당자/날짜/예산까지
+         한 번에 보고 바로 수정할 수 있어야 함 → 캘린더 쪽 항목(ds/i)이 있는 할일에서만 보임
+         (플랜 탭에서만 존재하는, 날짜 없는 할일을 열었을 땐 옮길 캘린더 자리가 없어서 숨김) -->
+    <div id="td-basic-fields" style="display:none;flex-direction:column;gap:8px;padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--b2)">
+      <input type="text" id="td-title" placeholder="할 일 제목" onchange="saveTaskDetailTitle()" style="font-size:13px;font-weight:600;padding:6px 8px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf)">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <select id="td-proj" onchange="saveTaskDetailProject()" style="font-size:12px;flex:1;min-width:110px"></select>
+        <select id="td-item" onchange="saveTaskDetailItem()" style="font-size:12px;flex:1;min-width:110px"></select>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button type="button" id="td-assignee-btn" class="assignee-picker-trigger" onclick="openAssigneePicker(this,this.dataset.val||'',function(csv){saveTaskDetailAssignee(csv);})" style="font-size:12px;padding:5px 10px;background:var(--surf2);border:1px solid var(--b2);border-radius:var(--rs);color:var(--t2);cursor:pointer">👤 담당자</button>
+        <span style="font-size:12px;color:var(--t3);display:flex;align-items:center;gap:3px">📅<input type="date" id="td-startdate" onchange="saveTaskDetailDate()" style="font-size:12px;padding:3px 4px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf)">~<input type="date" id="td-enddate" onchange="saveTaskDetailEndDate()" style="font-size:12px;padding:3px 4px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf)"></span>
+        <span style="font-size:12px;color:var(--t3);display:flex;align-items:center;gap:3px">💰<input type="text" inputmode="decimal" id="td-budget" placeholder="예산" oninput="fmtNumInput(this)" onchange="saveTaskDetailBudget()" style="font-size:12px;padding:3px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf);width:90px"></span>
+      </div>
+    </div>
+
     <!-- 기본 상세내용: 우선순위 / 링크 / 간단 메모 / 체크리스트 -->
     <div style="display:flex;flex-direction:column;gap:8px;padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--b2)">
       <div style="display:flex;gap:8px">
@@ -2086,6 +2102,7 @@ select:focus{border-color:var(--lm);outline:none}
     ></div>
     <div class="modal-btns">
       <button class="btn-cancel" onclick="deleteTaskDetailNote()" style="color:var(--rd);border-color:rgba(194,32,32,.3)">🗑 서식 메모 삭제</button>
+      <button type="button" id="td-delete-task-btn" onclick="deleteTaskDetailWholeTask()" style="display:none;padding:7px 14px;border-radius:var(--rs);border:1px solid var(--rd);background:var(--rd);color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">🗑 할일 삭제</button>
       <div style="flex:1"></div>
       <button class="btn-confirm" onclick="closeTaskDetailModal()">완료</button>
     </div>
@@ -3570,17 +3587,23 @@ function renderWeekCal(){
     const total=tasks.length,done=tasks.filter(t=>t.done).length;
     const pct=total?Math.round(done/total*100):0;
     const taskHtml=tasks.map(t=>{
-      const c=TC[t.type]||'var(--t3)';
+      // 버그 수정: 카드 왼쪽 테두리/체크박스 색이 플랜 그룹과 연결된 할일이라도 t.type(보통 기본값
+      // 'ops') 기준으로만 정해져서 늘 회색으로 보였음 → getTaskItemBadge()로 실제 연결된 항목의 색을 씀
+      const badge=getTaskItemBadge(t);
+      const c=badge.color;
       const aDs=t._anchorDate||ds;
       // 사용자 요청: 주 보기 할일도 목록에서 바로 수정(제목)/삭제할 수 있어야 하고,
       // 마우스로 끌어서 다른 날로 옮길 수 있어야 함(드래그는 월 보기와 동일한 calDragStart/calDrop 재사용)
-      return`<div draggable="true" ondragstart="event.stopPropagation();calDragStart(event,'${t._projId}','${aDs}',${t._taskIdx})" ondragend="calDragEnd(event)" oncontextmenu="event.stopPropagation();calTaskCtxMenu(event,'${t._projId}','${aDs}',${t._taskIdx})" style="margin-bottom:3px;padding:4px 6px;background:var(--surf);border-left:2px solid ${c};border-radius:3px;border-top:1px solid var(--b);border-right:1px solid var(--b);border-bottom:1px solid var(--b)">
+      // 사용자 요청: 카드를 (체크박스/텍스트/삭제버튼이 아닌 곳) 클릭하면 상세 모달이 바로 열려서
+      // 한 번에 전체 내용을 보고 수정하고 삭제할 수 있어야 함
+      return`<div draggable="true" ondragstart="event.stopPropagation();calDragStart(event,'${t._projId}','${aDs}',${t._taskIdx})" ondragend="calDragEnd(event)" oncontextmenu="event.stopPropagation();calTaskCtxMenu(event,'${t._projId}','${aDs}',${t._taskIdx})" onclick="event.stopPropagation();openTaskDetailModal('${t._projId}','${aDs}',${t._taskIdx})" style="cursor:pointer;margin-bottom:3px;padding:4px 6px;background:var(--surf);border-left:2px solid ${c};border-radius:3px;border-top:1px solid var(--b);border-right:1px solid var(--b);border-bottom:1px solid var(--b)">
         <div style="display:flex;align-items:flex-start;gap:4px">
           <div onclick="event.stopPropagation();toggleTaskInline(this,'${aDs}','${t._projId}',${t._taskIdx})" style="width:11px;height:11px;border-radius:2px;border:1.5px solid ${t.done?c:'var(--b3)'};background:${t.done?c:'transparent'};flex-shrink:0;margin-top:1px;cursor:pointer"></div>
           <input class="full-task-text-inp" value="${(t.text||'').replace(/"/g,'&quot;')}" oninput="fullEditTaskText('${t._projId}','${aDs}',${t._taskIdx},this.value)" onclick="event.stopPropagation()" style="flex:1;min-width:0;border:none;background:transparent;padding:0;font-family:inherit;font-size:11px;${t.done?'text-decoration:line-through;color:var(--t3)':'color:var(--t)'};line-height:1.3">
           <button class="task-del" title="삭제" onclick="event.stopPropagation();fullDel('${t._projId}','${aDs}',${t._taskIdx})" style="flex-shrink:0;width:14px;height:14px">✕</button>
         </div>
-        ${t.assignee?`<div style="font-size:9px;color:var(--t3);padding-left:15px">👤 ${assigneeDisplay(t.assignee)}</div>`:''}
+        <div style="font-size:9px;color:${c};font-weight:600;padding-left:15px">${badge.label}</div>
+        <div style="font-size:9px;color:var(--t3);padding-left:15px">👤 ${t.assignee?assigneeDisplay(t.assignee):'미지정'}</div>
         ${t.endDate&&t.endDate>aDs?`<div style="font-size:9px;color:var(--lm);padding-left:15px">📅 ${aDs.slice(5)}~${t.endDate.slice(5)}</div>`:''}
         <div style="font-size:9px;color:${t._projColor};font-weight:600;padding-left:15px;display:flex;align-items:center;gap:3px"><span style="width:6px;height:6px;border-radius:50%;background:${t._projColor};display:inline-block;flex-shrink:0"></span>${t._projName}</div>
       </div>`;
@@ -4271,6 +4294,30 @@ function _openTaskDetail(pid,ref){
   const text=(r.calTask||r.planTask)?.text||'';
   const detailHtml=r.calTask?.detail||r.planTask?.detail||'';
   document.getElementById('task-detail-modal-title').textContent=text?`📝 ${text}`:'상세 내용';
+  // 사용자 요청: 할일을 클릭 한 번으로 열었을 때 제목/프로젝트/항목/담당자/날짜/예산까지 한 번에
+  // 보고 바로 수정/삭제할 수 있어야 함 → 캘린더 쪽 항목(ds/i)이 실제로 있을 때만 이 영역을 채우고 보여줌
+  // (플랜 탭에서만 있는, 날짜가 아직 없는 할일을 열었을 땐 옮길 캘린더 자리가 없어서 숨김)
+  const basicWrap=document.getElementById('td-basic-fields');
+  const delBtn=document.getElementById('td-delete-task-btn');
+  if(basicWrap){
+    if(r.ds!=null&&r.i!=null&&r.calTask){
+      basicWrap.style.display='flex';
+      if(delBtn)delBtn.style.display='';
+      const titleEl=document.getElementById('td-title');if(titleEl)titleEl.value=r.calTask.text||'';
+      const projSel=document.getElementById('td-proj');
+      if(projSel)projSel.innerHTML=getVisibleProjects().map(vp=>`<option value="${vp.id}"${vp.id===r.proj.id?' selected':''}>${(vp.name||'').replace(/"/g,'&quot;')}</option>`).join('');
+      const itemSel=document.getElementById('td-item');
+      if(itemSel)itemSel.innerHTML=getTaskItemBadge({...r.calTask,_projId:r.proj.id}).options;
+      const assBtn=document.getElementById('td-assignee-btn');
+      if(assBtn){const csv=r.calTask.assignee||'';assBtn.dataset.val=csv;assBtn.textContent=csv?('👤 '+assigneeDisplay(csv)):'👤 담당자';}
+      const sdEl=document.getElementById('td-startdate');if(sdEl)sdEl.value=r.ds;
+      const edEl=document.getElementById('td-enddate');if(edEl)edEl.value=r.calTask.endDate||'';
+      const budEl=document.getElementById('td-budget');if(budEl)budEl.value=fmtNum(r.calTask.budget);
+    }else{
+      basicWrap.style.display='none';
+      if(delBtn)delBtn.style.display='none';
+    }
+  }
   // 사용자 요청: 우선순위/링크/메모/체크리스트 같은 "기본 상세내용"도 이 모달 위쪽에서 함께 등록/수정
   const priorityEl=document.getElementById('td-priority');if(priorityEl)priorityEl.value=r.calTask?.priority||r.planTask?.priority||'';
   const linkEl=document.getElementById('td-link');if(linkEl)linkEl.value=r.calTask?.link||r.planTask?.link||'';
@@ -4306,6 +4353,58 @@ function saveTaskDetailBasic(){
   _taskDetailWriteField('link',document.getElementById('td-link')?.value.trim()||'');
   _taskDetailWriteField('memo',document.getElementById('td-memo')?.value.trim()||'');
   save();
+}
+// 사용자 요청: 상세 모달 위쪽(제목/프로젝트/항목/담당자/날짜/예산)은 이미 있는 fullUpdateTask*
+// 계열 함수를 그대로 재사용함(캘린더 목록의 인라인 select/input과 완전히 같은 동작·동기화를 보장하기 위함).
+// 프로젝트를 옮기거나(fullUpdateTaskProject) 시작일을 바꾸면(fullUpdateTaskDate) 그 할일이 실제로
+// 다른 배열(다른 프로젝트/다른 날짜)로 옮겨져서 ds/i가 바뀌므로, 그 두 경우엔 새 위치로 모달을 다시 열어
+// _taskDetailCtx와 화면을 전부 새로 맞춤(그 외 필드는 같은 자리에서 값만 바뀌므로 다시 열 필요 없음)
+function saveTaskDetailTitle(){
+  if(!_taskDetailCtx)return;const{pid,ds,i}=_taskDetailCtx;if(ds==null||i==null)return;
+  const val=document.getElementById('td-title')?.value||'';
+  fullEditTaskText(pid,ds,i,val);
+  document.getElementById('task-detail-modal-title').textContent=val?`📝 ${val}`:'상세 내용';
+}
+function saveTaskDetailProject(){
+  if(!_taskDetailCtx)return;const{pid,ds,i}=_taskDetailCtx;if(ds==null||i==null)return;
+  const newPid=document.getElementById('td-proj')?.value;
+  if(!newPid||newPid===pid)return;
+  fullUpdateTaskProject(pid,ds,i,newPid);
+  const np=getProj(newPid);const newIdx=(np?.tasks?.[ds]?.length||1)-1;
+  _openTaskDetail(newPid,{ds,i:newIdx});
+}
+function saveTaskDetailItem(){
+  if(!_taskDetailCtx)return;const{pid,ds,i}=_taskDetailCtx;if(ds==null||i==null)return;
+  const val=document.getElementById('td-item')?.value;if(!val)return;
+  fullUpdateTaskItem(pid,ds,i,val);
+  _openTaskDetail(pid,{ds,i});
+}
+function saveTaskDetailAssignee(csv){
+  if(!_taskDetailCtx)return;const{pid,ds,i}=_taskDetailCtx;if(ds==null||i==null)return;
+  fullUpdateTaskAssignee(pid,ds,i,csv);
+  const btn=document.getElementById('td-assignee-btn');
+  if(btn){btn.dataset.val=csv;btn.textContent=csv?('👤 '+assigneeDisplay(csv)):'👤 담당자';}
+}
+function saveTaskDetailDate(){
+  if(!_taskDetailCtx)return;const{pid,ds,i}=_taskDetailCtx;if(ds==null||i==null)return;
+  const newDs=document.getElementById('td-startdate')?.value;if(!newDs||newDs===ds)return;
+  fullUpdateTaskDate(pid,ds,i,newDs);
+  const p=getProj(pid);const newIdx=(p?.tasks?.[newDs]?.length||1)-1;
+  _openTaskDetail(pid,{ds:newDs,i:newIdx});
+}
+function saveTaskDetailEndDate(){
+  if(!_taskDetailCtx)return;const{pid,ds,i}=_taskDetailCtx;if(ds==null||i==null)return;
+  fullUpdateTaskEndDate(pid,ds,i,document.getElementById('td-enddate')?.value||'');
+}
+function saveTaskDetailBudget(){
+  if(!_taskDetailCtx)return;const{pid,ds,i}=_taskDetailCtx;if(ds==null||i==null)return;
+  fullUpdateTaskBudget(pid,ds,i,numVal(document.getElementById('td-budget')?.value||''));
+}
+// 사용자 요청: 상세 모달에서 할일 자체를 통째로 삭제할 수도 있어야 함(서식 메모만 지우는 기존 버튼과는 다름)
+function deleteTaskDetailWholeTask(){
+  if(!_taskDetailCtx)return;const{pid,ds,i}=_taskDetailCtx;if(ds==null||i==null)return;
+  fullDel(pid,ds,i);
+  closeTaskDetailModal();
 }
 // 체크리스트: 지금 열려있는 상세 모달 대상의 체크리스트를 읽어옴(캘린더 쪽을 우선으로, 없으면 플랜 쪽)
 function _taskDetailGetChecklist(){

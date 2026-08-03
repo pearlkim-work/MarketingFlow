@@ -3387,7 +3387,7 @@ function updateCalProgress(){
     const weekStart = new Date(now); weekStart.setDate(now.getDate() - day);
     const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
     const fmt = d => d.toISOString().split('T')[0];
-    let total=0, done=0;
+    let total=0, done=0, budgetSum=0;
     const wsStr=fmt(weekStart),weStr=fmt(weekEnd);
     progProjs.forEach(p => {
       // 사용자 요청: 여러 날에 걸친 일정은 저장된 시작일이 이번 주 밖이어도, 기간이 이번 주와 겹치면 이번 주 진행률에 포함돼야 함
@@ -3397,6 +3397,8 @@ function updateCalProgress(){
           if(!(ds<=weStr && endOf(t)>=wsStr))return; // 구간 겹침 체크(한 번만 카운트)
           if(!progMatches(t,p)) return;
           total++; if(t.done) done++;
+          // 사용자 요청: 캘린더 위쪽 진행 현황 바에 이 기간(이번 주/이번 달) 예상 예산 합계도 같이 보이면 좋겠음
+          budgetSum += parseFloat(t.budget)||0;
         });
       });
     });
@@ -3406,18 +3408,20 @@ function updateCalProgress(){
         <div style="height:100%;width:${pct}%;background:#C8F064;border-radius:3px;transition:width .5s"></div>
       </div>
       <span style="font-weight:700;color:#5a9e00">${pct}%</span>
-      <span style="color:var(--t3)">${done}/${total} 완료</span>`;
+      <span style="color:var(--t3)">${done}/${total} 완료</span>
+      ${budgetSum?`<span style="color:var(--t3);border-left:1px solid var(--b2);padding-left:10px">💰 예상 예산 <b style="color:var(--t)">₩${fmtNum(budgetSum)}</b></span>`:''}`;
   } else {
     // 이번 달
     const y = now.getFullYear(), m = now.getMonth()+1;
     const prefix = y+'-'+(m<10?'0'+m:m);
-    let total=0, done=0;
+    let total=0, done=0, budgetSum=0;
     progProjs.forEach(p => {
       Object.entries(p.tasks||{}).forEach(([ds,ts]) => {
         if(ds.startsWith(prefix)){
           ts.forEach(t => {
             if(!progMatches(t,p)) return;
             total++; if(t.done) done++;
+            budgetSum += parseFloat(t.budget)||0;
           });
         }
       });
@@ -3428,7 +3432,8 @@ function updateCalProgress(){
         <div style="height:100%;width:${pct}%;background:#C8F064;border-radius:3px;transition:width .5s"></div>
       </div>
       <span style="font-weight:700;color:#5a9e00">${pct}%</span>
-      <span style="color:var(--t3)">${done}/${total} 완료</span>`;
+      <span style="color:var(--t3)">${done}/${total} 완료</span>
+      ${budgetSum?`<span style="color:var(--t3);border-left:1px solid var(--b2);padding-left:10px">💰 예상 예산 <b style="color:var(--t)">₩${fmtNum(budgetSum)}</b></span>`:''}`;
   }
 }
 

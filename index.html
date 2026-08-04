@@ -4893,8 +4893,12 @@ function renderMyNoteList(){
   if(!_mfUser){listEl.innerHTML='<div style="font-size:11px;color:var(--t3);text-align:center;padding:16px 0">로그인 후 이용할 수 있어요</div>';return;}
   const q=(document.getElementById('mynote-search')?.value||'').toLowerCase();
   const notes=getMyNotes().filter(n=>!q||(n.title||'').toLowerCase().includes(q));
-  if(!notes.length){listEl.innerHTML=`<div class="mtg-empty-search">${q?'검색 결과 없음':'아직 기록이 없어요. + 새 기록으로 시작해봐요 ✍️'}</div>`;return;}
   const folders=getMyNoteFolders();
+  // 버그 수정: 예전엔 기록이 하나도 없으면(예: 폴더만 새로 만들고 기록은 아직 없을 때) 바로
+  // "아직 기록이 없어요"만 보여주고 return 해버려서, 방금 만든 폴더 자체가 목록에 아예 안 보이는
+  // 문제가 있었음. 기록도 없고 폴더도 없을 때만 빈 상태 메시지를 보여주도록 수정.
+  if(!notes.length&&!folders.length){listEl.innerHTML=`<div class="mtg-empty-search">${q?'검색 결과 없음':'아직 기록이 없어요. + 새 기록으로 시작해봐요 ✍️'}</div>`;return;}
+  if(!notes.length&&q){listEl.innerHTML=`<div class="mtg-empty-search">검색 결과 없음</div>`;return;}
   const ungrouped=notes.filter(n=>!n.folderId||!folders.some(f=>f.id===n.folderId));
   let html='';
   folders.forEach(f=>{
@@ -4971,8 +4975,11 @@ function renderMtgList(){
   const q=(document.getElementById('mtg-search').value||'').toLowerCase();
   const all=getVisibleMeetings().filter(m=>!q||m.title.toLowerCase().includes(q)||m.date.includes(q));
   const listEl=document.getElementById('mtg-list');
-  if(!all.length){listEl.innerHTML=`<div class="mtg-empty-search">${q?'검색 결과 없음':'아직 회의록이 없어요'}</div>`;return;}
   const folders=getVisibleMtgFolders();
+  // 버그 수정: 회의록이 하나도 없으면(폴더만 있고 안의 회의록을 전부 지운 경우 등) 폴더 자체가
+  // 목록에서 사라져버리던 문제 — 기록장과 동일한 원인이라 같이 수정함
+  if(!all.length&&!folders.length){listEl.innerHTML=`<div class="mtg-empty-search">${q?'검색 결과 없음':'아직 회의록이 없어요'}</div>`;return;}
+  if(!all.length&&q){listEl.innerHTML=`<div class="mtg-empty-search">검색 결과 없음</div>`;return;}
   const ungrouped=all.filter(m=>!m.folderId||!folders.some(f=>f.id===m.folderId));
   let html='';
   folders.forEach(f=>{

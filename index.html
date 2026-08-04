@@ -4838,12 +4838,13 @@ function normalizePersonalNotes(){
           title:(n.text||'').split('\n')[0].slice(0,40)||'(제목 없음)',
           notesHtml:(n.text||'').replace(/\n/g,'<br>'),
           notes:n.text||'',
+          projId:'',
           createdAt:n.ts||Date.now(),
           updatedAt:n.ts||Date.now(),
           shared:false,shareId:null
         };
       }
-      return Object.assign({shared:false,shareId:null,notes:n.notes||'',updatedAt:n.updatedAt||n.createdAt||Date.now(),createdAt:n.createdAt||Date.now(),title:n.title||'(제목 없음)',notesHtml:n.notesHtml||''},n);
+      return Object.assign({shared:false,shareId:null,notes:n.notes||'',projId:n.projId||'',updatedAt:n.updatedAt||n.createdAt||Date.now(),createdAt:n.createdAt||Date.now(),title:n.title||'(제목 없음)',notesHtml:n.notesHtml||''},n);
     });
   });
 }
@@ -4860,7 +4861,7 @@ function createMyNote(){
   if(!_mfUser)return;
   if(!S.personalNotes)S.personalNotes={};
   if(!S.personalNotes[_mfUser.id])S.personalNotes[_mfUser.id]=[];
-  const note={id:Date.now().toString()+Math.random().toString(36).slice(2,6),title:'제목 없음',notesHtml:'',notes:'',createdAt:Date.now(),updatedAt:Date.now(),shared:false,shareId:null};
+  const note={id:Date.now().toString()+Math.random().toString(36).slice(2,6),title:'제목 없음',notesHtml:'',notes:'',projId:'',createdAt:Date.now(),updatedAt:Date.now(),shared:false,shareId:null};
   S.personalNotes[_mfUser.id].unshift(note);
   _curNoteId=note.id;
   save();renderMyNoteList();renderMyNoteDetail(note.id);
@@ -4896,7 +4897,7 @@ function renderMyNoteDetail(id){
     <div class="mtg-doc-header">
       <div style="flex:1;min-width:0">
         <input class="mtg-doc-title-inp" value="${n.title||''}" placeholder="제목" oninput="updateMyNoteField('${id}','title',this.value)">
-        <div class="mtg-meta"><span>🕐 ${fmtTs(n.createdAt)}</span>${n.shared?`<span style="color:var(--lm)">🔗 공유중</span>`:''}</div>
+        <div class="mtg-meta"><span>🕐 ${fmtTs(n.createdAt)}</span><span>📁 <select class="ai-proj" onchange="updateMyNoteField('${id}','projId',this.value)"><option value="">프로젝트 연동 안 함</option>${getVisibleProjects().map(p=>`<option value="${p.id}"${n.projId===p.id?' selected':''}>${p.name}</option>`).join('')}</select></span>${n.shared?`<span style="color:var(--lm)">🔗 공유중</span>`:''}</div>
       </div>
       <div class="mtg-header-btns">
         <button class="btn-mtg-act" onclick="toggleShareMyNote('${id}')">${n.shared?'🔓 공유해제':'🔗 공유'}</button>
@@ -8049,7 +8050,10 @@ function visibleByOrg(arr){
   return(arr||[]).filter(x=>x.org===_mfUser.org);
 }
 function getVisibleProjects(){return visibleByOrg(S.projects);}
-function getVisibleMeetings(){return visibleByOrg(S.meetings);}
+// 회의록은 항상 "가장 최근에 생성한 것"이 맨 위로 오도록 createdAt 내림차순 정렬.
+// (예전엔 배열 삽입 순서에만 의존했는데, 데이터 마이그레이션이나 서버 동기화 등으로
+// 순서가 뒤섞일 수 있어서 항상 명시적으로 정렬해줌)
+function getVisibleMeetings(){return visibleByOrg(S.meetings).slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));}
 function getVisibleProducts(){return visibleByOrg(S.products);}
 function getVisibleInfluencers(){return visibleByOrg(S.influencers);}
 function getVisibleMtgFolders(){return visibleByOrg(S.mtgFolders);}

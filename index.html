@@ -1862,7 +1862,10 @@ select:focus{border-color:var(--lm);outline:none}
       <div class="mtg-sidebar-top">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
           <div class="sec-label" style="margin-bottom:0">📝 <span id="mynote-title-name">내</span>님의 기록장</div>
-          <button class="btn-gen" style="padding:5px 10px;font-size:11px;width:auto" onclick="createMyNote()">+ 새 기록</button>
+          <div style="display:flex;gap:4px">
+            <button onclick="openCreateFolderModal('note')" style="padding:4px 9px;font-size:11px;border:1px solid var(--b2);border-radius:var(--rs);background:transparent;color:var(--t2);cursor:pointer" title="폴더 만들기">📁+</button>
+            <button class="btn-gen" style="padding:5px 10px;font-size:11px;width:auto" onclick="createMyNote()">+ 새 기록</button>
+          </div>
         </div>
         <div style="font-size:11px;color:var(--t2);margin-bottom:8px">나만 보는 개인 기록장이에요. 공유 버튼을 누르면 링크로 다른 사람도 볼 수 있어요.</div>
         <input type="text" id="mynote-search" placeholder="🔍 검색..." oninput="renderMyNoteList()" style="font-size:11px;padding:6px 9px;width:100%">
@@ -1940,7 +1943,7 @@ select:focus{border-color:var(--lm);outline:none}
 <div class="modal-bg" id="create-folder-modal" style="display:none">
   <div class="modal" style="width:340px">
     <div class="modal-title">📁 새 폴더 만들기</div>
-    <div class="field-g"><label class="field-label">폴더 이름</label><input type="text" id="folder-name-inp" placeholder="예) 7월 전략 회의, 외부 미팅" onkeydown="if(event.key==='Enter'&&!event.isComposing&&event.keyCode!==229)createMtgFolder()"></div>
+    <div class="field-g"><label class="field-label">폴더 이름</label><input type="text" id="folder-name-inp" placeholder="예) 7월 전략 회의, 외부 미팅" onkeydown="if(event.key==='Enter'&&!event.isComposing&&event.keyCode!==229)confirmCreateFolder()"></div>
     <div class="field-g">
       <label class="field-label">색상</label>
       <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:4px" id="folder-color-opts">
@@ -1954,7 +1957,7 @@ select:focus{border-color:var(--lm);outline:none}
     </div>
     <div class="modal-btns">
       <button class="btn-cancel" onclick="document.getElementById('create-folder-modal').style.display='none'">취소</button>
-      <button class="btn-confirm" onclick="createMtgFolder()">만들기</button>
+      <button class="btn-confirm" onclick="confirmCreateFolder()">만들기</button>
     </div>
   </div>
 </div>
@@ -4844,7 +4847,7 @@ function normalizePersonalNotes(){
           shared:false,shareId:null
         };
       }
-      return Object.assign({shared:false,shareId:null,notes:n.notes||'',projId:n.projId||'',updatedAt:n.updatedAt||n.createdAt||Date.now(),createdAt:n.createdAt||Date.now(),title:n.title||'(제목 없음)',notesHtml:n.notesHtml||''},n);
+      return Object.assign({shared:false,shareId:null,notes:n.notes||'',projId:n.projId||'',folderId:n.folderId||'',updatedAt:n.updatedAt||n.createdAt||Date.now(),createdAt:n.createdAt||Date.now(),title:n.title||'(제목 없음)',notesHtml:n.notesHtml||''},n);
     });
   });
 }
@@ -4861,7 +4864,7 @@ function createMyNote(){
   if(!_mfUser)return;
   if(!S.personalNotes)S.personalNotes={};
   if(!S.personalNotes[_mfUser.id])S.personalNotes[_mfUser.id]=[];
-  const note={id:Date.now().toString()+Math.random().toString(36).slice(2,6),title:'제목 없음',notesHtml:'',notes:'',projId:'',createdAt:Date.now(),updatedAt:Date.now(),shared:false,shareId:null};
+  const note={id:Date.now().toString()+Math.random().toString(36).slice(2,6),title:'제목 없음',notesHtml:'',notes:'',projId:'',folderId:'',createdAt:Date.now(),updatedAt:Date.now(),shared:false,shareId:null};
   S.personalNotes[_mfUser.id].unshift(note);
   _curNoteId=note.id;
   save();renderMyNoteList();renderMyNoteDetail(note.id);
@@ -4873,13 +4876,16 @@ function delMyNoteDoc(id){
   if(_curNoteId===id){_curNoteId=null;const d=document.getElementById('mynote-detail');if(d)d.innerHTML='<div class="empty-plan"><div class="ei">📝</div><p>기록을 선택하거나 새로 만들어봐요</p></div>';}
   save();renderMyNoteList();
 }
-function updateMyNoteField(id,field,val){const n=getMyNote(id);if(n){n[field]=val;n.updatedAt=Date.now();save();}}
+function updateMyNoteField(id,field,val){const n=getMyNote(id);if(n){n[field]=val;n.updatedAt=Date.now();save();if(field==='folderId')renderMyNoteList();}}
 function saveMyNoteContent(id,el){const n=getMyNote(id);if(!n)return;n.notesHtml=el.innerHTML;n.notes=el.innerText||el.textContent;n.updatedAt=Date.now();save();}
 function toggleShareMyNote(id){
   const n=getMyNote(id);if(!n)return;
   n.shared=!n.shared;
   if(n.shared&&!n.shareId)n.shareId=genShareId();
   save();renderMyNoteDetail(id);
+}
+function noteListItem(n){
+  return`<div class="mtg-list-item${_curNoteId===n.id?' active':''}" onclick="renderMyNoteDetail('${n.id}')" style="padding:8px 10px 8px 18px"><div class="mli-date">🕐 ${fmtTs(n.updatedAt||n.createdAt)}${n.shared?' · 🔗 공유중':''}</div><div class="mli-title">${n.title||'(제목 없음)'}</div></div>`;
 }
 function renderMyNoteList(){
   updateMyNoteLabel();
@@ -4888,7 +4894,28 @@ function renderMyNoteList(){
   const q=(document.getElementById('mynote-search')?.value||'').toLowerCase();
   const notes=getMyNotes().filter(n=>!q||(n.title||'').toLowerCase().includes(q));
   if(!notes.length){listEl.innerHTML=`<div class="mtg-empty-search">${q?'검색 결과 없음':'아직 기록이 없어요. + 새 기록으로 시작해봐요 ✍️'}</div>`;return;}
-  listEl.innerHTML=notes.map(n=>`<div class="mtg-list-item${_curNoteId===n.id?' active':''}" onclick="renderMyNoteDetail('${n.id}')"><div class="mli-date">🕐 ${fmtTs(n.updatedAt||n.createdAt)}${n.shared?' · 🔗 공유중':''}</div><div class="mli-title">${n.title||'(제목 없음)'}</div></div>`).join('');
+  const folders=getMyNoteFolders();
+  const ungrouped=notes.filter(n=>!n.folderId||!folders.some(f=>f.id===n.folderId));
+  let html='';
+  folders.forEach(f=>{
+    const items=notes.filter(n=>n.folderId===f.id);
+    html+=`<div class="mtg-folder-block">
+      <div class="mtg-folder-header" style="display:flex;align-items:center;gap:6px;padding:6px 4px;cursor:pointer" onclick="toggleNoteFolderOpen('${f.id}')">
+        <span id="nfarr-${f.id}" class="folder-arrow${f.open?' open':''}">▶</span>
+        <span style="width:9px;height:9px;border-radius:50%;background:${f.color};flex-shrink:0"></span>
+        <span style="flex:1;font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</span>
+        <span style="font-size:10px;color:var(--t3)">${items.length}</span>
+        <button onclick="event.stopPropagation();deleteNoteFolder('${f.id}')" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:11px;padding:0 3px" title="폴더 삭제">✕</button>
+      </div>
+      <div id="nfblock-${f.id}" style="display:${f.open?'block':'none'}">
+        ${items.length?items.map(n=>noteListItem(n)).join(''):'<div style="font-size:10px;color:var(--t3);padding:4px 4px 8px 22px">폴더가 비어있어요</div>'}
+      </div>
+    </div>`;
+  });
+  if(ungrouped.length){
+    html+= folders.length ? `<div class="mtg-folder-block"><div style="font-size:10px;color:var(--t3);padding:8px 4px 4px 4px">📄 폴더 없음</div>${ungrouped.map(n=>noteListItem(n)).join('')}</div>` : ungrouped.map(n=>noteListItem(n)).join('');
+  }
+  listEl.innerHTML=html;
 }
 function renderMyNoteDetail(id){
   _curNoteId=id;renderMyNoteList();
@@ -4897,7 +4924,7 @@ function renderMyNoteDetail(id){
     <div class="mtg-doc-header">
       <div style="flex:1;min-width:0">
         <input class="mtg-doc-title-inp" value="${n.title||''}" placeholder="제목" oninput="updateMyNoteField('${id}','title',this.value)">
-        <div class="mtg-meta"><span>🕐 ${fmtTs(n.createdAt)}</span><span>📁 <select class="ai-proj" onchange="updateMyNoteField('${id}','projId',this.value)"><option value="">프로젝트 연동 안 함</option>${getVisibleProjects().map(p=>`<option value="${p.id}"${n.projId===p.id?' selected':''}>${p.name}</option>`).join('')}</select></span>${n.shared?`<span style="color:var(--lm)">🔗 공유중</span>`:''}</div>
+        <div class="mtg-meta"><span>🕐 ${fmtTs(n.createdAt)}</span><span>📁 <select class="ai-proj" onchange="updateMyNoteField('${id}','projId',this.value)"><option value="">프로젝트 연동 안 함</option>${getVisibleProjects().map(p=>`<option value="${p.id}"${n.projId===p.id?' selected':''}>${p.name}</option>`).join('')}</select></span><span>📂 <select class="ai-proj" onchange="updateMyNoteField('${id}','folderId',this.value)"><option value="">폴더 없음</option>${getMyNoteFolders().map(f=>`<option value="${f.id}"${n.folderId===f.id?' selected':''}>${f.name}</option>`).join('')}</select></span>${n.shared?`<span style="color:var(--lm)">🔗 공유중</span>`:''}</div>
       </div>
       <div class="mtg-header-btns">
         <button class="btn-mtg-act" onclick="toggleShareMyNote('${id}')">${n.shared?'🔓 공유해제':'🔗 공유'}</button>
@@ -5000,7 +5027,7 @@ function renderMtgDetail(id){
       </div>
     </div>`;
   }).join('');
-  document.getElementById('mtg-detail').innerHTML=`<div class="mtg-doc"><div class="mtg-doc-header"><div style="flex:1;min-width:0"><input class="mtg-doc-title-inp" value="${mtg.title}" placeholder="회의 제목" oninput="updateMtgField('${id}','title',this.value)"><div class="mtg-meta"><span>📅 ${mtg.date||'날짜 미정'}${mtg.time?' '+mtg.time:''}</span><span>👥 ${membersStr}</span>${proj?`<span>📁 ${proj.name}</span>`:''}${mtg.shared?`<span style="color:var(--lm)">🔗 공유중</span>`:''}${prevMtg?`<span style="cursor:pointer;color:var(--bl)" onclick="renderMtgDetail('${prevMtg.id}')">↩ ${prevMtg.date} 에서 이어짐</span>`:''}</div></div><div class="mtg-header-btns"><button class="btn-mtg-act" onclick="toggleShareMtg('${id}')">${mtg.shared?'🔓 공유해제':'🔗 공유'}</button>${mtg.shared?`<button class="btn-mtg-act" onclick="copyShareLink('mtg','${mtg.shareId}')">링크복사</button>`:''}<button class="btn-mtg-act" onclick="duplicateMtg('${id}')">복사</button><button class="btn-mtg-act" onclick="openMtgModal('${id}')">수정</button><button class="btn-mtg-act" onclick="window.print()">🖨 PDF</button><button class="btn-mtg-act del" onclick="delMtg('${id}')">삭제</button></div></div><div class="mtg-section"><div class="mtg-section-header"><div class="mtg-section-title">📌 아젠다</div><button class="btn-add-item" onclick="addAgenda('${id}')">+ 추가</button></div><div class="agenda-list" id="agenda-list-${id}">${agendaHtml||'<div style="font-size:11px;color:var(--t3)">아젠다를 추가해봐요</div>'}</div></div><div class="mtg-section">
+  document.getElementById('mtg-detail').innerHTML=`<div class="mtg-doc"><div class="mtg-doc-header"><div style="flex:1;min-width:0"><input class="mtg-doc-title-inp" value="${mtg.title}" placeholder="회의 제목" oninput="updateMtgField('${id}','title',this.value)"><div class="mtg-meta"><span>📅 ${mtg.date||'날짜 미정'}${mtg.time?' '+mtg.time:''}</span><span>👥 ${membersStr}</span>${proj?`<span>📁 ${proj.name}</span>`:''}${mtg.shared?`<span style="color:var(--lm)">🔗 공유중</span>`:''}${prevMtg?`<span style="cursor:pointer;color:var(--bl)" onclick="renderMtgDetail('${prevMtg.id}')">↩ ${prevMtg.date} 에서 이어짐</span>`:''}</div></div><div class="mtg-header-btns"><button class="btn-mtg-act" onclick="toggleShareMtg('${id}')">${mtg.shared?'🔓 공유해제':'🔗 공유'}</button>${mtg.shared?`<button class="btn-mtg-act" onclick="copyShareLink('mtg','${mtg.shareId}')">링크복사</button>`:''}<button class="btn-mtg-act" onclick="duplicateMtg('${id}')">복사</button><button class="btn-mtg-act" onclick="openMtgModal('${id}')">수정</button><button class="btn-mtg-act" onclick="openMtgPdf('${id}')">🖨 PDF</button><button class="btn-mtg-act del" onclick="delMtg('${id}')">삭제</button></div></div><div class="mtg-section"><div class="mtg-section-header"><div class="mtg-section-title">📌 아젠다</div><button class="btn-add-item" onclick="addAgenda('${id}')">+ 추가</button></div><div class="agenda-list" id="agenda-list-${id}">${agendaHtml||'<div style="font-size:11px;color:var(--t3)">아젠다를 추가해봐요</div>'}</div></div><div class="mtg-section">
         <div class="mtg-section-title" style="margin-bottom:6px">📝 회의 노트</div>
         ${notesToolbarHtml('ned-'+id)}
         <div class="notes-editor" id="ned-${id}" contenteditable="true"
@@ -5010,6 +5037,80 @@ function renderMtgDetail(id){
           onkeydown="notesEditorKeydown(event)"
         >${mtg.notesHtml||mtg.notes?.replace(/\n/g,'<br>')||''}</div>
       </div><div class="mtg-section"><div class="mtg-section-header"><div class="mtg-section-title">✅ 액션 아이템</div><div style="display:flex;gap:6px"><button class="btn-add-item" onclick="openActionImportModal('${id}')">📥 다른 회의에서 가져오기</button><button class="btn-add-item" onclick="addAction('${id}')">+ 추가</button></div></div><div class="action-items-list" id="action-list-${id}">${actionHtml||'<div style="font-size:11px;color:var(--t3)">액션 아이템을 추가해봐요</div>'}</div></div></div>`;
+}
+// 사용자 요청: 회의록 PDF 버튼을 누르면 앱 화면(어두운 테마 그대로) 전체가 그대로 인쇄돼서 이상하게 나옴
+// → 대시보드 PDF 보고서(openDashPdf)와 동일한 방식으로, 흰 배경의 별도 보고서 레이아웃을 만들어서
+// #pdf-report-modal 미리보기 + #pdf-print-area(인쇄 전용 영역)에 채워넣음
+function openMtgPdf(id){
+  const mtg=getMtg(id);if(!mtg)return;
+  const proj=mtg.projId?getProj(mtg.projId):null;
+  const membersStr=(mtg.members||[]).length?mtg.members.join(', '):'참석자 없음';
+  const today=new Date();
+  const dateStr=`${today.getFullYear()}년 ${today.getMonth()+1}월 ${today.getDate()}일`;
+  const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const agendaHtml=(mtg.agenda||[]).filter(a=>a.text).map((a,i)=>`
+    <div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid #f5f5f5">
+      <div style="font-size:11px;font-weight:700;color:#7c4bc2;flex-shrink:0">${i+1}.</div>
+      <div style="font-size:12px;flex:1;color:#1a1917">${esc(a.text)}</div>
+    </div>`).join('');
+  const actions=mtg.actions||[];
+  const actionHtml=actions.length?actions.map(a=>{
+    const av=getMtgActionView(a);
+    return`<div style="display:flex;align-items:flex-start;gap:8px;padding:9px 10px;border:1px solid #eee;border-radius:8px;margin-bottom:6px;background:${av.done?'#f5faf6':'#fff'}">
+      <div style="width:13px;height:13px;border-radius:3px;border:1.5px solid ${av.done?'#1a9c5a':'#ddd'};background:${av.done?'#1a9c5a':'transparent'};flex-shrink:0;margin-top:2px"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:500;color:${av.done?'#aaa':'#1a1917'};${av.done?'text-decoration:line-through':''}">${esc(av.text)}</div>
+        <div style="font-size:10px;color:#aaa;margin-top:2px">${av.who?esc(av.who)+' · ':''}${av.due||''}</div>
+      </div>
+    </div>`;
+  }).join(''):'<div style="font-size:11px;color:#aaa">액션 아이템 없음</div>';
+
+  const html=`
+  <div style="font-family:'Noto Sans KR',sans-serif;color:#1a1917">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;padding-bottom:20px;border-bottom:2px solid #1a1917;margin-bottom:22px">
+      <div>
+        <div style="font-size:10px;font-weight:700;color:#7c4bc2;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">MarkFlow 회의록</div>
+        <div style="font-size:22px;font-weight:800;line-height:1.2;margin-bottom:8px">${esc(mtg.title)}</div>
+        <div style="font-size:11px;color:#6b6862;display:flex;gap:14px;flex-wrap:wrap">
+          <span>📅 ${esc(mtg.date)||'날짜 미정'}${mtg.time?' '+esc(mtg.time):''}</span>
+          <span>👥 ${esc(membersStr)}</span>
+          ${proj?`<span>📁 ${esc(proj.name)}</span>`:''}
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:22px">
+      <div style="font-size:12px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px"><span>📌</span> 아젠다</div>
+      ${agendaHtml||'<div style="font-size:11px;color:#aaa">아젠다 없음</div>'}
+    </div>
+
+    <div style="margin-bottom:22px">
+      <div style="font-size:12px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px"><span>📝</span> 회의 노트</div>
+      <div style="font-size:12px;line-height:1.8;border:1px solid #eee;border-radius:8px;padding:14px;color:#1a1917">${mtg.notesHtml||(mtg.notes||'').replace(/\n/g,'<br>')||'<span style="color:#aaa">작성된 노트가 없어요</span>'}</div>
+    </div>
+
+    <div style="margin-bottom:10px">
+      <div style="font-size:12px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px"><span>✅</span> 액션 아이템</div>
+      ${actionHtml}
+    </div>
+
+    <div style="border-top:1px solid #eee;padding-top:14px;margin-top:18px;display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:10px;color:#aaa">MarkFlow — 마케팅 워크스페이스</div>
+      <div style="font-size:10px;color:#aaa">생성일: ${dateStr}</div>
+    </div>
+  </div>
+  `;
+
+  document.getElementById('pdf-report-content').innerHTML=html;
+  document.getElementById('pdf-report-modal').style.display='flex';
+
+  // 인쇄 시 보고서만 출력되도록 print area 설정 (openDashPdf와 동일한 패턴)
+  const existing=document.getElementById('pdf-print-area');
+  const printDiv=existing||document.createElement('div');
+  printDiv.id='pdf-print-area';
+  printDiv.style.cssText='display:none;position:fixed;inset:0;background:#fff;z-index:99999;padding:20px';
+  printDiv.innerHTML=document.getElementById('pdf-report-content').innerHTML;
+  if(!existing)document.body.appendChild(printDiv);
 }
 function updateMtgField(id,field,val){const m=getMtg(id);if(m){m[field]=val;save();}}
 function addAgenda(id){const m=getMtg(id);if(!m)return;if(!m.agenda)m.agenda=[];m.agenda.push({text:''});save();renderMtgDetail(id);}
@@ -6281,10 +6382,14 @@ function expSaveUTM(){const el=document.getElementById('eutm-preview');if(!el)re
 function expClearUTM(){if(!confirm('전체 삭제?'))return;EXP.utms=[];expSave();expRenderUTMList();}
 function expRenderUTMList(){const el=document.getElementById('eutm-list');if(!el)return;if(!EXP.utms.length){el.innerHTML='<div style="color:var(--t3);font-size:12px">저장된 UTM 없음</div>';return;}el.innerHTML=EXP.utms.map((u,i)=>`<div style="border:1px solid var(--b);border-radius:var(--rs);padding:8px 10px;margin-bottom:6px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><span style="font-size:10px;color:var(--t3)">${u.proj||'—'}</span><div style="display:flex;gap:4px"><button class="btn-ghost" style="font-size:10px;padding:3px 8px" onclick="navigator.clipboard.writeText('${u.url.replace(/'/g,"\\'")}')">복사</button><button class="btn-ghost" style="font-size:10px;color:var(--rd);padding:3px 8px" onclick="EXP.utms.splice(${i},1);expSave();expRenderUTMList()">✕</button></div></div><div style="font-size:10px;font-family:monospace;color:var(--t2);word-break:break-all">${u.url}</div></div>`).join('');}
 function expRenderDashboard(){const allStats=EXP.projects.flatMap(p=>expCalcStats(p));const done=EXP.projects.filter(p=>(p.step||0)>=5).length;const ctrs=allStats.filter(s=>s.avgCTR>0);const avg=ctrs.length?ctrs.reduce((s,x)=>s+x.avgCTR,0)/ctrs.length:0;document.getElementById('exp-dash-metrics').innerHTML=`<div class="exp-metric"><div class="exp-metric-label">전체 실험</div><div class="exp-metric-val">${EXP.projects.length}</div></div><div class="exp-metric"><div class="exp-metric-label">완료</div><div class="exp-metric-val">${done}</div></div><div class="exp-metric"><div class="exp-metric-label">평균 CTR</div><div class="exp-metric-val">${avg.toFixed(2)}%</div></div><div class="exp-metric"><div class="exp-metric-label">UTM 저장</div><div class="exp-metric-val">${EXP.utms.length}</div></div>`;const chStats={};EXP.projects.forEach(p=>{const ch=(p.channels&&p.channels[0])||'미설정';if(!chStats[ch])chStats[ch]={count:0,ctrs:[]};chStats[ch].count++;expCalcStats(p).forEach(s=>{if(s.avgCTR>0)chStats[ch].ctrs.push(s.avgCTR);});});document.getElementById('exp-dash-ch').innerHTML=Object.entries(chStats).map(([ch,d])=>{const a=d.ctrs.length?d.ctrs.reduce((x,y)=>x+y,0)/d.ctrs.length:0;return`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--b);font-size:12px"><span>${ECHANNELS[ch]||ch}</span><span style="font-weight:600">${a.toFixed(2)}%</span></div>`;}).join('')||'<div style="color:var(--t3);font-size:11px">데이터 없음</div>';const vpStats={};EXP.projects.forEach(p=>{const s=expCalcStats(p);if(!s.length)return;const w=[...s].sort((a,b)=>b.avgCTR-a.avgCTR)[0];const vp=w.vp||'미입력';if(!vpStats[vp])vpStats[vp]=0;vpStats[vp]++;});document.getElementById('exp-dash-vp').innerHTML=Object.entries(vpStats).sort((a,b)=>b[1]-a[1]).map(([vp,wins])=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--b);font-size:12px"><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:8px">${vp}</span><span style="font-weight:600;color:var(--lm)">${wins}회</span></div>`).join('')||'<div style="color:var(--t3);font-size:11px">완료된 실험 없음</div>';}
-// ── 회의록 폴더링 + 서식 툴바 ──
+// ── 회의록/기록장 폴더링 + 서식 툴바 ──
+// 사용자 요청: 기록장(개인 기록장)에도 회의록처럼 폴더 기능이 있어야 함 → 폴더 생성 모달을
+// 회의록/기록장 공용으로 쓰도록 확장(_folderModalTarget으로 어느 쪽 폴더를 만들지 구분)
 let _selectedFolderColor = '#c8f064';
+let _folderModalTarget = 'mtg';
 
-function openCreateFolderModal(){
+function openCreateFolderModal(target){
+  _folderModalTarget=target||'mtg';
   document.getElementById('folder-name-inp').value='';
   document.getElementById('create-folder-modal').style.display='flex';
   setTimeout(()=>document.getElementById('folder-name-inp').focus(),100);
@@ -6294,6 +6399,10 @@ function selectFolderColor(el){
   el.style.border='2px solid #333';
   _selectedFolderColor=el.dataset.color;
 }
+function confirmCreateFolder(){
+  if(_folderModalTarget==='note')createNoteFolder();
+  else createMtgFolder();
+}
 function createMtgFolder(){
   const name=document.getElementById('folder-name-inp').value.trim();
   if(!name)return;
@@ -6302,6 +6411,38 @@ function createMtgFolder(){
   save();
   document.getElementById('create-folder-modal').style.display='none';
   renderMtgList();
+}
+// 기록장 폴더는 회의록과 달리 팀 공유가 아니라 "개인" 기록장 안에서만 쓰이는 폴더라서,
+// org뿐 아니라 ownerId(작성자 본인)로도 구분해서 다른 사람 기록장과 섞이지 않게 함
+function getMyNoteFolders(){
+  if(!_mfUser)return[];
+  return(S.noteFolders||[]).filter(f=>f.org===_mfUser.org&&f.ownerId===_mfUser.id);
+}
+function createNoteFolder(){
+  if(!_mfUser)return;
+  const name=document.getElementById('folder-name-inp').value.trim();
+  if(!name)return;
+  if(!S.noteFolders)S.noteFolders=[];
+  S.noteFolders.push({id:'nfolder-'+Date.now(),name,color:_selectedFolderColor,open:true,org:_mfUser.org||'',ownerId:_mfUser.id});
+  save();
+  document.getElementById('create-folder-modal').style.display='none';
+  renderMyNoteList();
+}
+function toggleNoteFolderOpen(id){
+  const f=(S.noteFolders||[]).find(f=>f.id===id);if(!f)return;
+  f.open=!f.open;
+  save();
+  const el=document.getElementById('nfblock-'+id);
+  const arr=document.getElementById('nfarr-'+id);
+  if(el)el.style.display=f.open?'block':'none';
+  if(arr)arr.className='folder-arrow'+(f.open?' open':'');
+}
+function deleteNoteFolder(id){
+  if(!confirm('폴더를 삭제할까요? (안에 있던 기록은 삭제되지 않고 폴더 밖으로 이동합니다)'))return;
+  (getMyNotes()||[]).forEach(n=>{if(n.folderId===id)delete n.folderId;});
+  S.noteFolders=(S.noteFolders||[]).filter(f=>f.id!==id);
+  save();
+  renderMyNoteList();
 }
 function mtgListItem(m){
   const actionsDone=(m.actions||[]).filter(a=>a.done).length;

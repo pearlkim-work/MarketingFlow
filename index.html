@@ -1640,9 +1640,23 @@ select:focus{border-color:var(--lm);outline:none}
             <div class="field-g"><label class="field-label">소스(source)</label><select id="utm-source" onchange="updateUtmPreview()" style="font-size:11px">
               <option value="facebook">facebook</option>
               <option value="instagram">instagram</option>
+              <option value="insta">insta</option>
+              <option value="ig">ig</option>
               <option value="naver">naver</option>
+              <option value="naver_band">naver_band</option>
+              <option value="naver_cafe">naver_cafe</option>
+              <option value="cafe">cafe</option>
               <option value="kakao">kakao</option>
               <option value="youtube">youtube</option>
+              <option value="aligo">aligo</option>
+              <option value="inpock">inpock</option>
+              <option value="carrot">carrot</option>
+              <option value="leaflet">leaflet</option>
+              <option value="offline">offline</option>
+              <option value="tiktok">tiktok</option>
+              <option value="nnb_eventpage">nnb_eventpage</option>
+              <option value="nnb_main">nnb_main</option>
+              <option value="{{site_source_name}}">{{site_source_name}}</option>
               <option value="influencer">influencer</option>
               <option value="email">email</option>
               <option value="direct">direct</option>
@@ -1651,6 +1665,25 @@ select:focus{border-color:var(--lm);outline:none}
               <option value="cpc">cpc</option>
               <option value="paid_social">paid_social</option>
               <option value="organic">organic</option>
+              <option value="oganic">oganic</option>
+              <option value="messege">messege</option>
+              <option value="message">message</option>
+              <option value="banner">banner</option>
+              <option value="poster">poster</option>
+              <option value="native_ad">native_ad</option>
+              <option value="blog">blog</option>
+              <option value="blog_ad">blog_ad</option>
+              <option value="channel_chat">channel_chat</option>
+              <option value="channel">channel</option>
+              <option value="referral_social">referral_social</option>
+              <option value="railkorea">railkorea</option>
+              <option value="band_railkorea">band_railkorea</option>
+              <option value="profile">profile</option>
+              <option value="crm_message">crm_message</option>
+              <option value="viral">viral</option>
+              <option value="qr">qr</option>
+              <option value="offline">offline</option>
+              <option value="other">other</option>
               <option value="influencer">influencer</option>
               <option value="email">email</option>
               <option value="display">display</option>
@@ -1754,8 +1787,8 @@ select:focus{border-color:var(--lm);outline:none}
             <div style="font-size:12px;font-weight:700;margin-bottom:12px">🔗 UTM 자동 생성기</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
               <div class="field-g"><label class="field-label">기본 URL</label><input id="eutm-url" value="https://nonunbub.com" placeholder="https://nonunbub.com/..."></div>
-              <div class="field-g"><label class="field-label">utm_source</label><select id="eutm-source"><option value="facebook">facebook</option><option value="instagram">instagram</option><option value="naver">naver</option><option value="kakao">kakao</option><option value="youtube">youtube</option><option value="influencer">influencer</option></select></div>
-              <div class="field-g"><label class="field-label">utm_medium</label><select id="eutm-medium"><option value="cpc">cpc</option><option value="paid_social">paid_social</option><option value="display">display</option><option value="influencer">influencer</option><option value="organic">organic</option></select></div>
+              <div class="field-g"><label class="field-label">utm_source</label><select id="eutm-source"><option value="facebook">facebook</option><option value="instagram">instagram</option><option value="insta">insta</option><option value="ig">ig</option><option value="naver">naver</option><option value="naver_band">naver_band</option><option value="naver_cafe">naver_cafe</option><option value="cafe">cafe</option><option value="kakao">kakao</option><option value="youtube">youtube</option><option value="aligo">aligo</option><option value="inpock">inpock</option><option value="carrot">carrot</option><option value="leaflet">leaflet</option><option value="offline">offline</option><option value="tiktok">tiktok</option><option value="{{site_source_name}}">{{site_source_name}}</option><option value="influencer">influencer</option></select></div>
+              <div class="field-g"><label class="field-label">utm_medium</label><select id="eutm-medium"><option value="cpc">cpc</option><option value="paid_social">paid_social</option><option value="display">display</option><option value="influencer">influencer</option><option value="organic">organic</option><option value="oganic">oganic</option><option value="messege">messege</option><option value="message">message</option><option value="banner">banner</option><option value="poster">poster</option><option value="native_ad">native_ad</option><option value="blog">blog</option><option value="channel_chat">channel_chat</option><option value="referral_social">referral_social</option><option value="railkorea">railkorea</option><option value="profile">profile</option><option value="viral">viral</option><option value="qr">qr</option><option value="offline">offline</option><option value="other">other</option></select></div>
               <div class="field-g"><label class="field-label">utm_campaign</label><input id="eutm-campaign" placeholder="예: 2026_summer_promo"></div>
               <div class="field-g"><label class="field-label">utm_content</label><input id="eutm-content" placeholder="예: 가성비_A"></div>
               <div class="field-g"><label class="field-label">utm_term</label><input id="eutm-term" placeholder="예: 계곡피서"></div>

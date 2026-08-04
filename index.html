@@ -7903,7 +7903,23 @@ function renderUtmSimilarHint(){
   const matches=(S.utmEntries||[]).filter(e=>(src?e.source===src:true)&&(med?e.medium===med:true)&&(camp?e.campaign===camp:true));
   if(!matches.length){box.style.display='none';return;}
   box.style.display='block';
-  box.innerHTML=`⚠️ 비슷한 UTM ${matches.length}개가 이미 있어요<br>`+matches.slice(0,3).map(m=>`<span style="font-family:monospace">· ${m.url.length>60?m.url.slice(0,60)+'…':m.url}</span>`).join('<br>')+(matches.length>3?`<br>· 외 ${matches.length-3}개`:'');
+  box.innerHTML=`⚠️ 비슷한 UTM ${matches.length}개가 이미 있어요 (클릭하면 불러와요)<br>`+matches.slice(0,3).map(m=>`<span style="font-family:monospace;text-decoration:underline;cursor:pointer" onclick="loadUtmIntoGenerator('${m.id}')" title="클릭하면 이 UTM 값을 불러와요">· ${m.url.length>60?m.url.slice(0,60)+'…':m.url}</span>`).join('<br>')+(matches.length>3?`<br>· 외 ${matches.length-3}개`:'');
+}
+
+// 비슷한 UTM 힌트에서 기존 항목을 클릭하면 그 값 그대로 생성기에 불러와줌(바로 확인/재사용하기 편하게)
+function loadUtmIntoGenerator(id){
+  const e=(S.utmEntries||[]).find(x=>x.id===id);
+  if(!e)return;
+  const urlEl=document.getElementById('utm-url');
+  if(urlEl)urlEl.value=(e.url||'').split('?')[0];
+  const setVal=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||'';};
+  setVal('utm-source',e.source);
+  setVal('utm-medium',e.medium);
+  setVal('utm-campaign',e.campaign);
+  setVal('utm-content',e.content);
+  setVal('utm-term',e.term);
+  updateUtmPreview();
+  toast('기존 UTM 값을 불러왔어요 ✓');
 }
 
 function copyUtmUrl(){

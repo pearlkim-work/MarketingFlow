@@ -3787,7 +3787,10 @@ function renderWeekCal(){
             <span style="font-size:10px;font-weight:600;color:${color}">${DAYS[i]}</span>
             <span style="font-size:14px;font-weight:${isToday?800:600};color:${color};margin-left:3px">${d.getDate()}</span>
           </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex-shrink:0">
+          <!-- 버그 수정: 할일이 있는데 예산 있는 날은 "0%"+"💰금액" 2줄이 뜨고, 예산 없는 날은
+               "0%" 1줄만 떠서 요일 칸마다 헤더 높이가 달라져 한 주 전체가 삐뚤빼뚤하게 보였음 →
+               항상 2줄 높이를 확보해서 요일 칸들의 윗줄이 나란히 맞춰지게 함 -->
+          <div style="display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:1px;flex-shrink:0;min-height:22px">
             ${total?`<span style="font-size:9px;color:${pct===100?'#4a7a00':'var(--t3)'};font-weight:600">${pct}%</span>`:''}
             ${dayBudget?`<span style="font-size:9px;color:#5a9e00;font-weight:600;white-space:nowrap">💰₩${fmtNum(dayBudget)}</span>`:''}
           </div>

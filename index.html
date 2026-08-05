@@ -1680,6 +1680,9 @@ select:focus{border-color:var(--lm);outline:none}
             <option value="kakao">카카오</option>
             <option value="influencer">인플루언서</option>
           </select>
+          <select id="utm-filter-campaign" onchange="renderUtmView()" style="font-size:11px;padding:4px 7px;background:var(--surf2);border:1px solid var(--b2);border-radius:var(--rs);color:var(--t);outline:none">
+            <option value="all">전체 캠페인</option>
+          </select>
         </div>
       </div>
       <div id="utm-list-wrap" style="max-height:400px;overflow-y:auto"></div>
@@ -8294,10 +8297,21 @@ function renderUtmView(){
     filterEl.innerHTML='<option value="all">전체 소스</option>'+S.utmSrcOpts.map(v=>`<option value="${v.replace(/"/g,'&quot;')}">${v}</option>`).join('');
     filterEl.value=cur;
   }
+  // 캠페인 필터: 옵션 목록(S.utmCampaignOpts)이 아니라 실제 저장된 UTM들에 쓰인 캠페인 값만 모아서 보여줌
+  // (지웠거나 한 번도 안 쓴 옵션까지 뜨면 필터에서 골라도 결과가 없는 혼란을 줄 수 있어서)
+  const campFilterEl=document.getElementById('utm-filter-campaign');
+  if(campFilterEl){
+    const cur=campFilterEl.value||'all';
+    const usedCampaigns=[...new Set((S.utmEntries||[]).map(e=>e.campaign).filter(Boolean))].sort();
+    campFilterEl.innerHTML='<option value="all">전체 캠페인</option>'+usedCampaigns.map(v=>`<option value="${v.replace(/"/g,'&quot;')}">${v}</option>`).join('');
+    campFilterEl.value=usedCampaigns.includes(cur)?cur:'all';
+  }
   const q=(document.getElementById('utm-search')?.value||'').toLowerCase();
   const srcFilter=document.getElementById('utm-filter-source')?.value||'all';
+  const campFilter=document.getElementById('utm-filter-campaign')?.value||'all';
   let entries=S.utmEntries||[];
   if(srcFilter!=='all')entries=entries.filter(e=>e.source===srcFilter);
+  if(campFilter!=='all')entries=entries.filter(e=>e.campaign===campFilter);
   if(q)entries=entries.filter(e=>e.url?.toLowerCase().includes(q)||e.campaign?.toLowerCase().includes(q)||e.source?.toLowerCase().includes(q));
 
   const allEntries=S.utmEntries||[];

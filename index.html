@@ -936,17 +936,26 @@ select:focus{border-color:var(--lm);outline:none}
 
       <div style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">항목 선택 · 예산</div>
       <div id="ch-chips" style="display:flex;flex-direction:column;gap:7px;margin-bottom:12px">
-        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="Meta 광고" onchange="syncPlanGroups()" checked style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> Meta</label><input type="text" inputmode="decimal" class="ch-budget-inp" data-ch="Meta 광고" placeholder="예산" oninput="fmtNumInput(this)" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
-        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="네이버 검색" onchange="syncPlanGroups()" style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 네이버</label><input type="text" inputmode="decimal" class="ch-budget-inp" data-ch="네이버 검색" placeholder="예산" oninput="fmtNumInput(this)" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
-        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="인플루언서/블로그" onchange="syncPlanGroups()" checked style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 인플루언서</label><input type="text" inputmode="decimal" class="ch-budget-inp" data-ch="인플루언서/블로그" placeholder="예산" oninput="fmtNumInput(this)" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
-        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="카카오 CRM" onchange="syncPlanGroups()" checked style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> CRM</label><input type="text" inputmode="decimal" class="ch-budget-inp" data-ch="카카오 CRM" placeholder="예산" oninput="fmtNumInput(this)" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
-        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="유튜브" onchange="syncPlanGroups()" style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 유튜브</label><input type="text" inputmode="decimal" class="ch-budget-inp" data-ch="유튜브" placeholder="예산" oninput="fmtNumInput(this)" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
-        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="당근마켓" onchange="syncPlanGroups()" style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 당근</label><input type="text" inputmode="decimal" class="ch-budget-inp" data-ch="당근마켓" placeholder="예산" oninput="fmtNumInput(this)" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
+        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="Meta 광고" onchange="syncPlanGroups();updateChBudgetTotal()" checked style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> Meta</label><input type="text" inputmode="decimal" class="ch-budget-inp" data-ch="Meta 광고" placeholder="예산" oninput="fmtNumInput(this);updateChBudgetTotal()" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
+        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="네이버 검색" onchange="syncPlanGroups();updateChBudgetTotal()" style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 네이버</label><input type="text" inputmode="decimal" class="ch-budget-inp" data-ch="네이버 검색" placeholder="예산" oninput="fmtNumInput(this);updateChBudgetTotal()" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
+        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="인플루언서/블로그" onchange="syncPlanGroups();updateChBudgetTotal()" checked style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 인플루언서</label><input type="text" inputmode="decimal" class="ch-budget-inp" data-ch="인플루언서/블로그" placeholder="예산" oninput="fmtNumInput(this);updateChBudgetTotal()" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
+        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="카카오 CRM" onchange="syncPlanGroups();updateChBudgetTotal()" checked style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> CRM</label><input type="text" inputmode="decimal" class="ch-budget-inp" data-ch="카카오 CRM" placeholder="예산" oninput="fmtNumInput(this);updateChBudgetTotal()" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
+        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="유튜브" onchange="syncPlanGroups();updateChBudgetTotal()" style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 유튜브</label><input type="text" inputmode="decimal" class="ch-budget-inp" data-ch="유튜브" placeholder="예산" oninput="fmtNumInput(this);updateChBudgetTotal()" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
+        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="당근마켓" onchange="syncPlanGroups();updateChBudgetTotal()" style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 당근</label><input type="text" inputmode="decimal" class="ch-budget-inp" data-ch="당근마켓" placeholder="예산" oninput="fmtNumInput(this);updateChBudgetTotal()" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
       </div>
 
       <div class="ch-add-row" style="margin-bottom:14px">
         <input type="text" id="ch-custom-inp" class="ch-custom-inp" placeholder="항목 직접 추가..." onkeydown="if(event.key==='Enter'&&!event.isComposing&&event.keyCode!==229)addCustomChannel()">
         <button class="btn-ch-add" onclick="addCustomChannel()">+</button>
+      </div>
+
+      <!-- 사용자 요청: 항목을 체크/해제하거나 항목별 예산을 입력할 때마다, 지금 선택된(체크된) 항목들의
+           예산 합계를 바로바로 볼 수 있으면 좋겠다고 해서 추가. 실제 데이터(p.chBudgets)가 아니라
+           화면에 보이는 체크박스+예산 입력칸을 그대로 합산(updateChBudgetTotal)해서, 아직 저장(blur)
+           전이라도(타이핑 중에도) 바로 반영됨 -->
+      <div id="ch-budget-total" style="display:flex;justify-content:space-between;align-items:center;padding:9px 11px;background:var(--surf2);border:1px solid var(--b2);border-radius:var(--rs);margin-bottom:10px">
+        <span style="font-size:11px;color:var(--t2);font-weight:600">예상 예산 합계</span>
+        <span id="ch-budget-total-val" style="font-size:13px;font-weight:700;color:var(--lm)">0원</span>
       </div>
 
       <div style="display:flex;gap:6px;margin-bottom:10px">
@@ -2889,15 +2898,15 @@ function createChannelRow(ch,checked){
   label.style.cssText='display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1';
   const cb=document.createElement('input');
   cb.type='checkbox';cb.dataset.ch=ch;cb.checked=!!checked;cb.style.cssText='width:14px;height:14px;accent-color:#8bc34a;cursor:pointer';
-  cb.addEventListener('change',syncPlanGroups);
+  cb.addEventListener('change',()=>{syncPlanGroups();updateChBudgetTotal();});
   const span=document.createElement('span');span.textContent=ch;
   const del=document.createElement('span');del.textContent='✕';del.style.cssText='font-size:10px;color:var(--t3);cursor:pointer;margin-left:2px';
-  del.onclick=function(){row.remove();syncPlanGroups();};
+  del.onclick=function(){row.remove();syncPlanGroups();updateChBudgetTotal();};
   label.appendChild(cb);label.appendChild(span);label.appendChild(del);
   const budgetInp=document.createElement('input');
   budgetInp.type='text';budgetInp.inputMode='decimal';budgetInp.className='ch-budget-inp';budgetInp.dataset.ch=ch;budgetInp.placeholder='예산';
   budgetInp.style.cssText='width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit';
-  budgetInp.addEventListener('input',()=>fmtNumInput(budgetInp));
+  budgetInp.addEventListener('input',()=>{fmtNumInput(budgetInp);updateChBudgetTotal();});
   budgetInp.addEventListener('change',()=>updateChBudget(budgetInp));
   row.appendChild(label);row.appendChild(budgetInp);
   return row;
@@ -2915,11 +2924,11 @@ function addCustomChannel(){
     const already=[...document.querySelectorAll('#ch-chips input[type=checkbox]')].find(c=>c.dataset.ch===similar);
     if(already)already.checked=true;
     else document.getElementById('ch-chips').appendChild(createChannelRow(similar,true));
-    inp.value='';inp.focus();syncPlanGroups();
+    inp.value='';inp.focus();syncPlanGroups();updateChBudgetTotal();
     return;
   }
   document.getElementById('ch-chips').appendChild(createChannelRow(val,true));
-  inp.value='';inp.focus();syncPlanGroups();
+  inp.value='';inp.focus();syncPlanGroups();updateChBudgetTotal();
 }
 
 // 프로젝트의 플랜 그룹을 기준으로 왼쪽 항목선택 체크박스 상태 복원.
@@ -2959,6 +2968,7 @@ function updateChBudget(el){
   p.chBudgets[ch]=val;
   save();
   syncPlanGroups();
+  updateChBudgetTotal();
 }
 
 // 항목 예산 입력값을 화면에 복원 (프로젝트 전환 시)
@@ -2969,6 +2979,22 @@ function loadChBudgetInputs(proj){
     // 버그 수정: 예산을 일부러 0으로 저장한 경우 0은 falsy라서 "아직 입력 안 함"과 구분이 안 되던 문제 방지
     el.value=(v!=null&&v!=='')?fmtNum(v):'';
   });
+  updateChBudgetTotal();
+}
+
+// 항목 선택 · 예산 영역 맨 아래 "예상 예산 합계" — 저장된 데이터(p.chBudgets)가 아니라
+// 화면에 실제 체크되어 있는 항목의 예산 입력칸 값을 그대로 더함(타이핑 중에도 바로 갱신되게 하려고
+// 데이터 저장 여부와 무관하게 동작하도록 만듦). 플랜을 아직 생성하기 전(genPlan 이전)에도 동작해야 해서
+// syncPlanGroups()에 얹지 않고 별도 함수로 분리함(syncPlanGroups는 p.plan이 없으면 그냥 return해버림).
+function updateChBudgetTotal(){
+  let total=0;
+  document.querySelectorAll('#ch-chips > div').forEach(row=>{
+    const cb=row.querySelector('input[type=checkbox]');
+    const inp=row.querySelector('.ch-budget-inp');
+    if(cb&&cb.checked&&inp)total+=parseFloat(numVal(inp.value))||0;
+  });
+  const el=document.getElementById('ch-budget-total-val');
+  if(el)el.textContent=total.toLocaleString()+'원';
 }
 
 // ── PLAN GEN ──
@@ -3111,6 +3137,7 @@ function applyPlanTemplate(tplId){
   });
   // 2) 체크박스 상태 기준으로 플랜 그룹 동기화(항목 그룹 생성/색상/예산탭 연결은 기존 로직 그대로 재사용)
   syncPlanGroups();
+  updateChBudgetTotal();
   // 3) 템플릿의 항목별 할일 제목을 해당 그룹에 추가(이미 같은 제목이 있으면 중복 추가하지 않음)
   let added=0;
   (tpl.groups||[]).forEach(tg=>{

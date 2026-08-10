@@ -2212,7 +2212,7 @@ select:focus{border-color:var(--lm);outline:none}
     <div class="field-g"><label class="field-label">채널 / 항목명 *</label><input type="text" id="bam-channel" placeholder="예) Meta 광고, 인플루언서 비용"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div class="field-g"><label class="field-label">카테고리</label><select id="bam-cat"><option value="광고">광고</option><option value="콘텐츠">콘텐츠</option><option value="인플루언서">인플루언서</option><option value="운영">운영</option><option value="기타">기타</option></select></div>
-      <div class="field-g"><label class="field-label">계획 총액 (만원)</label><input type="text" inputmode="decimal" id="bam-plan-total" placeholder="예) 200" oninput="fmtNumInput(this)"></div>
+      <div class="field-g"><label class="field-label">계획 총액 (원)</label><input type="text" inputmode="decimal" id="bam-plan-total" placeholder="예) 2,000,000" oninput="fmtNumInput(this)"></div>
     </div>
     <div class="field-g"><label class="field-label">메모</label><input type="text" id="bam-memo" placeholder="예) 7~8월 집중 집행"></div>
     <div class="modal-btns"><button class="btn-cancel" onclick="btCloseAddRowModal()">취소</button><button class="btn-confirm" onclick="btSaveNewRow()">추가</button></div>
@@ -3105,9 +3105,9 @@ function renderPlanMonthlyBudget(proj){
         <tr>
           <th>항목</th>
           <th>카테고리</th>
-          <th class="right">전체 예산(만원)</th>
+          <th class="right">전체 예산(원)</th>
           ${MONTHS.map(m=>`<th class="right">${m}</th>`).join('')}
-          <th class="right">월계획 합계(만원)</th>
+          <th class="right">월계획 합계(원)</th>
         </tr>
       </thead>
       <tbody>
@@ -6238,10 +6238,10 @@ function renderAllProjectsBudget(){
         <tr>
           <th>구분</th>
           <th>세부구분</th>
-          <th class="right">예산(만원)</th>
-          <th class="right bt-col-rem">잔여예산(만원)</th>
+          <th class="right">예산(원)</th>
+          <th class="right bt-col-rem">잔여예산(원)</th>
           ${MONTHS.map(m=>`<th class="right">${m}</th>`).join('')}
-          <th class="right">총사용예산(만원)</th>
+          <th class="right">총사용예산(원)</th>
           <th class="right">소진율</th>
         </tr>
       </thead>
@@ -6292,9 +6292,9 @@ function openBudgetSummaryModal(){
   const burnColor=b=>b>100?'var(--rd)':b>80?'var(--or)':'var(--lm)';
   body.innerHTML=`
     <div class="bt-summary-cards" style="margin-bottom:14px">
-      <div class="bt-sum-card"><div class="bt-sum-label">전체 계획 예산</div><div class="bt-sum-val" style="color:var(--t)">${grandPlan.toLocaleString()}만원</div><div class="bt-sum-sub">${projs.length}개 프로젝트</div></div>
-      <div class="bt-sum-card"><div class="bt-sum-label">전체 실제 집행</div><div class="bt-sum-val" style="color:var(--lm)">${grandActual.toLocaleString()}만원</div><div class="bt-sum-sub">누적 소진액</div></div>
-      <div class="bt-sum-card"><div class="bt-sum-label">전체 잔여 예산</div><div class="bt-sum-val" style="color:${grandRem>=0?'var(--bl)':'var(--rd)'}">${grandRem>=0?'':'▲'}${Math.abs(grandRem).toLocaleString()}만원</div><div class="bt-sum-sub">${grandRem<0?'초과 집행':''}</div></div>
+      <div class="bt-sum-card"><div class="bt-sum-label">전체 계획 예산</div><div class="bt-sum-val" style="color:var(--t)">${grandPlan.toLocaleString()}원</div><div class="bt-sum-sub">${projs.length}개 프로젝트</div></div>
+      <div class="bt-sum-card"><div class="bt-sum-label">전체 실제 집행</div><div class="bt-sum-val" style="color:var(--lm)">${grandActual.toLocaleString()}원</div><div class="bt-sum-sub">누적 소진액</div></div>
+      <div class="bt-sum-card"><div class="bt-sum-label">전체 잔여 예산</div><div class="bt-sum-val" style="color:${grandRem>=0?'var(--bl)':'var(--rd)'}">${grandRem>=0?'':'▲'}${Math.abs(grandRem).toLocaleString()}원</div><div class="bt-sum-sub">${grandRem<0?'초과 집행':''}</div></div>
       <div class="bt-sum-card"><div class="bt-sum-label">전체 소진율</div><div class="bt-sum-val" style="color:${burnColor(grandBurn)}">${grandBurn}%</div><div class="bt-sum-sub">계획 대비</div></div>
     </div>
     <table style="width:100%;border-collapse:collapse;font-size:12px">
@@ -6322,7 +6322,7 @@ function openBudgetSummaryModal(){
         <td style="padding:8px 10px;text-align:right;color:${burnColor(grandBurn)}">${grandBurn}%</td>
       </tr></tfoot>
     </table>
-    <div style="font-size:10px;color:var(--t3);margin-top:8px">단위: 만원 · 현재 소속(조직)의 모든 프로젝트 기준(예산 탭에서 고른 프로젝트와 무관)</div>
+    <div style="font-size:10px;color:var(--t3);margin-top:8px">단위: 원 · 현재 소속(조직)의 모든 프로젝트 기준(예산 탭에서 고른 프로젝트와 무관)</div>
   `;
   document.getElementById('budget-summary-modal').style.display='flex';
 }
@@ -6376,12 +6376,12 @@ function renderBudgetTracker(proj){
   });
   const grandProjectedTotal=grandProjectedMonthly.reduce((a,b)=>a+b,0);
   const summaryHtml=`<div class="bt-summary-cards">
-    <div class="bt-sum-card"><div class="bt-sum-label">총 계획 예산</div><div class="bt-sum-val" style="color:var(--t)">${totalPlan.toLocaleString()}만원</div><div class="bt-sum-sub">전체 캠페인 기간</div></div>
-    <div class="bt-sum-card"><div class="bt-sum-label">총 실제 집행</div><div class="bt-sum-val" style="color:var(--lm)">${totalActual.toLocaleString()}만원</div><div class="bt-sum-sub">누적 소진액</div></div>
-    <div class="bt-sum-card"><div class="bt-sum-label">잔여 예산</div><div class="bt-sum-val" style="color:${remaining>=0?'var(--bl)':'var(--rd)'}">${remaining>=0?'':'▲'}${Math.abs(remaining).toLocaleString()}만원</div><div class="bt-sum-sub">${remaining<0?'초과 집행':''}</div></div>
+    <div class="bt-sum-card"><div class="bt-sum-label">총 계획 예산</div><div class="bt-sum-val" style="color:var(--t)">${totalPlan.toLocaleString()}원</div><div class="bt-sum-sub">전체 캠페인 기간</div></div>
+    <div class="bt-sum-card"><div class="bt-sum-label">총 실제 집행</div><div class="bt-sum-val" style="color:var(--lm)">${totalActual.toLocaleString()}원</div><div class="bt-sum-sub">누적 소진액</div></div>
+    <div class="bt-sum-card"><div class="bt-sum-label">잔여 예산</div><div class="bt-sum-val" style="color:${remaining>=0?'var(--bl)':'var(--rd)'}">${remaining>=0?'':'▲'}${Math.abs(remaining).toLocaleString()}원</div><div class="bt-sum-sub">${remaining<0?'초과 집행':''}</div></div>
     <div class="bt-sum-card"><div class="bt-sum-label">소진율</div><div class="bt-sum-val" style="color:${burnRate>100?'var(--rd)':burnRate>80?'var(--or)':'var(--lm)'}">${burnRate}%</div><div class="bt-sum-sub">계획 대비</div></div>
-    <div class="bt-sum-card"><div class="bt-sum-label">${curMonthLabel} 예상 소진 (할일 기준)</div><div class="bt-sum-val" style="color:var(--or)">${curMonthProjected.toLocaleString()}만원</div><div class="bt-sum-sub">할일에 넣어둔 예산 합계 · 아직 미확정</div></div>
-    <div class="bt-sum-card"><div class="bt-sum-label">${nextMonthLabel} 예상 소진 (할일 기준)</div><div class="bt-sum-val" style="color:var(--bl)">${nextMonthProjected.toLocaleString()}만원</div><div class="bt-sum-sub">할일에 넣어둔 예산 합계 · 아직 미확정</div></div>
+    <div class="bt-sum-card"><div class="bt-sum-label">${curMonthLabel} 예상 소진 (할일 기준)</div><div class="bt-sum-val" style="color:var(--or)">${curMonthProjected.toLocaleString()}원</div><div class="bt-sum-sub">할일에 넣어둔 예산 합계 · 아직 미확정</div></div>
+    <div class="bt-sum-card"><div class="bt-sum-label">${nextMonthLabel} 예상 소진 (할일 기준)</div><div class="bt-sum-val" style="color:var(--bl)">${nextMonthProjected.toLocaleString()}원</div><div class="bt-sum-sub">할일에 넣어둔 예산 합계 · 아직 미확정</div></div>
   </div>`;
 
   // 테이블 — 전체 달을 한 행에 나란히 (스프레드시트 형태)
@@ -6391,10 +6391,10 @@ function renderBudgetTracker(proj){
         <tr>
           <th>항목</th>
           <th>카테고리</th>
-          <th class="right">예산(만원)</th>
-          <th class="right bt-col-rem">잔여예산(만원)</th>
+          <th class="right">예산(원)</th>
+          <th class="right bt-col-rem">잔여예산(원)</th>
           ${MONTHS.map(m=>`<th class="right">${m}</th>`).join('')}
-          <th class="right">총사용예산(만원)</th>
+          <th class="right">총사용예산(원)</th>
           <th></th>
         </tr>
       </thead>
@@ -6577,10 +6577,10 @@ async function genReport(){
 리포트 유형: ${typeNames[type]}
 총 할 일: ${tot}개, 완료: ${done}개 (${pct}%)
 광고 라이브: ${liveN}개 / 전체 ${ads.length}개
-예산 계획: ${totalPlan.toLocaleString()}만원, 집행: ${totalActual.toLocaleString()}만원 (소진율 ${totalPlan>0?Math.round(totalActual/totalPlan*100):0}%)
+예산 계획: ${totalPlan.toLocaleString()}원, 집행: ${totalActual.toLocaleString()}원 (소진율 ${totalPlan>0?Math.round(totalActual/totalPlan*100):0}%)
 목표 달성:${goals.map(g=>`\n - ${g.name}: ${g.current}/${g.target}${g.unit} (${g.target>0?Math.round(g.current/g.target*100):0}%)`).join('')||' 목표 없음'}
 광고 채널:${ads.map(a=>`\n - ${a.name} (${a.channel}, ${a.status})`).join('')||' 없음'}
-예산 상세:${budgetRows.map(r=>`\n - ${r.channel}: 계획 ${r.planTotal||0}만원, 집행 ${Object.values(r.monthly||{}).reduce((a,b)=>a+(parseFloat(b)||0),0).toLocaleString()}만원`).join('')||' 없음'}
+예산 상세:${budgetRows.map(r=>`\n - ${r.channel}: 계획 ${r.planTotal||0}원, 집행 ${Object.values(r.monthly||{}).reduce((a,b)=>a+(parseFloat(b)||0),0).toLocaleString()}원`).join('')||' 없음'}
 추가 메모: ${extraMemo||'없음'}`;
   const prompt=`너는 노는법 마케팅 매니저야. 다음 프로젝트 현황 데이터로 공유용 ${typeNames[type]}를 작성해줘.
 ${dataContext}
@@ -6599,7 +6599,7 @@ ${dataContext}
     const kpis=[
       {val:`${pct}%`,lbl:'할 일 완료율'},
       {val:`${liveN}개`,lbl:'광고 라이브'},
-      {val:`${totalActual.toLocaleString()}만원`,lbl:'누적 집행'},
+      {val:`${totalActual.toLocaleString()}원`,lbl:'누적 집행'},
       {val:`${goals.length?Math.round(goals.reduce((s,g)=>s+(g.target>0?g.current/g.target:0),0)/goals.length*100):0}%`,lbl:'목표 달성률'}
     ];
     document.getElementById('report-output').innerHTML=`<div class="report-output">
@@ -7423,8 +7423,8 @@ function openDashPdf(){
       ${[
         {l:'할 일 완료',v:`${doneTasks}/${totTasks}건`,sub:`완료율 ${completePct}%`,c:'#7c4bc2',bg:'#f5f0ff'},
         {l:'광고 라이브',v:`${liveAds}개`,sub:`전체 ${allAds.length}개 중`,c:'#c22020',bg:'#fff0f0'},
-        {l:'총 집행 예산',v:`${spentBudget.toLocaleString()}만원`,sub:`잔여 ${remaining.toLocaleString()}만원`,c:'#1a78c2',bg:'#f0f5ff'},
-        {l:'예산 소진율',v:`${burnRate}%`,sub:`계획 ${totalBudget.toLocaleString()}만원`,c:burnRate>90?'#c22020':burnRate>60?'#c25a00':'#1a9c5a',bg:burnRate>90?'#fff0f0':burnRate>60?'#fff5ee':'#f0fff5'},
+        {l:'총 집행 예산',v:`${spentBudget.toLocaleString()}원`,sub:`잔여 ${remaining.toLocaleString()}원`,c:'#1a78c2',bg:'#f0f5ff'},
+        {l:'예산 소진율',v:`${burnRate}%`,sub:`계획 ${totalBudget.toLocaleString()}원`,c:burnRate>90?'#c22020':burnRate>60?'#c25a00':'#1a9c5a',bg:burnRate>90?'#fff0f0':burnRate>60?'#fff5ee':'#f0fff5'},
       ].map(k=>`
         <div style="background:${k.bg};border-radius:8px;padding:14px;border-left:3px solid ${k.c}">
           <div style="font-size:9px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">${k.l}</div>
@@ -7614,7 +7614,7 @@ async function runAiInsight(){
 광고 목록: ${allAds.map(a=>`${a.name}(${a.channel},${a.status}${a.roas?',ROAS '+a.roas+'x':''})`).join(' / ')||'없음'}
 
 [예산 현황]
-총 계획: ${totalBudget}만원, 집행: ${spentBudget}만원, 소진율: ${burnRate}%
+총 계획: ${totalBudget}원, 집행: ${spentBudget}원, 소진율: ${burnRate}%
 채널별: ${chBudgetStr||'데이터 없음'}
 
 [목표 달성]
@@ -7833,7 +7833,7 @@ function renderDashboard(){
   const kpis=[
     {icon:'✅',label:'할 일 완료율',val:`${completePct}%`,sub:`${doneTasks}/${totTasks}건 완료`,c:'var(--lm)',bg:'var(--lmbg)'},
     {icon:'📣',label:'광고 라이브',val:`${liveAds}개`,sub:`전체 ${projs.reduce((s,p)=>s+(p.ads||[]).length,0)}개 중`,c:'var(--rd)',bg:'var(--rdbg)'},
-    {icon:'💰',label:'예산 소진율',val:`${burnRate}%`,sub:`잔여 ${remaining.toLocaleString()}만원`,c:burnRate>90?'var(--rd)':burnRate>60?'var(--or)':'var(--bl)',bg:burnRate>90?'var(--rdbg)':burnRate>60?'var(--orbg)':'var(--blbg)'},
+    {icon:'💰',label:'예산 소진율',val:`${burnRate}%`,sub:`잔여 ${remaining.toLocaleString()}원`,c:burnRate>90?'var(--rd)':burnRate>60?'var(--or)':'var(--bl)',bg:burnRate>90?'var(--rdbg)':burnRate>60?'var(--orbg)':'var(--blbg)'},
     {icon:'🎯',label:'목표 달성률',val:`${goalAvg}%`,sub:`${allGoals.length}개 목표 기준 · 클릭해서 현재값 입력`,c:goalAvg>=80?'var(--gn)':goalAvg>=50?'var(--or)':'var(--rd)',bg:goalAvg>=80?'var(--gnbg)':goalAvg>=50?'var(--orbg)':'var(--rdbg)',clickable:true},
   ];
   const kpiEl=document.getElementById('dash-kpi-grid');
@@ -7884,13 +7884,13 @@ function renderDashboard(){
   const weekPctEl=document.getElementById('dash-week-pct');
   if(weekPctEl)weekPctEl.textContent=weekTasks.length?`${wDone}/${weekTasks.length} (${wPct}%)`:'';
 
-  const typeColor={meta:'var(--lm)',crm:'var(--or)',inf:'var(--bl)',live:'var(--rd)',content:'var(--gn)',ops:'var(--t3)',meet:'#8a5cf6'};
-  const typeLabel={meta:'Meta',crm:'CRM',inf:'인플루언서',live:'라이브',content:'콘텐츠',ops:'일반',meet:'미팅'};
-
   const weekEl=document.getElementById('dash-week-tasks');
+  // 버그 수정(직접 실행해서 발견): 이 위젯만 자체 typeColor/typeLabel(고정 7개)을 따로 두고 t.type만
+  // 봐서, 플랜 그룹(_planRef)에 연결된 할일의 실제 항목명(예: 네이버/당근 등 커스텀 채널)이 여기서만
+  // "일반"으로 잘못 표시되고 있었음. 캘린더/플랜 탭과 똑같이 getTaskItemBadge()로 통일.
   if(weekEl)weekEl.innerHTML=weekTasks.length?`
     <div style="margin-bottom:8px"><div style="height:5px;background:var(--surf3);border-radius:3px;overflow:hidden"><div style="height:100%;width:${wPct}%;background:var(--lm);border-radius:3px;transition:width .6s"></div></div></div>
-    ${weekTasks.slice(0,6).map(t=>{const[,m,d]=t.date.split('-');return`<div style="display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid var(--b)"><div style="width:26px;font-size:10px;color:${t.overdue?'var(--rd)':'var(--t3)'};font-weight:${t.overdue?'700':'400'};flex-shrink:0;text-align:center">${parseInt(m)}/${parseInt(d)}</div><div style="width:3px;height:26px;border-radius:2px;background:${t.pc};flex-shrink:0"></div><div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:500;${t.done?'text-decoration:line-through;color:var(--t3)':''};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.text}</div><div style="font-size:9px;color:var(--t3);margin-top:1px">${t.projName} · <span style="color:${typeColor[t.type]||'var(--t3)'}">${typeLabel[t.type]||t.type||'일반'}</span>${t.overdue?' · <span style="color:var(--rd);font-weight:700">⏰ 지연</span>':''}</div></div>${t.done?'<span style="font-size:10px;color:var(--gn)">✓</span>':`<div style="width:6px;height:6px;border-radius:50%;background:${t.overdue?'var(--rd)':'var(--or)'};flex-shrink:0"></div>`}</div>`;}).join('')}
+    ${weekTasks.slice(0,6).map(t=>{const[,m,d]=t.date.split('-');const badge=getTaskItemBadge(t);return`<div style="display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid var(--b)"><div style="width:26px;font-size:10px;color:${t.overdue?'var(--rd)':'var(--t3)'};font-weight:${t.overdue?'700':'400'};flex-shrink:0;text-align:center">${parseInt(m)}/${parseInt(d)}</div><div style="width:3px;height:26px;border-radius:2px;background:${t.pc};flex-shrink:0"></div><div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:500;${t.done?'text-decoration:line-through;color:var(--t3)':''};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.text}</div><div style="font-size:9px;color:var(--t3);margin-top:1px">${t.projName} · <span style="color:${badge.color}">${badge.label}</span>${t.overdue?' · <span style="color:var(--rd);font-weight:700">⏰ 지연</span>':''}</div></div>${t.done?'<span style="font-size:10px;color:var(--gn)">✓</span>':`<div style="width:6px;height:6px;border-radius:50%;background:${t.overdue?'var(--rd)':'var(--or)'};flex-shrink:0"></div>`}</div>`;}).join('')}
     ${weekTasks.length>6?`<div style="font-size:10px;color:var(--t3);text-align:center;padding:6px 0">+${weekTasks.length-6}개 더</div>`:''}
   `:`<div style="font-size:11px;color:var(--t3);text-align:center;padding:20px 0">${myTasksOnly?'이번 주엔 내 할 일이 없어요':'이번 주 일정이 없어요'}</div>`;
 
@@ -7935,7 +7935,7 @@ function renderDashboard(){
     <div style="margin-bottom:9px">
       <div style="display:flex;justify-content:space-between;margin-bottom:3px">
         <div style="font-size:11px;font-weight:600">${c.ch}</div>
-        <div style="font-size:10px;color:var(--t3)">${c.actual.toLocaleString()} / ${c.plan.toLocaleString()}만원 (${c.pct}%)</div>
+        <div style="font-size:10px;color:var(--t3)">${c.actual.toLocaleString()} / ${c.plan.toLocaleString()}원 (${c.pct}%)</div>
       </div>
       <div style="height:6px;background:var(--surf3);border-radius:3px;overflow:hidden">
         <div style="height:100%;width:${Math.min(c.pct,100)}%;background:${c.pct>100?'var(--rd)':c.pct>80?'var(--or)':'var(--bl)'};border-radius:3px"></div>

@@ -904,7 +904,7 @@ select:focus{border-color:var(--lm);outline:none}
       </div>
       <div class="field-g">
         <label class="field-label">총 예산</label>
-        <input type="text" inputmode="decimal" id="p-budget" placeholder="예) 5,000,000" oninput="fmtNumInput(this)" onchange="savePlanInfo()">
+        <input type="text" inputmode="decimal" id="p-budget" placeholder="예) 5,000,000" oninput="fmtNumInput(this);updateChBudgetTotal()" onchange="savePlanInfo()">
       </div>
       <div class="field-g">
         <label class="field-label">주 타겟</label>
@@ -953,9 +953,21 @@ select:focus{border-color:var(--lm);outline:none}
            예산 합계를 바로바로 볼 수 있으면 좋겠다고 해서 추가. 실제 데이터(p.chBudgets)가 아니라
            화면에 보이는 체크박스+예산 입력칸을 그대로 합산(updateChBudgetTotal)해서, 아직 저장(blur)
            전이라도(타이핑 중에도) 바로 반영됨 -->
-      <div id="ch-budget-total" style="display:flex;justify-content:space-between;align-items:center;padding:9px 11px;background:var(--surf2);border:1px solid var(--b2);border-radius:var(--rs);margin-bottom:10px">
-        <span style="font-size:11px;color:var(--t2);font-weight:600">예상 예산 합계</span>
-        <span id="ch-budget-total-val" style="font-size:13px;font-weight:700;color:var(--lm)">0원</span>
+      <div id="ch-budget-total" style="padding:9px 11px;background:var(--surf2);border:1px solid var(--b2);border-radius:var(--rs);margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:11px;color:var(--t2);font-weight:600">예상 예산 합계</span>
+          <span style="display:flex;align-items:baseline;gap:5px">
+            <span id="ch-budget-total-val" style="font-size:13px;font-weight:700;color:var(--lm)">0원</span>
+            <span id="ch-budget-total-pct" style="font-size:11px;font-weight:700;color:var(--t3);display:none"></span>
+          </span>
+        </div>
+        <div id="ch-budget-total-bar-wrap" style="display:none;margin-top:6px;height:5px;background:var(--surf3);border-radius:3px;overflow:hidden">
+          <div id="ch-budget-total-bar" style="height:100%;width:0%;background:var(--lm);border-radius:3px;transition:width .15s"></div>
+        </div>
+        <div id="ch-budget-actual-wrap" style="display:none;margin-top:8px;padding-top:8px;border-top:1px dashed var(--b2);justify-content:space-between;align-items:center">
+          <span style="font-size:10px;color:var(--t3)">완료된 할일 기준 실제 소진</span>
+          <span id="ch-budget-actual-val" style="font-size:11px;font-weight:700;color:var(--t2)">0원</span>
+        </div>
       </div>
 
       <div style="display:flex;gap:6px;margin-bottom:10px">
@@ -2643,14 +2655,28 @@ const TYPE_PLAIN_LABEL={meta:'Meta',crm:'CRM',inf:'인플루언서',live:'라이
 // 그래서 캘린더 할일이 플랜 그룹과 연결(_planRef)되어 있으면 그 그룹의 실제 이름(예: "네이버")을 항목으로
 // 쓰고, 연결이 없는(직접 캘린더에서 만든) 할일만 위 기본 7개 라벨로 대체 표시함. "공통" 그룹은 "일반"과
 // 같은 의미라 필터에서 헷갈리지 않도록 "일반"으로 합쳐서 취급함.
+// _planRef(플랜 그룹 연결)가 없어도, 복제 등으로 저장해둔 t._itemName(원래 속했던 항목명)이
+// 있으면 그 이름과 일치하는 플랜 그룹을 찾아 씀 — 복제로 _planRef가 끊겨도 항목(채널) 정보는
+// 유지하기 위함(resolveTaskItemName/getTaskItemBadge가 공통으로 씀)
+function _resolveTaskGroupIndex(t,groups){
+  if(!groups||!groups.length)return -1;
+  let gi=t?._planRef?parseInt(String(t._planRef).split('-')[0],10):-1;
+  if(gi>=0&&groups[gi])return gi;
+  if(t?._itemName){
+    const norm=t._itemName==='일반'?'공통':t._itemName;
+    const idx=groups.findIndex(g=>g.name===t._itemName||g.name===norm);
+    if(idx>=0)return idx;
+  }
+  return -1;
+}
 function resolveTaskItemName(t){
   if(!t)return'';
   const pid=t._projId||t.projId;
-  if(t._planRef&&pid){
+  if(pid){
     const proj=getProj(pid);
     if(proj?.plan?.groups){
-      const gi=parseInt(String(t._planRef).split('-')[0],10);
-      const g=proj.plan.groups[gi];
+      const gi=_resolveTaskGroupIndex(t,proj.plan.groups);
+      const g=gi>=0?proj.plan.groups[gi]:null;
       if(g&&g.name)return g.name==='공통'?'일반':g.name;
     }
   }
@@ -2673,8 +2699,8 @@ function getTaskItemBadge(t){
   // (전엔 _planRef가 있을 때만 실제 그룹을 보여주고, 없으면 무조건 고정 7개만 보여줘서 "부안" 같은
   // 프로젝트의 커스텀 항목들이 안 보이는 문제가 그대로 남아있었음)
   if(groups&&groups.length){
-    let gi=t?._planRef?parseInt(String(t._planRef).split('-')[0],10):-1;
-    if(gi<0||!groups[gi]){
+    let gi=_resolveTaskGroupIndex(t,groups);
+    if(gi<0){
       // 아직 연결 안 된 할일은 "공통"(=일반) 그룹을 기본 선택값으로 보여줌(있으면), 없으면 첫 그룹
       const commonIdx=groups.findIndex(g=>g.name==='공통');
       gi=commonIdx>=0?commonIdx:0;
@@ -3010,6 +3036,45 @@ function updateChBudgetTotal(){
   });
   const el=document.getElementById('ch-budget-total-val');
   if(el)el.textContent=total.toLocaleString()+'원';
+  // 사용자 요청: 항목별 예산을 입력할 때 위 "총 예산"(p-budget) 중 몇 %가 채워졌는지 한눈에 보이면 좋겠다고 해서 추가
+  const pctEl=document.getElementById('ch-budget-total-pct');
+  const barWrap=document.getElementById('ch-budget-total-bar-wrap');
+  const bar=document.getElementById('ch-budget-total-bar');
+  const budgetInp=document.getElementById('p-budget');
+  const grandTotal=budgetInp?parseFloat(numVal(budgetInp.value))||0:0;
+  if(pctEl&&barWrap&&bar){
+    if(grandTotal>0){
+      const pct=Math.round(total/grandTotal*100);
+      pctEl.textContent='('+pct+'%)';
+      pctEl.style.color=pct>100?'var(--rd)':'var(--t3)';
+      pctEl.style.display='';
+      barWrap.style.display='';
+      bar.style.width=Math.min(pct,100)+'%';
+      bar.style.background=pct>100?'var(--rd)':'var(--lm)';
+    }else{
+      pctEl.style.display='none';
+      barWrap.style.display='none';
+    }
+  }
+  // 사용자 요청: 왼쪽 항목 선택/예산 부분엔 "플래닝된" 예산만 보이는데, 실제로 완료 처리된 할일들의
+  // 예산까지 합쳐서 오늘 기준 총 예산 중 얼마를 실제로 썼는지도 한눈에 보이면 좋겠다고 해서 추가
+  const actualWrap=document.getElementById('ch-budget-actual-wrap');
+  const actualVal=document.getElementById('ch-budget-actual-val');
+  if(actualWrap&&actualVal){
+    const proj=getCurProj();
+    let actualSpent=0;
+    if(proj?.plan?.groups){
+      proj.plan.groups.forEach(g=>(g.tasks||[]).forEach(t=>{if(t.done)actualSpent+=parseFloat(t.budget)||0;}));
+    }
+    if(actualSpent>0){
+      actualWrap.style.display='flex';
+      let txt=actualSpent.toLocaleString()+'원';
+      if(grandTotal>0)txt+=' ('+Math.round(actualSpent/grandTotal*100)+'%)';
+      actualVal.textContent=txt;
+    }else{
+      actualWrap.style.display='none';
+    }
+  }
 }
 
 // ── 플랜 탭 상단 탭 전환: 할일추가 ↔ 월별예산플랜 ──
@@ -3376,12 +3441,16 @@ function toggleTask(el,ds,projId,taskIdx){
     const [gi,ti]=t._planRef.split('-').map(Number);
     if(proj.plan.groups[gi]?.tasks?.[ti])proj.plan.groups[gi].tasks[ti].done=t.done;
   }
-  save();renderFullDayTasks(ds);
+  save();renderFullDayTasks(ds);if(proj.plan)renderPlanResult(proj.plan);
 }
 
 
 // 그룹별 "완료" 섹션 접힘/펼침 상태 (기본값: 접힘)
 let _planDoneCollapse={};
+// 사용자 요청: 각 항목(그룹)에서 바로 태스크를 추가할 수 있어야 함 — addPT()로 빈 할일을 추가하면
+// 원래 "빈 할일 숨기기" 필터에 걸려 화면에 안 보이던 문제가 있어서, 방금 추가한 할일 하나는(텍스트를
+// 입력하기 전까지) 예외로 계속 보이게 해줌. 'gi-ti' 형식 문자열, 없으면 null
+let _justAddedPT=null;
 function togglePlanDoneSection(gid){
   _planDoneCollapse[gid]=_planDoneCollapse[gid]===false?true:false;
   const p=getCurProj();if(p&&p.plan)renderPlanResult(p.plan);
@@ -3401,6 +3470,10 @@ function renderPlanResult(plan,editMode=false){
   const groupsHtml=plan.groups.map((g,gi)=>{
     const gc=TC[g.name]||g.color||'var(--lm)';
     const gd=(g.tasks||[]).filter(t=>t.done).length;
+    // 사용자 요청: 항목(그룹)마다 할일들에 넣어둔 예산 총합이 얼마인지, 그 중 완료 처리된 태스크
+    // 예산은 얼마인지 그룹 헤더에서 바로 보이면 좋겠다고 해서 추가
+    const gBudgetTotal=(g.tasks||[]).reduce((s,t)=>s+(parseFloat(t.budget)||0),0);
+    const gBudgetDone=(g.tasks||[]).filter(t=>t.done).reduce((s,t)=>s+(parseFloat(t.budget)||0),0);
     // 사용자 요청: 캘린더와 플랜 탭 어디서든 문구가 똑같이 "상세등록(없을 때)/상세수정(있을 때)"이고,
     // 누르면 항상 같은 모달(우선순위/링크/메모/체크리스트/서식메모)이 열려서 어느 쪽에서 등록해도
     // _planRef로 서로 그대로 연동됨
@@ -3409,7 +3482,8 @@ function renderPlanResult(plan,editMode=false){
     const rowHtml=(t,ti)=>`<div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--rs);margin-bottom:5px;padding:8px 10px" oncontextmenu="planTaskCtxMenu(event,${gi},${ti})">
         <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
           <div onclick="togglePT(${gi},${ti})" style="width:15px;height:15px;border-radius:3px;border:1.5px solid ${t.done?gc:'var(--b3)'};background:${t.done?gc:'transparent'};flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center">${t.done?'<span style="font-size:8px;color:#fff;font-weight:700">✓</span>':''}</div>
-          <input value="${(t.text||'').replace(/"/g,'&quot;')}" onchange="updatePT(${gi},${ti},'text',this.value)" style="flex:1;min-width:0;background:transparent;border:none;font-size:11px;color:${t.done?'var(--t3)':'var(--t)'};${t.done?'text-decoration:line-through;':''}font-family:inherit;outline:none" placeholder="할 일 입력...">
+          <input id="pt-text-${gi}-${ti}" value="${(t.text||'').replace(/"/g,'&quot;')}" onchange="updatePT(${gi},${ti},'text',this.value)" style="flex:1;min-width:0;background:transparent;border:none;font-size:11px;color:${t.done?'var(--t3)':'var(--t)'};${t.done?'text-decoration:line-through;':''}font-family:inherit;outline:none" placeholder="할 일 입력...">
+          <button type="button" title="복제" onclick="duplicatePT(${gi},${ti})" style="border:none;background:transparent;color:var(--t3);font-size:11px;cursor:pointer">📋</button>
           <button onclick="deletePT(${gi},${ti})" style="border:none;background:transparent;color:var(--t3);font-size:11px;cursor:pointer">✕</button>
         </div>
         <div style="display:flex;gap:6px;padding-left:22px">
@@ -3421,7 +3495,7 @@ function renderPlanResult(plan,editMode=false){
         <div style="padding-left:22px;margin-top:5px"><button onclick="event.stopPropagation();openTaskDetailModalFromPlan('${_pgPid}',${gi},${ti})" style="font-size:10px;padding:3px 8px;background:var(--surf2);border:1px solid var(--b2);border-radius:4px;color:var(--t2);cursor:pointer;font-family:inherit">${hasTaskDetail(t)?'📄 상세수정':'📝 상세등록'}</button></div>
       </div>`;
     const validIdx=[];
-    (g.tasks||[]).forEach((t,ti)=>{if(t.text&&t.text.trim())validIdx.push(ti);}); // 빈 할일 숨기기
+    (g.tasks||[]).forEach((t,ti)=>{if((t.text&&t.text.trim())||(gi+'-'+ti)===_justAddedPT)validIdx.push(ti);}); // 빈 할일 숨기기(단, 방금 추가한 할일은 예외)
     const pendingIdx=validIdx.filter(ti=>!g.tasks[ti].done);
     const doneIdx=validIdx.filter(ti=>g.tasks[ti].done);
     let th=pendingIdx.map(ti=>rowHtml(g.tasks[ti],ti)).join('');
@@ -3444,9 +3518,12 @@ function renderPlanResult(plan,editMode=false){
         <div style="width:8px;height:8px;border-radius:50%;background:${gc}"></div>
         <input value="${g.name}" onchange="updatePT(${gi},-1,'gname',this.value)" style="flex:1;font-size:12px;font-weight:700;color:${gc};background:transparent;border:none;outline:none;font-family:inherit">
         <span style="font-size:10px;color:var(--t3)">${gd}/${(g.tasks||[]).length}</span>
+        ${gBudgetTotal?`<span style="font-size:10px;color:var(--t2);font-weight:600;white-space:nowrap">💰${gBudgetTotal.toLocaleString()}원${gBudgetDone?` <span style="color:var(--lm)">(완료 ${gBudgetDone.toLocaleString()}원)</span>`:''}</span>`:''}
         <button onclick="deleteGroup(${gi})" style="padding:2px 7px;border:1px solid transparent;border-radius:4px;background:transparent;color:var(--t3);font-size:10px;cursor:pointer" onmouseover="this.style.borderColor='var(--rd)';this.style.color='var(--rd)'" onmouseout="this.style.borderColor='transparent';this.style.color='var(--t3)'">삭제</button>
       </div>
-      <div style="padding:8px 10px">${th}${doneSection}</div>
+      <div style="padding:8px 10px">${th}${doneSection}
+        <button type="button" onclick="addPT(${gi})" style="width:100%;margin-top:6px;padding:6px;border:1px dashed var(--b2);border-radius:var(--rs);background:transparent;color:var(--t3);font-size:11px;cursor:pointer;font-family:inherit" onmouseover="this.style.borderColor='#C8F064';this.style.color='var(--t2)'" onmouseout="this.style.borderColor='var(--b2)';this.style.color='var(--t3)'">+ 할일 추가</button>
+      </div>
     </div>`;
   }).join('');
   container.innerHTML=`<div style="display:flex;flex-direction:column;gap:0">
@@ -3531,11 +3608,15 @@ function updateCalProgress(){
     (_calFilter!=='paid'||taskIsPaid(t)) && (_calFilter!=='free'||!taskIsPaid(t));
 
   if(_calMode === 'week'){
-    // 이번 주 시작/끝
-    const day = now.getDay();
-    const weekStart = new Date(now); weekStart.setDate(now.getDate() - day);
+    // 버그 수정(사용자 요청: "이번 주 전체 예산이 계속 똑같이 나와요"): 주 보기에서 이전/다음 주로
+    // 이동해도(S.weekOffset) 이 진행 현황 바는 항상 오늘이 속한 실제 이번 주 기준으로만 계산되고
+    // 있었음 → renderWeekCal()과 똑같이 S.weekOffset을 반영해서 지금 화면에 보이는 주 기준으로 계산.
+    // 날짜 포맷도 toISOString()(UTC 기준, 자정 근처엔 하루 밀릴 수 있음) 대신 renderWeekCal()과
+    // 동일한 로컬 날짜 포맷으로 통일함
+    if(S.weekOffset===undefined)S.weekOffset=0;
+    const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay() + S.weekOffset*7);
     const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
-    const fmt = d => d.toISOString().split('T')[0];
+    const fmt = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
     let total=0, done=0, budgetSum=0;
     const wsStr=fmt(weekStart),weStr=fmt(weekEnd);
     progProjs.forEach(p => {
@@ -3552,7 +3633,8 @@ function updateCalProgress(){
       });
     });
     const pct = total ? Math.round(done/total*100) : 0;
-    bar.innerHTML = `<span style="font-weight:700;color:var(--t2)">이번 주</span>
+    const weekLabel = S.weekOffset===0 ? '이번 주' : '선택한 주';
+    bar.innerHTML = `<span style="font-weight:700;color:var(--t2)">${weekLabel}</span>
       <div style="flex:1;max-width:200px;height:6px;background:var(--surf3);border-radius:3px;overflow:hidden">
         <div style="height:100%;width:${pct}%;background:#C8F064;border-radius:3px;transition:width .5s"></div>
       </div>
@@ -3809,7 +3891,14 @@ function toggleTaskInline(el, ds, projId, taskIdx){
   const proj = getProj(projId); if(!proj) return;
   const tasks = proj.tasks[ds]; if(!tasks||!tasks[taskIdx]) return;
   tasks[taskIdx].done = !tasks[taskIdx].done;
-  save(); renderCalView(); if(S.selDate) renderFullDayTasks(S.selDate);
+  // 버그 수정(사용자 요청으로 점검하다 발견): 캘린더에서 완료 처리해도 플랜 탭 쪽 할일엔 반영이 안 돼서
+  // 수동으로 또 체크해줘야 했음 → toggleTask()와 동일하게 _planRef로 연결된 플랜 태스크도 같이 갱신
+  const t=tasks[taskIdx];
+  if(t._fromPlan&&t._planRef&&proj.plan?.groups){
+    const [gi,ti]=t._planRef.split('-').map(Number);
+    if(proj.plan.groups[gi]?.tasks?.[ti])proj.plan.groups[gi].tasks[ti].done=t.done;
+  }
+  save(); renderCalView(); if(S.selDate) renderFullDayTasks(S.selDate); if(proj.plan)renderPlanResult(proj.plan);
 }
 
 
@@ -3873,7 +3962,15 @@ function updatePTBudget(gi,ti,val){
 }
 function updatePTDate(gi,ti,date){const p=getCurProj();if(!p||!p.plan)return;const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(!t)return;if(t.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}t.date=date;if(t.endDate&&date&&t.endDate<=date)t.endDate='';if(date){if(!p.tasks[date])p.tasks[date]=[];const ex=p.tasks[date].find(c=>c._planRef===gi+'-'+ti);if(ex){ex.text=t.text;ex.done=t.done;ex.endDate=t.endDate||'';ex.budget=t.budget||'';}else{p.tasks[date].push({text:t.text||'(제목 없음)',type:'ops',done:t.done,assignee:t.assignee||'',endDate:t.endDate||'',budget:t.budget||'',_planRef:gi+'-'+ti,_fromPlan:true});}}save();renderPlanResult(p.plan);renderCalView();if(S.selDate===date)renderFullDayTasks(date);toast('캘린더에 반영됐어요 📅',1800);}
 function updatePTEndDate(gi,ti,val){const p=getCurProj();if(!p||!p.plan)return;const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(!t)return;const endDate=(val&&t.date&&val>t.date)?val:'';t.endDate=endDate;if(t.date&&p.tasks[t.date]){const ct=p.tasks[t.date].find(c=>c._planRef===gi+'-'+ti);if(ct)ct.endDate=endDate;}save();renderPlanResult(p.plan);renderCalView();if(S.selDate)renderFullDayTasks(S.selDate);}
-function addPT(gi){const g=getPG();if(!g)return;if(!g[gi].tasks)g[gi].tasks=[];g[gi].tasks.push({text:'',done:false,date:'',assignee:''});save();renderPlanResult(getCurProj().plan);}
+function addPT(gi){
+  const g=getPG();if(!g||!g[gi])return;
+  if(!g[gi].tasks)g[gi].tasks=[];
+  g[gi].tasks.push({text:'',done:false,date:'',assignee:''});
+  const ti=g[gi].tasks.length-1;
+  _justAddedPT=gi+'-'+ti;
+  save();renderPlanResult(getCurProj().plan);
+  setTimeout(()=>{const el=document.getElementById('pt-text-'+gi+'-'+ti);if(el)el.focus();},30);
+}
 function deletePT(gi,ti){const p=getCurProj();if(!p||!p.plan)return;const g=getPG();if(!g)return;const t=g[gi]?.tasks?.[ti];if(!t)return;_saveUndoSnapshot(p);if(t?.date&&p.tasks[t.date]){p.tasks[t.date]=p.tasks[t.date].filter(c=>c._planRef!==gi+'-'+ti);if(!p.tasks[t.date].length)delete p.tasks[t.date];}g[gi].tasks.splice(ti,1);_reindexPlanRefsAfterTaskDelete(p,gi,ti);save();renderPlanResult(p.plan);renderCalView();renderQuickAddGroups();toastUndo('할 일을 삭제했어요');}
 // 사용자 요청: 플랜 할일도 마우스 우클릭하면 수정/삭제/복제 메뉴가 뜨게 함
 let _planCtxRowEl=null;
@@ -4298,7 +4395,17 @@ function toggleSubTask(ds, projId, taskIdx, subIdx){
   if(sub&&sub[subIdx])sub[subIdx].done=!sub[subIdx].done;
   save();renderFullDayTasks(ds);
 }
-function fullToggle(pid,ds,i){const p=getProj(pid);if(p&&p.tasks[ds]&&p.tasks[ds][i]!==undefined){p.tasks[ds][i].done=!p.tasks[ds][i].done;save();renderCalView();renderFullDayTasks(ds);}}
+function fullToggle(pid,ds,i){
+  const p=getProj(pid);if(!p||!p.tasks[ds]||p.tasks[ds][i]===undefined)return;
+  const t=p.tasks[ds][i];
+  t.done=!t.done;
+  // 버그 수정: toggleTask()/toggleTaskInline()과 동일하게 플랜 그룹에 연결된 할일이면 그쪽도 완료 상태 동기화
+  if(t._fromPlan&&t._planRef&&p.plan?.groups){
+    const [gi,ti]=t._planRef.split('-').map(Number);
+    if(p.plan.groups[gi]?.tasks?.[ti])p.plan.groups[gi].tasks[ti].done=t.done;
+  }
+  save();renderCalView();renderFullDayTasks(ds);if(p.plan)renderPlanResult(p.plan);
+}
 // 사용자 요청: 캘린더 할일 목록에서 바로 삭제할 수 있어야 하고, 플랜에서 만들어진 할일(_planRef)이면
 // 플랜 쪽 데이터도 함께 삭제되어야 함(안 그러면 캘린더에선 지워졌는데 플랜엔 남아있는 불일치가 생김)
 function fullDel(pid,ds,i){
@@ -4730,7 +4837,11 @@ function fullDuplicateTask(pid,ds,i){
   const orig=p.tasks[ds][i];
   // 복제본은 플랜/회의록 연동(_planRef, _mtgId)을 끊어서 독립적인 캘린더 전용 할일로 만듦
   // (안 그러면 두 캘린더 항목이 같은 플랜/회의록 데이터를 가리키게 되어 데이터가 꼬임)
+  // 다만 _planRef가 끊기면 항목(채널) 배지가 무조건 "일반"으로 리셋되던 문제가 있어서, 끊기 전에
+  // 원래 항목명을 _itemName에 저장해둠 → 배지/필터가 이걸로 원래 채널을 계속 찾아 보여줄 수 있음
   const dup={...orig,done:false,checklist:(orig.checklist||[]).map(c=>({...c,done:false}))};
+  const _origItemName=resolveTaskItemName({...orig,_projId:pid});
+  if(_origItemName)dup._itemName=_origItemName;
   delete dup._planRef;delete dup._fromPlan;delete dup._mtgId;delete dup._anchorDate;delete dup._anchorIdx;
   p.tasks[ds].push(dup);
   save();renderCalView();renderFullDayTasks(ds);toast('할 일을 복제했어요 📋',1500);

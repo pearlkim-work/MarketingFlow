@@ -3831,6 +3831,7 @@ function renderWeekCal(){
         tasks.push({...t,_projId:p.id,_taskIdx:t._anchorIdx,_anchorDate:t._anchorDate,_projName:p.name,_projColor:projColor(_pColorIdx<0?0:_pColorIdx)});
       });
     });
+    sortTasksByPriority(tasks); // 우선순위 높은 할일이 먼저 보이도록(주간 보기)
     const total=tasks.length,done=tasks.filter(t=>t.done).length;
     const pct=total?Math.round(done/total*100):0;
     // 사용자 요청: 주별 예상 예산 말고 하루하루도 각 날짜 칸 위쪽(요일/완료율 옆)에 보이면 좋겠음
@@ -4208,6 +4209,13 @@ function getTasksOverlappingDate(proj,ds){
 // "📁 프로젝트" 드롭다운을 바꿔도 그리드에 표시되는 할일이 전혀 줄어들지 않았음(주 보기만 자체 로직으로
 // 정상 필터링되고 있었음). projF를 선택적으로 받아서 필터링하도록 수정. 색상 인덱스(projColor)는 필터와
 // 무관하게 항상 "전체 프로젝트 목록" 기준으로 고정해서, 필터를 걸었다 풀었다 해도 같은 프로젝트는 항상 같은 색을 유지함.
+// 사용자 요청: 우선순위(High/Medium/Low) 설정해둔 할일은 중요한 순서대로 위쪽에 먼저 보이고,
+// 우선순위 안 정한 할일은 그 아래에 원래 순서 그대로 나오게 함(월 보기 날짜 칸/날짜 클릭 시
+// 오른쪽 목록 둘 다 이 함수를 거치므로 여기서 한 번만 정렬하면 됨). sort()는 안정 정렬이라
+// 같은 우선순위끼리는 원래 순서가 그대로 유지됨.
+const PRIORITY_RANK={high:0,medium:1,low:2};
+function taskPriorityRank(t){return t?.priority in PRIORITY_RANK?PRIORITY_RANK[t.priority]:3;}
+function sortTasksByPriority(arr){return arr.sort((a,b)=>taskPriorityRank(a)-taskPriorityRank(b));}
 function getAllTasksForDate(ds,projF){
   const r=[];
   const _colorProjs=getVisibleProjects();
@@ -4216,7 +4224,7 @@ function getAllTasksForDate(ds,projF){
     const pi=_colorProjs.findIndex(vp=>vp.id===p.id);
     getTasksOverlappingDate(p,ds).forEach(t=>r.push({...t,projId:p.id,projName:p.name,projColor:projColor(pi<0?0:pi),taskIdx:t._anchorIdx}));
   });
-  return r;
+  return sortTasksByPriority(r);
 }
 let _drag={projId:null,fromDate:null,taskIdx:null};
 function renderFullCal(){

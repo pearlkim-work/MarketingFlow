@@ -5102,7 +5102,25 @@ function renderMemos(){
 // 사용자 요청: 회의록과 동일하게 "문서 목록 + 상세 페이지" 구조로, 표/토글 삽입, 공유 링크(로그인 없이도 열람) 지원.
 let _curNoteId=null;
 // 예전 스키마({id,text,ts} 짧은 메모 피드)를 문서 스키마({id,title,notesHtml,notes,createdAt,updatedAt,shared,shareId})로 자동 이전
+// 계정 아이디 정리(admin1/2/3 -> cucu/sw/jj)로 기존에 그 아이디로 저장돼 있던
+// 개인 기록장/폴더가 새 아이디에서도 그대로 보이도록 1회성으로 옮겨줌.
+const _MF_ID_RENAME_MAP={admin1:'cucu',admin2:'sw',admin3:'jj'};
+function migrateRenamedUserIds(){
+  if(S.personalNotes){
+    Object.keys(_MF_ID_RENAME_MAP).forEach(oldId=>{
+      const newId=_MF_ID_RENAME_MAP[oldId];
+      if(S.personalNotes[oldId]&&!S.personalNotes[newId]){
+        S.personalNotes[newId]=S.personalNotes[oldId];
+        delete S.personalNotes[oldId];
+      }
+    });
+  }
+  if(Array.isArray(S.noteFolders)){
+    S.noteFolders.forEach(f=>{if(f&&_MF_ID_RENAME_MAP[f.ownerId])f.ownerId=_MF_ID_RENAME_MAP[f.ownerId];});
+  }
+}
 function normalizePersonalNotes(){
+  migrateRenamedUserIds();
   if(!S.personalNotes)return;
   Object.keys(S.personalNotes).forEach(uid=>{
     S.personalNotes[uid]=(S.personalNotes[uid]||[]).map(n=>{
@@ -7689,17 +7707,19 @@ ${dataCtx}
 // ── 홈 대시보드 ──
 // juju = 서비스 최고 관리자 전용 계정. 다른 회사(조직)의 실제 데이터(프로젝트/회의록/상품/인플루언서 등)는
 // 전혀 보이지 않고, 오직 회사·계정 목록(설정 > 팀원 계정) 같은 "관리 기능"과 본인만의 빈 테스트 공간(org:'관리자')만 사용함.
-// 예전에는 juju 계정으로 바바그라운드의 실제 업무 데이터를 함께 써왔었는데, 그 계정을 admin3(진주)로 이름만 바꾸고
+// 예전에는 juju 계정으로 바바그라운드의 실제 업무 데이터를 함께 써왔었는데, 그 계정을 jj(진주)로 이름만 바꾸고
 // (기존에 쌓인 바바그라운드 데이터는 org 태그로 계속 남아있으므로 그대로 유지됨), juju는 완전히 새로 깨끗한 관리자 계정으로 만듦.
 const MF_USERS=[
   {id:'juju',name:'Juju',email:'juju',pw:'0000',role:'admin',org:'관리자'},
-  {id:'admin1',name:'규리',email:'admin1',pw:'0000',role:'member',org:'바바그라운드'},
-  {id:'admin2',name:'선우',email:'admin2',pw:'0000',role:'member',org:'바바그라운드'},
-  {id:'admin3',name:'진주',email:'admin3',pw:'0000',role:'member',org:'바바그라운드'},
+  {id:'cucu',name:'규리',email:'cucu',pw:'0000',role:'member',org:'바바그라운드'},
+  {id:'sw',name:'선우',email:'sw',pw:'0000',role:'member',org:'바바그라운드'},
+  {id:'jj',name:'진주',email:'jj',pw:'0000',role:'member',org:'바바그라운드'},
   {id:'test1',name:'테스트',email:'test1',pw:'0000',role:'member',org:'바바그라운드'},
   {id:'bbgg',name:'소현',email:'bbgg',pw:'0000',role:'member',org:'bbgg'},
   {id:'nonunbub',name:'nonunbub',email:'nonunbub',pw:'0000',role:'member',org:'바바그라운드'},
   {id:'naew',name:'naew',email:'naew',pw:'0000',role:'member',org:'기타'},
+  {id:'hn',name:'이하늬',email:'hn',pw:'0000',role:'member',org:'바바그라운드'},
+  {id:'jay',name:'정진주',email:'jay',pw:'0000',role:'member',org:'바바그라운드'},
 ];
 let _mfUser=null;
 // 버그 수정: 예전엔 localStorage에 저장해둔 계정 스냅샷을 새로고침할 때 그대로 믿고 썼는데, 그 사이 코드에서
@@ -7711,6 +7731,7 @@ function restoreMfSession(){
     const saved=localStorage.getItem('mf_user');
     if(!saved)return false;
     const savedUser=JSON.parse(saved);
+    if(_MF_ID_RENAME_MAP[savedUser.id])savedUser.id=_MF_ID_RENAME_MAP[savedUser.id];
     const freshUser=MF_USERS.find(u=>u.id===savedUser.id);
     _mfUser=freshUser?{...freshUser,name:savedUser.name||freshUser.name}:savedUser;
     try{localStorage.setItem('mf_user',JSON.stringify(_mfUser));}catch(e2){}

@@ -758,6 +758,14 @@ select:focus{border-color:var(--lm);outline:none}
   </div>
 </nav>
 
+<!-- 사용자 요청: 예전 탭을 오래 켜둔 채로 계속 쓰다가 저장하면, 그 사이 다른 사람이 올린 최신 데이터를
+     통째로 덮어써버리는 사고가 있었음(실제로 회의록이 사라진 사건 발생). 근본적인 동기화 구조 수정과는
+     별개로, 화면에 "오래 켜뒀으면 새로고침 해달라"는 배너를 띄워서 사용자가 스스로 알아챌 수 있게 함 -->
+<div id="stale-refresh-banner" style="display:none;align-items:center;justify-content:center;gap:10px;background:var(--orbg);border-bottom:1px solid var(--or);padding:8px 16px;font-size:12px;color:var(--or);font-weight:600">
+  <span>⏰ 이 페이지를 오래 열어두셨어요. 최신 데이터 반영을 위해 새로고침 해주세요.</span>
+  <button onclick="doStaleRefresh()" style="padding:5px 14px;background:var(--or);color:#fff;border:none;border-radius:var(--rs);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">새로고침하기</button>
+</div>
+
 <!-- ══ PLAN VIEW ══ -->
 <!-- HOME VIEW -->
 <!-- HOME VIEW -->
@@ -1100,7 +1108,7 @@ select:focus{border-color:var(--lm);outline:none}
       </div>
       <div id="proj-colors" class="proj-colors" style="display:none"></div>
       <!-- 사용자 요청: 마우스로 휙휙 넘길 수 있게(휠/트랙패드 스크롤로 이전/다음 달·주 이동) -->
-      <div class="cal-grid" id="full-cal-grid" onwheel="calWheelNav(event)"></div>
+      <div class="cal-grid" id="full-cal-grid"></div>
     </div>
     <aside class="cal-sidebar-full">
       <div class="sidebar-date" id="full-sel-date-lbl">날짜를 선택하세요</div>
@@ -4165,17 +4173,8 @@ function fullCalMove(d){
   }
   S.fullCalM+=d;if(S.fullCalM>11){S.fullCalM=0;S.fullCalY++;}if(S.fullCalM<0){S.fullCalM=11;S.fullCalY--;}renderFullCal();
 }
-// 사용자 요청: 마우스 휠(트랙패드 포함)로 캘린더를 휙휙 넘길 수 있게 함(월/주 보기 공용 - fullCalMove가 이미 모드별로 분기함)
-let _calWheelLast=0;
-function calWheelNav(e){
-  const delta=e.deltaY!==0?e.deltaY:e.deltaX;
-  if(Math.abs(delta)<10)return; // 아주 미세한 떨림성 이벤트는 무시
-  e.preventDefault();
-  const now=Date.now();
-  if(now-_calWheelLast<350)return; // 트랙패드는 스크롤 한 번에도 이벤트가 여러 번 발생하므로 과도한 연속 이동 방지
-  _calWheelLast=now;
-  fullCalMove(delta>0?1:-1);
-}
+// 사용자 요청(회수): 마우스 휠로 캘린더 월/주가 휙휙 바뀌는 게 오히려 불편하다는 피드백을 받아 제거함.
+// 이제 휠/스크롤은 그냥 일반 스크롤로 동작하고(내용이 많을 때만 스크롤됨), 월/주 이동은 ‹ › 버튼으로만 함.
 function goToday(){
   const n=new Date();
   S.fullCalY=n.getFullYear();S.fullCalM=n.getMonth();
@@ -7325,6 +7324,19 @@ function loadExpIframe(){expLoad();expRenderHome();expRenderProjList();setTimeou
 // ── SEED ──
 async function seedSummerEvent(){ /* 시드 데이터 없음 */ }
 
+// 사용자 요청: 탭을 오래 켜둔 채로 작업하면 그 사이 다른 사람이 올린 최신 데이터가 저장 시 통째로
+// 덮어써질 위험이 있음(실제 데이터 유실 사고 발생). 페이지를 연 지 오래됐으면 배너로 새로고침을 유도.
+const _pageLoadedAt = Date.now();
+const STALE_REFRESH_MS = 3*60*60*1000; // 3시간
+function checkStaleRefreshBanner(){
+  const b=document.getElementById('stale-refresh-banner');
+  if(!b)return;
+  if(Date.now()-_pageLoadedAt >= STALE_REFRESH_MS) b.style.display='flex';
+}
+function doStaleRefresh(){
+  location.href = location.pathname + '?cb=' + Date.now();
+}
+
 async function init(){
   await load();await seedSummerEvent();
   const n=new Date();
@@ -7346,6 +7358,7 @@ async function init(){
   restoreMfSession();
   refreshProjSelects();updatePlanCalHint();renderDashboard();const _db=document.getElementById('btn-del-proj');if(_db&&S.curProjId)_db.style.display='block';updateMemoHint();renderMiniCal();qtRefreshProj();qtAddRow();renderProjSummary();btRefreshProjSel();rpRefreshProjSel();
   if(S.curProjId){const proj=getCurProj();if(proj&&proj.plan){S._pendingPlan=JSON.parse(JSON.stringify(proj.plan));renderPlanResult(proj.plan,false);}renderQuickAddGroups();loadPlanInputFromProj(proj);}
+  setInterval(checkStaleRefreshBanner, 5*60*1000);
 }
 
 

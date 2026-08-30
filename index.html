@@ -1367,6 +1367,7 @@ select:focus{border-color:var(--lm);outline:none}
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn-ghost" onclick="downloadCallTemplate()">📄 엑셀 템플릿</button>
         <label class="btn-ghost" style="cursor:pointer">📥 엑셀 업로드<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleCallExcelUpload(event)"></label>
+        <button class="btn-ghost" onclick="openSuggestModal()">🎯 오늘 콜 후보 추천</button>
         <button class="btn-ghost" onclick="clearTodayQueue()">🔄 오늘 리스트 초기화</button>
         <button class="btn-ghost" onclick="openCallCustModal()">+ 고객 추가</button>
       </div>
@@ -1384,6 +1385,12 @@ select:focus{border-color:var(--lm);outline:none}
     <div class="cf-filter-bar" id="cf-filter-bar">
       <input type="text" class="inf-search" id="cf-search" placeholder="🔍 이름, 연락처 검색..." oninput="renderCallFlow()" style="width:200px">
       <button class="btn-ghost" onclick="downloadCallCSV()">📤 CSV 다운로드</button>
+      <select onchange="setCfSort(this.value)" style="font-size:11px;padding:5px 8px">
+        <option value="recent">정렬: 최신순</option>
+        <option value="interest">정렬: 관심도 높은순</option>
+        <option value="stale">정렬: 오래 연락 안한순</option>
+      </select>
+      <select id="cf-cat-filter" onchange="setCfCategoryFilter(this.value)" style="font-size:11px;padding:5px 8px"></select>
       <button class="cal-ftag on on-all" data-cfilter="all" onclick="callFilterClick(this)">전체</button>
       <button class="cal-ftag" data-cfilter="queued" onclick="callFilterClick(this)">📋 오늘 리스트</button>
       <button class="cal-ftag" data-cfilter="미시도" onclick="callFilterClick(this)">미시도</button>
@@ -1442,6 +1449,10 @@ select:focus{border-color:var(--lm);outline:none}
       <option value="연락처오류">연락처 오류/연락두절(포기)</option>
     </select>
     <textarea id="cf-log-memo" placeholder="통화 메모" rows="3"></textarea>
+    <div>
+      <div style="font-size:10px;color:var(--t3);margin-bottom:3px">다음 재통화 예정일 (선택)</div>
+      <input type="date" id="cf-log-nextdate">
+    </div>
     <div style="display:flex;gap:8px">
       <div style="flex:1">
         <div style="font-size:10px;color:var(--t3);margin-bottom:3px">카테고리(현재 관심상품)</div>
@@ -1454,6 +1465,24 @@ select:focus{border-color:var(--lm);outline:none}
     </div>
     <datalist id="cf-prod-list"></datalist>
     <div class="modal-btns"><button class="btn-cancel" onclick="closeCallLogModal()">취소</button><button class="btn-confirm" onclick="saveCallLog()">저장</button></div>
+  </div>
+</div>
+
+
+<!-- 콜 트래킹: 오늘 콜 후보 추천 모달 -->
+<div class="modal-bg" id="cf-suggest-modal-bg" style="display:none" onclick="if(event.target===this)closeSuggestModal()">
+  <div class="modal" style="width:380px">
+    <div class="modal-title">🎯 오늘 콜 후보 추천</div>
+    <div>
+      <div style="font-size:10px;color:var(--t3);margin-bottom:3px">오늘 통화할 건수</div>
+      <input type="number" id="cf-suggest-count" min="1" value="20">
+    </div>
+    <div>
+      <div style="font-size:10px;color:var(--t3);margin-bottom:3px">초기관심상품(선택)</div>
+      <select id="cf-suggest-category"></select>
+    </div>
+    <div style="font-size:10px;color:var(--t3)">재통화 예정일이 지난/오늘인 사람을 우선 담고, 남는 자리는 관심도 높은 미시도 고객 순으로 채워요.</div>
+    <div class="modal-btns"><button class="btn-cancel" onclick="closeSuggestModal()">취소</button><button class="btn-confirm" onclick="runSuggestToday()">추천 받기</button></div>
   </div>
 </div>
 
@@ -2398,7 +2427,7 @@ let S={
   planCalY:new Date().getFullYear(),planCalM:new Date().getMonth(),
   fullCalY:new Date().getFullYear(),fullCalM:new Date().getMonth(),
   selDate:null,planSelDate:null,editAdId:null,editProdId:null,
-  prodTypeFilter:'all',calFilter:'all',infFilter:'all',callFilter:'all',callDashMode:'today',
+  prodTypeFilter:'all',calFilter:'all',infFilter:'all',callFilter:'all',callDashMode:'today',callSort:'recent',callCategoryFilter:'',
   callCustomers:[],callProdCategories:[],callProdNames:[]
 };
 
@@ -8728,7 +8757,7 @@ function saveCallCustomer(){
       firstInterestProduct:{category:'',product:''},
       currentInterestProduct:{category:'',product:''},
       interestLevel,status:'미시도',attempts:[],
-      queued:false,queuedDate:null,
+      queued:false,queuedDate:null,nextCallDate:null,
       travelDate:'',ticketName:'',paymentPrice:'',
       paymentNoticeSent:false,paymentNoticeDate:null,
       paymentDone:false,paymentDoneDate:null,
@@ -8812,6 +8841,7 @@ function openCallLogModal(id){
   document.getElementById('cf-log-seq-lbl').textContent=`${(c.attempts||[]).length+1}차 시도 기록`;
   document.getElementById('cf-log-result').value='부재중';
   document.getElementById('cf-log-memo').value='';
+  document.getElementById('cf-log-nextdate').value=c.nextCallDate||'';
   document.getElementById('cf-log-category').innerHTML=cfCatOptions((c.currentInterestProduct&&c.currentInterestProduct.category)||'');
   document.getElementById('cf-log-product').value=(c.currentInterestProduct&&c.currentInterestProduct.product)||'';
   cfRenderDatalists();
@@ -8824,8 +8854,10 @@ function saveCallLog(){
   const memo=document.getElementById('cf-log-memo').value.trim();
   const category=document.getElementById('cf-log-category').value.trim();
   const product=document.getElementById('cf-log-product').value.trim();
+  const nextCallDate=document.getElementById('cf-log-nextdate').value||null;
   if(!c.attempts)c.attempts=[];
   c.attempts.push({seq:c.attempts.length+1,date:cfToday(),result,memo});
+  c.nextCallDate=nextCallDate;
   if(category||product){
     if(!c.firstInterestProduct||!c.firstInterestProduct.product)c.firstInterestProduct={category,product};
     c.currentInterestProduct={category,product};
@@ -8855,7 +8887,7 @@ function setCallDashMode(mode){
 // ── 엑셀 템플릿 다운로드 / 업로드 (SheetJS) ──
 function downloadCallTemplate(){
   if(typeof XLSX==='undefined'){alert('엑셀 기능을 불러오는 중이에요. 잠시 후 다시 시도해주세요.');return;}
-  const ws=XLSX.utils.aoa_to_sheet([['이름','연락처','초기신청상품'],['홍길동','010-1234-5678','유럽 패키지 A'],['김철수','010-2222-3333','']]);
+  const ws=XLSX.utils.aoa_to_sheet([['이름','연락처','초기신청상품','초기관심상품'],['홍길동','010-1234-5678','유럽 패키지 A','유럽패키지'],['김철수','010-2222-3333','','']]);
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'고객DB');
   XLSX.writeFile(wb,'콜트래킹_고객DB_템플릿.xlsx');
@@ -8876,6 +8908,7 @@ function handleCallExcelUpload(evt){
         const name=String(r['이름']||r['고객이름']||r['name']||'').trim();
         const phone=String(r['연락처']||r['전화번호']||r['phone']||'').trim();
         const initialProduct=String(r['초기신청상품']||r['초기 신청상품']||'').trim();
+        const initialInterestCategory=String(r['초기관심상품']||r['초기 관심상품']||r['1차관심상품']||'').trim();
         if(!name||!phone)return;
         const phoneKey=phone.replace(/[^0-9]/g,'');
         if(phoneKey&&existingPhones.has(phoneKey)){skipped++;return;}
@@ -8884,10 +8917,10 @@ function handleCallExcelUpload(evt){
           id:Date.now().toString()+Math.random().toString(36).slice(2,6)+i,
           org:_mfUser?.org||'바바그라운드',
           name,phone,initialProduct,
-          firstInterestProduct:{category:'',product:''},
+          firstInterestProduct:{category:initialInterestCategory,product:''},
           currentInterestProduct:{category:'',product:''},
           interestLevel:'',status:'미시도',attempts:[],
-          queued:false,queuedDate:null,
+          queued:false,queuedDate:null,nextCallDate:null,
           travelDate:'',ticketName:'',paymentPrice:'',
           paymentNoticeSent:false,paymentNoticeDate:null,
           paymentDone:false,paymentDoneDate:null,
@@ -8912,7 +8945,60 @@ function cfGetFilteredList(){
   if(f==='queued')list=list.filter(c=>c.queued&&c.queuedDate===today);
   else if(f!=='all')list=list.filter(c=>c.status===f);
   if(search)list=list.filter(c=>(c.name||'').toLowerCase().includes(search)||(c.phone||'').replace(/[^0-9]/g,'').includes(search.replace(/[^0-9]/g,'')));
+  if(S.callCategoryFilter)list=list.filter(c=>(c.firstInterestProduct&&c.firstInterestProduct.category)===S.callCategoryFilter);
+  return cfSortList(list);
+}
+function setCfCategoryFilter(value){
+  S.callCategoryFilter=value;save();renderCallFlow();
+}
+// ── 정렬: 최신순(기본) / 관심도 높은순 / 마지막 연락 오래된순 ──
+function cfSortList(list){
+  const sort=S.callSort||'recent';
+  if(sort==='interest'){
+    const rank={'상':0,'중':1,'하':2,'':3};
+    return list.slice().sort((a,b)=>(rank[a.interestLevel]??3)-(rank[b.interestLevel]??3)||(b.createdAt||0)-(a.createdAt||0));
+  }
+  if(sort==='stale'){
+    const lastDate=c=>{const a=c.attempts||[];return a.length?a[a.length-1].date:'0000-00-00';};
+    return list.slice().sort((a,b)=>lastDate(a).localeCompare(lastDate(b)));
+  }
   return list;
+}
+function setCfSort(value){
+  S.callSort=value;save();renderCallFlow();
+}
+// ── 오늘 콜 후보 자동 추천: 재통화 예정일이 지난/오늘인 사람 우선, 그다음 관심도 높은 미시도 순 ──
+// (건수와 초기관심상품 카테고리를 모달에서 선택)
+function openSuggestModal(){
+  const catSel=document.getElementById('cf-suggest-category');
+  if(catSel)catSel.innerHTML='<option value="">전체</option>'+getVisibleProjects().map(p=>`<option value="${(p.name||'').replace(/"/g,'&quot;')}">${p.name}</option>`).join('');
+  document.getElementById('cf-suggest-count').value=20;
+  document.getElementById('cf-suggest-modal-bg').style.display='flex';
+}
+function closeSuggestModal(){document.getElementById('cf-suggest-modal-bg').style.display='none';}
+function runSuggestToday(){
+  const n=parseInt(document.getElementById('cf-suggest-count').value,10);
+  if(!n||n<=0){alert('통화 건수를 입력해주세요');return;}
+  const category=document.getElementById('cf-suggest-category').value;
+  const today=cfToday();
+  const all=getVisibleCallCustomers();
+  const alreadyQueued=all.filter(c=>c.queued&&c.queuedDate===today);
+  const need=n-alreadyQueued.length;
+  if(need<=0){alert(`이미 오늘 리스트에 ${alreadyQueued.length}명이 있어요.`);closeSuggestModal();return;}
+  let pool=all.filter(c=>!(c.queued&&c.queuedDate===today));
+  if(category)pool=pool.filter(c=>(c.firstInterestProduct&&c.firstInterestProduct.category)===category);
+  const doneStatuses=['결제완료','포기','상담완료'];
+  const overdue=pool.filter(c=>c.nextCallDate&&c.nextCallDate<=today&&!doneStatuses.includes(c.status));
+  overdue.sort((a,b)=>(a.nextCallDate||'').localeCompare(b.nextCallDate||''));
+  const rank={'상':0,'중':1,'하':2,'':3};
+  const untried=pool.filter(c=>c.status==='미시도'&&!overdue.includes(c));
+  untried.sort((a,b)=>(rank[a.interestLevel]??3)-(rank[b.interestLevel]??3)||(a.createdAt||0)-(b.createdAt||0));
+  const picked=[...overdue,...untried].slice(0,need);
+  if(!picked.length){alert('추천할 후보가 없어요.');closeSuggestModal();return;}
+  picked.forEach(c=>{c.queued=true;c.queuedDate=today;});
+  save();closeSuggestModal();renderCallFlow();
+  const overdueCount=picked.filter(c=>overdue.includes(c)).length;
+  alert(`${picked.length}명을 오늘 리스트에 추가했어요.${overdueCount?` (재통화 예정 ${overdueCount}명 우선 포함)`:''}`);
 }
 // ── CSV 내보내기 (예약 시스템 업로드 양식: product_id,date,ticket_name,count,coupon_id,price,user_id,phone_number,name,email) ──
 function downloadCallCSV(){
@@ -8940,6 +9026,11 @@ function downloadCallCSV(){
 function renderCallFlow(){
   cfRenderDatalists();
   renderCallDashboard();
+  const catFilterEl=document.getElementById('cf-cat-filter');
+  if(catFilterEl){
+    const cur=S.callCategoryFilter||'';
+    catFilterEl.innerHTML='<option value="">초기관심상품: 전체</option>'+getVisibleProjects().map(p=>`<option value="${(p.name||'').replace(/"/g,'&quot;')}" ${cur===p.name?'selected':''}>${p.name}</option>`).join('');
+  }
   const today=cfToday();
   let list=cfGetFilteredList();
   const tb=document.getElementById('cf-tbody');if(!tb)return;
@@ -8960,6 +9051,7 @@ function renderCallFlow(){
           <button class="cf-mini-btn" onclick="openCallLogModal('${c.id}')">📞 기록추가</button>
         </div>
         ${lastAttempt?`<div class="cf-attempt-note" title="${(lastAttempt.memo||'').replace(/"/g,'&quot;')}">${lastAttempt.date} · ${lastAttempt.result}${lastAttempt.memo?' · '+lastAttempt.memo:''}</div>`:''}
+        ${c.nextCallDate?`<div class="cf-attempt-note" style="color:var(--or)">📅 다음예정 ${c.nextCallDate}</div>`:''}
       </td>
       <td>
         <select onchange="updateCallField('${c.id}','interestLevel',this.value)" style="font-size:11px;padding:4px 6px">

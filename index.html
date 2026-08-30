@@ -1441,14 +1441,13 @@ select:focus{border-color:var(--lm);outline:none}
     <div style="display:flex;gap:8px">
       <div style="flex:1">
         <div style="font-size:10px;color:var(--t3);margin-bottom:3px">카테고리(현재 관심상품)</div>
-        <input type="text" list="cf-cat-list" id="cf-log-category" placeholder="예: 유럽패키지">
+        <select id="cf-log-category"></select>
       </div>
       <div style="flex:1">
         <div style="font-size:10px;color:var(--t3);margin-bottom:3px">상품명</div>
         <input type="text" list="cf-prod-list" id="cf-log-product" placeholder="상품명">
       </div>
     </div>
-    <datalist id="cf-cat-list"></datalist>
     <datalist id="cf-prod-list"></datalist>
     <div class="modal-btns"><button class="btn-cancel" onclick="closeCallLogModal()">취소</button><button class="btn-confirm" onclick="saveCallLog()">저장</button></div>
   </div>
@@ -8685,10 +8684,12 @@ function cfAddSuggestion(category,product){
   if(category&&!S.callProdCategories.includes(category))S.callProdCategories.push(category);
   if(product&&!S.callProdNames.includes(product))S.callProdNames.push(product);
 }
+function cfCatOptions(selected){
+  const projs=getVisibleProjects();
+  return `<option value="">- 프로젝트 선택 -</option>`+projs.map(p=>`<option value="${(p.name||'').replace(/"/g,'&quot;')}" ${selected===p.name?'selected':''}>${p.name}</option>`).join('');
+}
 function cfRenderDatalists(){
-  const catDl=document.getElementById('cf-cat-list');
   const prodDl=document.getElementById('cf-prod-list');
-  if(catDl)catDl.innerHTML=(S.callProdCategories||[]).map(c=>`<option value="${c.replace(/"/g,'&quot;')}">`).join('');
   if(prodDl)prodDl.innerHTML=(S.callProdNames||[]).map(p=>`<option value="${p.replace(/"/g,'&quot;')}">`).join('');
 }
 
@@ -8761,7 +8762,7 @@ function updateCallProduct(id,field,sub,value){
   const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c)return;
   if(!c[field]||typeof c[field]!=='object')c[field]={category:'',product:''};
   c[field][sub]=value.trim();
-  cfAddSuggestion(sub==='category'?value.trim():'',sub==='product'?value.trim():'');
+  if(sub==='product')cfAddSuggestion('',value.trim());
   c.updatedAt=Date.now();save();cfRenderDatalists();
 }
 function updateCallInitProduct(id,value){
@@ -8793,7 +8794,7 @@ function openCallLogModal(id){
   document.getElementById('cf-log-seq-lbl').textContent=`${(c.attempts||[]).length+1}차 시도 기록`;
   document.getElementById('cf-log-result').value='부재중';
   document.getElementById('cf-log-memo').value='';
-  document.getElementById('cf-log-category').value=(c.currentInterestProduct&&c.currentInterestProduct.category)||'';
+  document.getElementById('cf-log-category').innerHTML=cfCatOptions((c.currentInterestProduct&&c.currentInterestProduct.category)||'');
   document.getElementById('cf-log-product').value=(c.currentInterestProduct&&c.currentInterestProduct.product)||'';
   cfRenderDatalists();
   document.getElementById('cf-log-modal-bg').style.display='flex';
@@ -8810,7 +8811,7 @@ function saveCallLog(){
   if(category||product){
     if(!c.firstInterestProduct||!c.firstInterestProduct.product)c.firstInterestProduct={category,product};
     c.currentInterestProduct={category,product};
-    cfAddSuggestion(category,product);
+    cfAddSuggestion('',product);
   }
   c.status=CF_RESULT_TO_STATUS[result]||c.status;
   if(c.status==='결제완료'){c.paymentDone=true;c.paymentDoneDate=cfToday();}
@@ -8929,13 +8930,13 @@ function renderCallFlow(){
       <td><input type="text" value="${(c.initialProduct||'').replace(/"/g,'&quot;')}" onchange="updateCallInitProduct('${c.id}',this.value)" style="font-size:11px;padding:4px 6px;min-width:100px"></td>
       <td>
         <div class="cf-prod-cell">
-          <input type="text" list="cf-cat-list" placeholder="카테고리" value="${(fip.category||'').replace(/"/g,'&quot;')}" onchange="updateCallProduct('${c.id}','firstInterestProduct','category',this.value)">
+          <select onchange="updateCallProduct('${c.id}','firstInterestProduct','category',this.value)" style="font-size:10px;padding:4px 6px">${cfCatOptions(fip.category)}</select>
           <input type="text" list="cf-prod-list" placeholder="상품명" value="${(fip.product||'').replace(/"/g,'&quot;')}" onchange="updateCallProduct('${c.id}','firstInterestProduct','product',this.value)">
         </div>
       </td>
       <td>
         <div class="cf-prod-cell">
-          <input type="text" list="cf-cat-list" placeholder="카테고리" value="${(cip.category||'').replace(/"/g,'&quot;')}" onchange="updateCallProduct('${c.id}','currentInterestProduct','category',this.value)">
+          <select onchange="updateCallProduct('${c.id}','currentInterestProduct','category',this.value)" style="font-size:10px;padding:4px 6px">${cfCatOptions(cip.category)}</select>
           <input type="text" list="cf-prod-list" placeholder="상품명" value="${(cip.product||'').replace(/"/g,'&quot;')}" onchange="updateCallProduct('${c.id}','currentInterestProduct','product',this.value)">
         </div>
       </td>

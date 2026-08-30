@@ -742,6 +742,7 @@ select:focus{border-color:var(--lm);outline:none}
 .cf-prod-cell input{padding:4px 6px;font-size:10px}
 .cf-mini-btn{padding:3px 8px;border-radius:var(--rs);border:1px solid var(--b2);background:var(--surf2);color:var(--t2);font-size:10px;cursor:pointer;white-space:nowrap}
 .cf-attempt-note{font-size:10px;color:var(--t3);margin-top:3px;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cf-conv-chip{font-size:10px;color:var(--t2);background:var(--surf2);border-radius:10px;padding:3px 9px;margin-right:6px;display:inline-block}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
@@ -1367,6 +1368,7 @@ select:focus{border-color:var(--lm);outline:none}
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn-ghost" onclick="downloadCallTemplate()">📄 엑셀 템플릿</button>
         <label class="btn-ghost" style="cursor:pointer">📥 엑셀 업로드<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleCallExcelUpload(event)"></label>
+        <label style="font-size:11px;color:var(--t2);display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="cf-upload-overwrite" style="width:auto">기존 연락처는 정보 업데이트</label>
         <button class="btn-ghost" onclick="openSuggestModal()">🎯 오늘 콜 후보 추천</button>
         <button class="btn-ghost" onclick="clearTodayQueue()">🔄 오늘 리스트 초기화</button>
         <button class="btn-ghost" onclick="openCallCustModal()">+ 고객 추가</button>
@@ -1380,6 +1382,8 @@ select:focus{border-color:var(--lm);outline:none}
       </div>
       <div class="cf-kpi-grid" id="cf-kpi-grid"></div>
       <div class="cf-funnel" id="cf-funnel"></div>
+      <div class="cf-funnel-conv" id="cf-funnel-conv"></div>
+      <div id="cf-assignee-breakdown"></div>
     </div>
 
     <div class="cf-filter-bar" id="cf-filter-bar">
@@ -1403,12 +1407,13 @@ select:focus{border-color:var(--lm);outline:none}
     </div>
 
     <div class="data-table-wrap" style="overflow-x:auto">
-      <table class="data-table" id="cf-table" style="min-width:1680px">
+      <table class="data-table" id="cf-table" style="min-width:1780px">
         <thead><tr>
           <th style="width:40px">오늘</th>
           <th>이름</th><th>연락처</th><th style="min-width:150px">시도현황</th><th>관심도</th><th>상태</th>
           <th>초기신청상품</th><th style="min-width:120px">1차 관심상품</th><th style="min-width:120px">현재 관심상품</th>
           <th style="min-width:110px">여행날짜</th><th style="min-width:100px">티켓명</th><th style="min-width:90px">결제가격</th>
+          <th style="min-width:90px">담당자</th>
           <th>결제알림완료</th><th>결제완료</th><th></th>
         </tr></thead>
         <tbody id="cf-tbody"></tbody>
@@ -8757,7 +8762,7 @@ function saveCallCustomer(){
       firstInterestProduct:{category:'',product:''},
       currentInterestProduct:{category:'',product:''},
       interestLevel,status:'미시도',attempts:[],
-      queued:false,queuedDate:null,nextCallDate:null,
+      queued:false,queuedDate:null,nextCallDate:null,assignee:'',
       travelDate:'',ticketName:'',paymentPrice:'',
       paymentNoticeSent:false,paymentNoticeDate:null,
       paymentDone:false,paymentDoneDate:null,
@@ -8903,7 +8908,8 @@ function handleCallExcelUpload(evt){
       const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
       if(!S.callCustomers)S.callCustomers=[];
       const existingPhones=new Set(S.callCustomers.map(c=>String(c.phone).replace(/[^0-9]/g,'')));
-      let added=0,skipped=0;
+      const overwrite=document.getElementById('cf-upload-overwrite')?.checked;
+      let added=0,skipped=0,updated=0;
       rows.forEach((r,i)=>{
         const name=String(r['이름']||r['고객이름']||r['name']||'').trim();
         const phone=String(r['연락처']||r['전화번호']||r['phone']||'').trim();
@@ -8911,8 +8917,25 @@ function handleCallExcelUpload(evt){
         const initialInterestCategory=String(r['초기관심상품']||r['초기 관심상품']||r['1차관심상품']||'').trim();
         if(!name||!phone)return;
         const phoneKey=phone.replace(/[^0-9]/g,'');
-        if(phoneKey&&existingPhones.has(phoneKey)){skipped++;return;}
-        if(phoneKey)existingPhones.add(phoneKey);
+        if(phoneKey&&existingPhones.has(phoneKey)){
+          if(overwrite){
+            const existing=S.callCustomers.find(c=>String(c.phone).replace(/[^0-9]/g,'')===phoneKey);
+            if(existing){
+              if(name)existing.name=name;
+              if(initialProduct)existing.initialProduct=initialProduct;
+              if(initialInterestCategory){
+                if(!existing.firstInterestProduct)existing.firstInterestProduct={category:'',product:''};
+                existing.firstInterestProduct.category=initialInterestCategory;
+              }
+              existing.updatedAt=Date.now();
+              updated++;
+            }
+          }else{
+            skipped++;
+          }
+          return;
+        }
+        existingPhones.add(phoneKey);
         S.callCustomers.unshift({
           id:Date.now().toString()+Math.random().toString(36).slice(2,6)+i,
           org:_mfUser?.org||'바바그라운드',
@@ -8920,7 +8943,7 @@ function handleCallExcelUpload(evt){
           firstInterestProduct:{category:initialInterestCategory,product:''},
           currentInterestProduct:{category:'',product:''},
           interestLevel:'',status:'미시도',attempts:[],
-          queued:false,queuedDate:null,nextCallDate:null,
+          queued:false,queuedDate:null,nextCallDate:null,assignee:'',
           travelDate:'',ticketName:'',paymentPrice:'',
           paymentNoticeSent:false,paymentNoticeDate:null,
           paymentDone:false,paymentDoneDate:null,
@@ -8929,7 +8952,7 @@ function handleCallExcelUpload(evt){
         added++;
       });
       save();renderCallFlow();
-      alert(`${added}명 추가됐어요.${skipped?` (연락처 중복 ${skipped}명 건너뜀)`:''}`);
+      alert(`${added}명 추가됐어요.${updated?` (${updated}명 정보 업데이트)`:''}${skipped?` (연락처 중복 ${skipped}명 건너뜀)`:''}`);
     }catch(err){alert('엑셀 파일을 읽는 중 오류가 났어요: '+err.message);}
     evt.target.value='';
   };
@@ -9034,7 +9057,7 @@ function renderCallFlow(){
   const today=cfToday();
   let list=cfGetFilteredList();
   const tb=document.getElementById('cf-tbody');if(!tb)return;
-  if(!list.length){tb.innerHTML=`<tr><td colspan="14" style="text-align:center;padding:32px;color:var(--t3)">표시할 고객이 없어요</td></tr>`;return;}
+  if(!list.length){tb.innerHTML=`<tr><td colspan="15" style="text-align:center;padding:32px;color:var(--t3)">표시할 고객이 없어요</td></tr>`;return;}
   tb.innerHTML=list.map(c=>{
     const attempts=c.attempts||[];
     const lastAttempt=attempts[attempts.length-1];
@@ -9082,6 +9105,7 @@ function renderCallFlow(){
       <td><input type="date" value="${c.travelDate||''}" onchange="updateCallField('${c.id}','travelDate',this.value)" style="font-size:11px;padding:4px 6px;min-width:110px"></td>
       <td><input type="text" placeholder="티켓명" value="${(c.ticketName||'').replace(/"/g,'&quot;')}" onchange="updateCallField('${c.id}','ticketName',this.value)" style="font-size:11px;padding:4px 6px;min-width:90px"></td>
       <td><input type="text" placeholder="결제가격" value="${(c.paymentPrice||'').replace(/"/g,'&quot;')}" onchange="updateCallField('${c.id}','paymentPrice',this.value)" style="font-size:11px;padding:4px 6px;min-width:80px;text-align:right"></td>
+      <td><button type="button" class="assignee-picker-trigger" onclick="openAssigneePicker(this,'${(c.assignee||'').replace(/'/g,"\\'")}',function(csv){updateCallField('${c.id}','assignee',csv);})" style="font-size:10px;padding:4px 8px;background:var(--surf2);border:1px solid var(--b2);border-radius:var(--rs);color:var(--t2);text-align:left;white-space:nowrap;max-width:100px;overflow:hidden;text-overflow:ellipsis;cursor:pointer">${c.assignee?('👤 '+assigneeDisplay(c.assignee)):'👤 미배정'}</button></td>
       <td style="text-align:center">${payable?`<input type="checkbox" ${c.paymentNoticeSent?'checked':''} onchange="togglePaymentNotice('${c.id}')">`:'<span style="color:var(--t3)">—</span>'}</td>
       <td style="text-align:center">${payable?`<input type="checkbox" ${c.paymentDone?'checked':''} onchange="togglePaymentDone('${c.id}')">`:'<span style="color:var(--t3)">—</span>'}</td>
       <td style="white-space:nowrap"><button class="cf-mini-btn" onclick="openCallCustModal('${c.id}')">✏️</button> <button class="cf-mini-btn" onclick="delCallCustomer('${c.id}')">삭제</button></td>
@@ -9135,6 +9159,57 @@ function renderCallDashboard(){
       <div class="cf-funnel-lbl">${CF_STATUS_LABELS[k]}</div>
     </div>`;
   }).join('');
+
+  // 구간별 전환율: 시도 → 예약대기 → 결제알림완료 → 결제완료
+  const convEl=document.getElementById('cf-funnel-conv');
+  if(convEl){
+    const cnt2=st=>all.filter(c=>c.status===st).length;
+    const triedTotal=all.length-cnt2('미시도');
+    const reachedReserve=cnt2('예약대기')+cnt2('결제알림완료')+cnt2('결제완료');
+    const reachedNoticed=cnt2('결제알림완료')+cnt2('결제완료');
+    const reachedPaid=cnt2('결제완료');
+    const rate=(num,den)=>den?Math.round(num/den*100)+'%':'-';
+    convEl.innerHTML=[
+      `시도→예약대기 ${rate(reachedReserve,triedTotal)}`,
+      `예약대기→결제알림완료 ${rate(reachedNoticed,reachedReserve)}`,
+      `결제알림완료→결제완료 ${rate(reachedPaid,reachedNoticed)}`,
+    ].map(t=>`<span class="cf-conv-chip">${t}</span>`).join('');
+  }
+
+  renderAssigneeBreakdown(all);
+}
+// ── 담당자별 현황 (배정/시도/예약대기 이상/결제완료/결제전환율) ──
+function renderAssigneeBreakdown(all){
+  const el=document.getElementById('cf-assignee-breakdown');
+  if(!el)return;
+  if(!all.length){el.innerHTML='';return;}
+  const groups={};
+  all.forEach(c=>{
+    const key=c.assignee||'';
+    if(!groups[key])groups[key]={total:0,attempted:0,reserved:0,paid:0};
+    groups[key].total++;
+    if((c.attempts||[]).length)groups[key].attempted++;
+    if(['예약대기','결제알림완료','결제완료'].includes(c.status))groups[key].reserved++;
+    if(c.status==='결제완료')groups[key].paid++;
+  });
+  const entries=Object.entries(groups);
+  if(!entries.length){el.innerHTML='';return;}
+  el.innerHTML=`<div style="font-size:11px;font-weight:700;color:var(--t2);margin:14px 0 6px">담당자별 현황</div>
+  <table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="background:var(--surf2)">
+    <th style="padding:6px 10px;text-align:left;font-size:10px;color:var(--t3);border-bottom:1px solid var(--b)">담당자</th>
+    <th style="padding:6px 10px;text-align:right;font-size:10px;color:var(--t3);border-bottom:1px solid var(--b)">배정</th>
+    <th style="padding:6px 10px;text-align:right;font-size:10px;color:var(--t3);border-bottom:1px solid var(--b)">시도</th>
+    <th style="padding:6px 10px;text-align:right;font-size:10px;color:var(--t3);border-bottom:1px solid var(--b)">예약대기+</th>
+    <th style="padding:6px 10px;text-align:right;font-size:10px;color:var(--t3);border-bottom:1px solid var(--b)">결제완료</th>
+    <th style="padding:6px 10px;text-align:right;font-size:10px;color:var(--t3);border-bottom:1px solid var(--b)">결제전환율</th>
+  </tr></thead><tbody>${entries.map(([name,g])=>`<tr style="border-bottom:1px solid var(--b)">
+    <td style="padding:6px 10px">${name?assigneeDisplay(name):'미배정'}</td>
+    <td style="padding:6px 10px;text-align:right">${g.total}</td>
+    <td style="padding:6px 10px;text-align:right">${g.attempted}</td>
+    <td style="padding:6px 10px;text-align:right">${g.reserved}</td>
+    <td style="padding:6px 10px;text-align:right;font-weight:700;color:var(--gn)">${g.paid}</td>
+    <td style="padding:6px 10px;text-align:right">${g.reserved?Math.round(g.paid/g.reserved*100)+'%':'-'}</td>
+  </tr>`).join('')}</tbody></table>`;
 }
 
 function openNicknameModal(){

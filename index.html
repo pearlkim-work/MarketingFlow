@@ -714,7 +714,35 @@ select:focus{border-color:var(--lm);outline:none}
 .notes-editor{background:var(--surf2);border:1px solid var(--b2);border-radius:0 0 var(--rs) var(--rs);color:var(--t);padding:10px 12px;width:100%;font-size:12px;line-height:1.8;min-height:140px;outline:none;word-break:break-word}
 .notes-editor:focus{border-color:var(--lm);box-shadow:0 0 0 3px rgba(124,75,194,.07)}
 
+
+/* ══ CALL FLOW (예약전환 콜 트래킹) ══ */
+.cf-wrap{padding:22px 28px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:16px}
+.cf-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.cf-dash{background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:16px}
+.cf-dash-toggle{display:flex;gap:6px;margin-bottom:12px}
+.cf-kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px}
+.cf-kpi{background:var(--surf2);border-radius:var(--rs);padding:10px 12px}
+.cf-kpi-val{font-size:19px;font-weight:800;color:var(--t);line-height:1.1}
+.cf-kpi-lbl{font-size:10px;color:var(--t3);margin-top:3px}
+.cf-funnel{display:flex;gap:6px;align-items:flex-end;padding-top:6px;height:70px}
+.cf-funnel-seg{flex:1;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
+.cf-funnel-bar{width:100%;border-radius:4px 4px 0 0;transition:height .15s}
+.cf-funnel-lbl{font-size:9px;color:var(--t3);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.cf-funnel-val{font-size:12px;font-weight:700}
+.cf-filter-bar{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.cf-badge{border:1px solid;font-weight:700}
+.cf-badge.미시도{background:var(--surf3);color:var(--t2);border-color:var(--b2)}
+.cf-badge.시도중{background:var(--orbg);color:var(--or);border-color:rgba(194,90,0,.3)}
+.cf-badge.상담완료{background:var(--surf3);color:var(--t3);border-color:var(--b2)}
+.cf-badge.예약대기{background:var(--blbg);color:var(--bl);border-color:rgba(26,120,194,.3)}
+.cf-badge.결제완료{background:var(--gnbg);color:var(--gn);border-color:rgba(26,156,90,.3)}
+.cf-badge.포기{background:var(--rdbg);color:var(--rd);border-color:rgba(194,32,32,.3)}
+.cf-prod-cell{display:flex;flex-direction:column;gap:3px;min-width:110px}
+.cf-prod-cell input{padding:4px 6px;font-size:10px}
+.cf-mini-btn{padding:3px 8px;border-radius:var(--rs);border:1px solid var(--b2);background:var(--surf2);color:var(--t2);font-size:10px;cursor:pointer;white-space:nowrap}
+.cf-attempt-note{font-size:10px;color:var(--t3);margin-top:3px;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -735,6 +763,7 @@ select:focus{border-color:var(--lm);outline:none}
     <button class="nav-tab" onclick="showView('ads',this)" title="광고 현황">📣 광고</button>
     <button class="nav-tab" onclick="showView('budget',this)" title="예산 트래킹">💰 예산</button>
     <button class="nav-tab" onclick="showView('influencer',this)" title="인플루언서 DB">✨ 인플루언서</button>
+    <button class="nav-tab" onclick="showView('callflow',this)" title="예약전환 콜 트래킹">☎️ 콜전환</button>
     <div class="nav-divider"></div>
     <span style="font-size:9px;color:var(--t3);font-weight:600;padding:0 3px;letter-spacing:.04em;white-space:nowrap">분석</span>
     <button class="nav-tab" onclick="showView('revenue',this)" title="매출 분석">📈 매출</button>
@@ -1323,6 +1352,105 @@ select:focus{border-color:var(--lm);outline:none}
       <button class="cal-ftag" data-ifilter="보류" onclick="infFilterClick(this)">보류</button>
     </div>
     <div class="inf-cards" id="inf-cards"></div>
+  </div>
+</div>
+
+
+<div class="view" id="view-callflow">
+  <div class="cf-wrap">
+    <div class="cf-header">
+      <div>
+        <div class="section-title">☎️ 예약전환 콜 트래킹</div>
+        <div class="section-sub">고객 DB에 직접 전화를 걸어 예약 전환을 높이는 실험 · 마케팅플로우 프로젝트와는 별개의 독립 데이터예요</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-ghost" onclick="downloadCallTemplate()">📄 엑셀 템플릿</button>
+        <label class="btn-ghost" style="cursor:pointer">📥 엑셀 업로드<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleCallExcelUpload(event)"></label>
+        <button class="btn-ghost" onclick="clearTodayQueue()">🔄 오늘 리스트 초기화</button>
+        <button class="btn-ghost" onclick="openCallCustModal()">+ 고객 추가</button>
+      </div>
+    </div>
+
+    <div class="cf-dash">
+      <div class="cf-dash-toggle">
+        <button class="cal-ftag on on-all" onclick="setCallDashMode('today')" id="cf-dash-today-btn">오늘 대시보드</button>
+        <button class="cal-ftag" onclick="setCallDashMode('all')" id="cf-dash-all-btn">전체 대시보드</button>
+      </div>
+      <div class="cf-kpi-grid" id="cf-kpi-grid"></div>
+      <div class="cf-funnel" id="cf-funnel"></div>
+    </div>
+
+    <div class="cf-filter-bar" id="cf-filter-bar">
+      <input type="text" class="inf-search" id="cf-search" placeholder="🔍 이름, 연락처 검색..." oninput="renderCallFlow()" style="width:200px">
+      <button class="cal-ftag on on-all" data-cfilter="all" onclick="callFilterClick(this)">전체</button>
+      <button class="cal-ftag" data-cfilter="queued" onclick="callFilterClick(this)">📋 오늘 리스트</button>
+      <button class="cal-ftag" data-cfilter="미시도" onclick="callFilterClick(this)">미시도</button>
+      <button class="cal-ftag" data-cfilter="시도중" onclick="callFilterClick(this)">시도중</button>
+      <button class="cal-ftag" data-cfilter="상담완료" onclick="callFilterClick(this)">상담완료(관심없음)</button>
+      <button class="cal-ftag" data-cfilter="예약대기" onclick="callFilterClick(this)">예약대기</button>
+      <button class="cal-ftag" data-cfilter="결제완료" onclick="callFilterClick(this)">결제완료</button>
+      <button class="cal-ftag" data-cfilter="포기" onclick="callFilterClick(this)">연락포기</button>
+    </div>
+
+    <div class="data-table-wrap" style="overflow-x:auto">
+      <table class="data-table" id="cf-table" style="min-width:1360px">
+        <thead><tr>
+          <th style="width:40px">오늘</th>
+          <th>이름</th><th>연락처</th><th style="min-width:150px">시도현황</th><th>관심도</th><th>상태</th>
+          <th>초기신청상품</th><th style="min-width:120px">1차 관심상품</th><th style="min-width:120px">현재 관심상품</th>
+          <th>결제알림</th><th>결제완료</th><th></th>
+        </tr></thead>
+        <tbody id="cf-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 콜 트래킹: 고객 추가/수정 모달 -->
+<div class="modal-bg" id="cf-cust-modal-bg" style="display:none" onclick="if(event.target===this)closeCallCustModal()">
+  <div class="modal" style="width:420px">
+    <div class="modal-title" id="cf-cust-modal-title">고객 추가</div>
+    <input type="text" id="cf-cust-name" placeholder="고객 이름">
+    <input type="text" id="cf-cust-phone" placeholder="연락처">
+    <input type="text" id="cf-cust-initprod" placeholder="초기 신청상품 (선택)">
+    <select id="cf-cust-interest">
+      <option value="">관심도 선택</option>
+      <option value="상">상</option>
+      <option value="중">중</option>
+      <option value="하">하</option>
+    </select>
+    <div class="modal-btns"><button class="btn-cancel" onclick="closeCallCustModal()">취소</button><button class="btn-confirm" onclick="saveCallCustomer()">저장</button></div>
+  </div>
+</div>
+
+<!-- 콜 트래킹: 전화 시도 기록 모달 -->
+<div class="modal-bg" id="cf-log-modal-bg" style="display:none" onclick="if(event.target===this)closeCallLogModal()">
+  <div class="modal" style="width:460px">
+    <div class="modal-title">📞 전화 기록 추가 — <span id="cf-log-cust-name"></span></div>
+    <div style="font-size:11px;color:var(--t3)" id="cf-log-seq-lbl"></div>
+    <select id="cf-log-result">
+      <option value="부재중">부재중</option>
+      <option value="재통화예정">재통화예정</option>
+      <option value="통화연결">통화연결(상담중)</option>
+      <option value="상담완료">상담완료(관심없음)</option>
+      <option value="예약대기">예약대기 전환</option>
+      <option value="결제완료">결제완료</option>
+      <option value="연락처오류">연락처 오류/연락두절(포기)</option>
+    </select>
+    <textarea id="cf-log-memo" placeholder="통화 메모" rows="3"></textarea>
+    <div style="display:flex;gap:8px">
+      <div style="flex:1">
+        <div style="font-size:10px;color:var(--t3);margin-bottom:3px">카테고리(현재 관심상품)</div>
+        <input type="text" list="cf-cat-list" id="cf-log-category" placeholder="예: 유럽패키지">
+      </div>
+      <div style="flex:1">
+        <div style="font-size:10px;color:var(--t3);margin-bottom:3px">상품명</div>
+        <input type="text" list="cf-prod-list" id="cf-log-product" placeholder="상품명">
+      </div>
+    </div>
+    <datalist id="cf-cat-list"></datalist>
+    <datalist id="cf-prod-list"></datalist>
+    <div class="modal-btns"><button class="btn-cancel" onclick="closeCallLogModal()">취소</button><button class="btn-confirm" onclick="saveCallLog()">저장</button></div>
   </div>
 </div>
 
@@ -2267,7 +2395,8 @@ let S={
   planCalY:new Date().getFullYear(),planCalM:new Date().getMonth(),
   fullCalY:new Date().getFullYear(),fullCalM:new Date().getMonth(),
   selDate:null,planSelDate:null,editAdId:null,editProdId:null,
-  prodTypeFilter:'all',calFilter:'all',infFilter:'all'
+  prodTypeFilter:'all',calFilter:'all',infFilter:'all',callFilter:'all',callDashMode:'today',
+  callCustomers:[],callProdCategories:[],callProdNames:[]
 };
 
 // ── STORAGE ──
@@ -2283,7 +2412,7 @@ function scheduleSupa(){
   if(typeof supaSync==='function'){clearTimeout(_syncTimer);_syncTimer=setTimeout(supaSync,1500);}
 }
 async function save(){try{if(window.storage){await window.storage.set('nnb-v8',JSON.stringify(S));}else{localStorage.setItem('nnb-v8',JSON.stringify(S));}}catch(e){try{localStorage.setItem('nnb-v8',JSON.stringify(S));}catch(e2){}}scheduleSupa();}
-async function load(){try{let data=null;if(window.storage){const r=await window.storage.get('nnb-v8');if(r&&r.value)data=JSON.parse(r.value);}if(!data){const ls=localStorage.getItem('nnb-v8');if(ls)data=JSON.parse(ls);}if(data)Object.assign(S,{projects:data.projects||[],curProjId:data.curProjId||null,meetings:data.meetings||[],products:data.products||[],influencers:data.influencers||[],personalNotes:data.personalNotes||{},mtgFolders:data.mtgFolders||[],planTemplates:data.planTemplates||[]});normalizeProjectsData();normalizePersonalNotes();normalizeOrgTags();}catch(e){}}
+async function load(){try{let data=null;if(window.storage){const r=await window.storage.get('nnb-v8');if(r&&r.value)data=JSON.parse(r.value);}if(!data){const ls=localStorage.getItem('nnb-v8');if(ls)data=JSON.parse(ls);}if(data)Object.assign(S,{projects:data.projects||[],curProjId:data.curProjId||null,meetings:data.meetings||[],products:data.products||[],influencers:data.influencers||[],callCustomers:data.callCustomers||[],callProdCategories:data.callProdCategories||[],callProdNames:data.callProdNames||[],personalNotes:data.personalNotes||{},mtgFolders:data.mtgFolders||[],planTemplates:data.planTemplates||[]});normalizeProjectsData();normalizePersonalNotes();normalizeOrgTags();}catch(e){}}
 
 // ── VIEWS ──
 function showView(v,btn){
@@ -2295,7 +2424,7 @@ function showView(v,btn){
   // 홈/캘린더에서는 상단 프로젝트 셀렉트 숨기기
   const projSelArea=document.getElementById('proj-sel-area');
   if(projSelArea){
-    projSelArea.style.display=(v==='home'||v==='calendar'||v==='teamcheck')?'none':'flex';
+    projSelArea.style.display=(v==='home'||v==='calendar'||v==='teamcheck'||v==='callflow')?'none':'flex';
   }
   // 버그 수정: 광고 탭은 광고를 새로 추가/삭제/상태전환할 때만 renderAds()가 불렸고, 탭을 그냥
   // 클릭해서 들어올 땐 전혀 호출되지 않아서 #ad-cards가 비어있는 채로(안내 문구조차 없이) 그대로 남아있었음
@@ -2318,6 +2447,7 @@ function showView(v,btn){
   if(v==='products')renderProducts();
   if(v==='budget'){btRefreshProjSel();btLoadProject();}
   if(v==='influencer')renderInfluencers();
+  if(v==='callflow')renderCallFlow();
   if(v==='report')rpRefreshProjSel();
   if(v==='settings'){
     refreshProjSelects();
@@ -8538,6 +8668,330 @@ function normalizeOrgTags(){
   (S.products||[]).forEach(x=>{if(!x.org)x.org='바바그라운드';});
   (S.influencers||[]).forEach(x=>{if(!x.org)x.org='바바그라운드';});
   (S.mtgFolders||[]).forEach(f=>{if(!f.org)f.org='바바그라운드';});
+  (S.callCustomers||[]).forEach(x=>{if(!x.org)x.org='바바그라운드';});
+}
+
+// ══════════ CALL FLOW (예약전환 콜 트래킹) ══════════
+// 사용자 요청: 마케팅플로우 프로젝트와는 무관한 별도 탭. 고객 DB를 엑셀로 올리고,
+// 하루하루 직접 고를 콜 리스트, 시도 이력, 관심도/상태, 예약대기 후 결제알림·결제완료 체크까지 트래킹.
+function getVisibleCallCustomers(){return visibleByOrg(S.callCustomers);}
+function cfToday(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+const CF_STATUS_LABELS={'미시도':'미시도','시도중':'시도중','상담완료':'상담완료(관심없음)','예약대기':'예약대기','결제완료':'결제완료','포기':'연락포기'};
+const CF_RESULT_TO_STATUS={'부재중':'시도중','재통화예정':'시도중','통화연결':'시도중','상담완료':'상담완료','예약대기':'예약대기','결제완료':'결제완료','연락처오류':'포기'};
+
+function cfAddSuggestion(category,product){
+  if(!S.callProdCategories)S.callProdCategories=[];
+  if(!S.callProdNames)S.callProdNames=[];
+  if(category&&!S.callProdCategories.includes(category))S.callProdCategories.push(category);
+  if(product&&!S.callProdNames.includes(product))S.callProdNames.push(product);
+}
+function cfRenderDatalists(){
+  const catDl=document.getElementById('cf-cat-list');
+  const prodDl=document.getElementById('cf-prod-list');
+  if(catDl)catDl.innerHTML=(S.callProdCategories||[]).map(c=>`<option value="${c.replace(/"/g,'&quot;')}">`).join('');
+  if(prodDl)prodDl.innerHTML=(S.callProdNames||[]).map(p=>`<option value="${p.replace(/"/g,'&quot;')}">`).join('');
+}
+
+// ── 고객 추가/수정 모달 ──
+let _cfEditId=null;
+function openCallCustModal(id){
+  _cfEditId=id||null;
+  document.getElementById('cf-cust-modal-title').textContent=id?'고객 정보 수정':'고객 추가';
+  const c=id?(S.callCustomers||[]).find(x=>x.id===id):null;
+  document.getElementById('cf-cust-name').value=c?c.name:'';
+  document.getElementById('cf-cust-phone').value=c?c.phone:'';
+  document.getElementById('cf-cust-initprod').value=c?(c.initialProduct||''):'';
+  document.getElementById('cf-cust-interest').value=c?(c.interestLevel||''):'';
+  document.getElementById('cf-cust-modal-bg').style.display='flex';
+}
+function closeCallCustModal(){document.getElementById('cf-cust-modal-bg').style.display='none';_cfEditId=null;}
+function saveCallCustomer(){
+  const name=document.getElementById('cf-cust-name').value.trim();
+  const phone=document.getElementById('cf-cust-phone').value.trim();
+  if(!name||!phone){alert('이름과 연락처는 필수예요');return;}
+  if(!S.callCustomers)S.callCustomers=[];
+  const initialProduct=document.getElementById('cf-cust-initprod').value.trim();
+  const interestLevel=document.getElementById('cf-cust-interest').value;
+  if(_cfEditId){
+    const c=S.callCustomers.find(x=>x.id===_cfEditId);
+    if(c){c.name=name;c.phone=phone;c.initialProduct=initialProduct;c.interestLevel=interestLevel;c.updatedAt=Date.now();}
+  }else{
+    S.callCustomers.unshift({
+      id:Date.now().toString()+Math.random().toString(36).slice(2,6),
+      org:_mfUser?.org||'바바그라운드',
+      name,phone,initialProduct,
+      firstInterestProduct:{category:'',product:''},
+      currentInterestProduct:{category:'',product:''},
+      interestLevel,status:'미시도',attempts:[],
+      queued:false,queuedDate:null,
+      paymentNoticeSent:false,paymentNoticeDate:null,
+      paymentDone:false,paymentDoneDate:null,
+      createdAt:Date.now(),updatedAt:Date.now()
+    });
+  }
+  save();closeCallCustModal();renderCallFlow();
+}
+function delCallCustomer(id){
+  if(!confirm('이 고객을 삭제할까요?'))return;
+  S.callCustomers=(S.callCustomers||[]).filter(x=>x.id!==id);
+  save();renderCallFlow();
+}
+
+// ── 오늘 콜 리스트 토글 ──
+function toggleCallQueue(id){
+  const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c)return;
+  c.queued=!c.queued;
+  c.queuedDate=c.queued?cfToday():c.queuedDate;
+  save();renderCallFlow();
+}
+function clearTodayQueue(){
+  if(!confirm('오늘 콜 리스트를 비울까요? (고객 데이터는 삭제되지 않아요)'))return;
+  const today=cfToday();
+  (S.callCustomers||[]).forEach(c=>{if(c.queuedDate===today)c.queued=false;});
+  save();renderCallFlow();
+}
+
+// ── 인라인 필드 업데이트 ──
+function updateCallField(id,field,value){
+  const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c)return;
+  c[field]=value;c.updatedAt=Date.now();save();
+  if(field==='status')renderCallFlow();
+}
+function updateCallProduct(id,field,sub,value){
+  const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c)return;
+  if(!c[field]||typeof c[field]!=='object')c[field]={category:'',product:''};
+  c[field][sub]=value.trim();
+  cfAddSuggestion(sub==='category'?value.trim():'',sub==='product'?value.trim():'');
+  c.updatedAt=Date.now();save();cfRenderDatalists();
+}
+function updateCallInitProduct(id,value){
+  const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c)return;
+  c.initialProduct=value.trim();c.updatedAt=Date.now();save();
+}
+
+// ── 결제알림/결제완료 체크 (예약대기·결제완료 상태에서만 표시) ──
+function togglePaymentNotice(id){
+  const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c)return;
+  c.paymentNoticeSent=!c.paymentNoticeSent;
+  c.paymentNoticeDate=c.paymentNoticeSent?cfToday():null;
+  save();renderCallFlow();
+}
+function togglePaymentDone(id){
+  const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c)return;
+  c.paymentDone=!c.paymentDone;
+  c.paymentDoneDate=c.paymentDone?cfToday():null;
+  if(c.paymentDone)c.status='결제완료';
+  save();renderCallFlow();
+}
+
+// ── 전화 시도 기록 모달 ──
+let _cfLogId=null;
+function openCallLogModal(id){
+  _cfLogId=id;
+  const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c)return;
+  document.getElementById('cf-log-cust-name').textContent=c.name;
+  document.getElementById('cf-log-seq-lbl').textContent=`${(c.attempts||[]).length+1}차 시도 기록`;
+  document.getElementById('cf-log-result').value='부재중';
+  document.getElementById('cf-log-memo').value='';
+  document.getElementById('cf-log-category').value=(c.currentInterestProduct&&c.currentInterestProduct.category)||'';
+  document.getElementById('cf-log-product').value=(c.currentInterestProduct&&c.currentInterestProduct.product)||'';
+  cfRenderDatalists();
+  document.getElementById('cf-log-modal-bg').style.display='flex';
+}
+function closeCallLogModal(){document.getElementById('cf-log-modal-bg').style.display='none';_cfLogId=null;}
+function saveCallLog(){
+  const c=(S.callCustomers||[]).find(x=>x.id===_cfLogId);if(!c)return;
+  const result=document.getElementById('cf-log-result').value;
+  const memo=document.getElementById('cf-log-memo').value.trim();
+  const category=document.getElementById('cf-log-category').value.trim();
+  const product=document.getElementById('cf-log-product').value.trim();
+  if(!c.attempts)c.attempts=[];
+  c.attempts.push({seq:c.attempts.length+1,date:cfToday(),result,memo});
+  if(category||product){
+    if(!c.firstInterestProduct||!c.firstInterestProduct.product)c.firstInterestProduct={category,product};
+    c.currentInterestProduct={category,product};
+    cfAddSuggestion(category,product);
+  }
+  c.status=CF_RESULT_TO_STATUS[result]||c.status;
+  if(c.status==='결제완료'){c.paymentDone=true;c.paymentDoneDate=cfToday();}
+  c.updatedAt=Date.now();
+  save();closeCallLogModal();renderCallFlow();
+}
+
+// ── 필터 ──
+function callFilterClick(btn){
+  S.callFilter=btn.dataset.cfilter;
+  document.querySelectorAll('#cf-filter-bar [data-cfilter]').forEach(b=>b.classList.remove('on','on-all','on-sel'));
+  btn.classList.add('on',S.callFilter==='all'?'on-all':'on-sel');
+  save();renderCallFlow();
+}
+function setCallDashMode(mode){
+  S.callDashMode=mode;
+  const tb=document.getElementById('cf-dash-today-btn'),ab=document.getElementById('cf-dash-all-btn');
+  if(tb){tb.classList.toggle('on',mode==='today');tb.classList.toggle('on-all',mode==='today');}
+  if(ab){ab.classList.toggle('on',mode==='all');ab.classList.toggle('on-all',mode==='all');}
+  save();renderCallDashboard();
+}
+
+// ── 엑셀 템플릿 다운로드 / 업로드 (SheetJS) ──
+function downloadCallTemplate(){
+  if(typeof XLSX==='undefined'){alert('엑셀 기능을 불러오는 중이에요. 잠시 후 다시 시도해주세요.');return;}
+  const ws=XLSX.utils.aoa_to_sheet([['이름','연락처','초기신청상품'],['홍길동','010-1234-5678','유럽 패키지 A'],['김철수','010-2222-3333','']]);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'고객DB');
+  XLSX.writeFile(wb,'콜트래킹_고객DB_템플릿.xlsx');
+}
+function handleCallExcelUpload(evt){
+  const file=evt.target.files&&evt.target.files[0];if(!file)return;
+  if(typeof XLSX==='undefined'){alert('엑셀 기능을 불러오는 중이에요. 잠시 후 다시 시도해주세요.');evt.target.value='';return;}
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+      if(!S.callCustomers)S.callCustomers=[];
+      const existingPhones=new Set(S.callCustomers.map(c=>String(c.phone).replace(/[^0-9]/g,'')));
+      let added=0,skipped=0;
+      rows.forEach((r,i)=>{
+        const name=String(r['이름']||r['고객이름']||r['name']||'').trim();
+        const phone=String(r['연락처']||r['전화번호']||r['phone']||'').trim();
+        const initialProduct=String(r['초기신청상품']||r['초기 신청상품']||'').trim();
+        if(!name||!phone)return;
+        const phoneKey=phone.replace(/[^0-9]/g,'');
+        if(phoneKey&&existingPhones.has(phoneKey)){skipped++;return;}
+        if(phoneKey)existingPhones.add(phoneKey);
+        S.callCustomers.unshift({
+          id:Date.now().toString()+Math.random().toString(36).slice(2,6)+i,
+          org:_mfUser?.org||'바바그라운드',
+          name,phone,initialProduct,
+          firstInterestProduct:{category:'',product:''},
+          currentInterestProduct:{category:'',product:''},
+          interestLevel:'',status:'미시도',attempts:[],
+          queued:false,queuedDate:null,
+          paymentNoticeSent:false,paymentNoticeDate:null,
+          paymentDone:false,paymentDoneDate:null,
+          createdAt:Date.now(),updatedAt:Date.now()
+        });
+        added++;
+      });
+      save();renderCallFlow();
+      alert(`${added}명 추가됐어요.${skipped?` (연락처 중복 ${skipped}명 건너뜀)`:''}`);
+    }catch(err){alert('엑셀 파일을 읽는 중 오류가 났어요: '+err.message);}
+    evt.target.value='';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── 렌더: 목록 테이블 ──
+function renderCallFlow(){
+  cfRenderDatalists();
+  renderCallDashboard();
+  const search=(document.getElementById('cf-search')?.value||'').trim().toLowerCase();
+  let list=getVisibleCallCustomers().slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const f=S.callFilter||'all';
+  const today=cfToday();
+  if(f==='queued')list=list.filter(c=>c.queued&&c.queuedDate===today);
+  else if(f!=='all')list=list.filter(c=>c.status===f);
+  if(search)list=list.filter(c=>(c.name||'').toLowerCase().includes(search)||(c.phone||'').replace(/[^0-9]/g,'').includes(search.replace(/[^0-9]/g,'')));
+  const tb=document.getElementById('cf-tbody');if(!tb)return;
+  if(!list.length){tb.innerHTML=`<tr><td colspan="11" style="text-align:center;padding:32px;color:var(--t3)">표시할 고객이 없어요</td></tr>`;return;}
+  tb.innerHTML=list.map(c=>{
+    const attempts=c.attempts||[];
+    const lastAttempt=attempts[attempts.length-1];
+    const fip=c.firstInterestProduct||{};
+    const cip=c.currentInterestProduct||{};
+    const payable=(c.status==='예약대기'||c.status==='결제완료');
+    return `<tr>
+      <td style="text-align:center"><input type="checkbox" ${c.queued&&c.queuedDate===today?'checked':''} onchange="toggleCallQueue('${c.id}')"></td>
+      <td style="font-weight:600;white-space:nowrap">${c.name}</td>
+      <td style="white-space:nowrap">${c.phone}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+          <span style="font-size:10px;padding:1px 7px;border-radius:10px;background:var(--surf2);color:var(--t2)">${attempts.length}차</span>
+          <button class="cf-mini-btn" onclick="openCallLogModal('${c.id}')">📞 기록추가</button>
+        </div>
+        ${lastAttempt?`<div class="cf-attempt-note" title="${(lastAttempt.memo||'').replace(/"/g,'&quot;')}">${lastAttempt.date} · ${lastAttempt.result}${lastAttempt.memo?' · '+lastAttempt.memo:''}</div>`:''}
+      </td>
+      <td>
+        <select onchange="updateCallField('${c.id}','interestLevel',this.value)" style="font-size:11px;padding:4px 6px">
+          <option value="" ${!c.interestLevel?'selected':''}>-</option>
+          <option value="상" ${c.interestLevel==='상'?'selected':''}>상</option>
+          <option value="중" ${c.interestLevel==='중'?'selected':''}>중</option>
+          <option value="하" ${c.interestLevel==='하'?'selected':''}>하</option>
+        </select>
+      </td>
+      <td>
+        <select onchange="updateCallField('${c.id}','status',this.value)" class="cf-badge ${c.status}" style="font-size:10px;padding:3px 6px;border-radius:10px">
+          ${Object.keys(CF_STATUS_LABELS).map(k=>`<option value="${k}" ${c.status===k?'selected':''}>${CF_STATUS_LABELS[k]}</option>`).join('')}
+        </select>
+      </td>
+      <td><input type="text" value="${(c.initialProduct||'').replace(/"/g,'&quot;')}" onchange="updateCallInitProduct('${c.id}',this.value)" style="font-size:11px;padding:4px 6px;min-width:100px"></td>
+      <td>
+        <div class="cf-prod-cell">
+          <input type="text" list="cf-cat-list" placeholder="카테고리" value="${(fip.category||'').replace(/"/g,'&quot;')}" onchange="updateCallProduct('${c.id}','firstInterestProduct','category',this.value)">
+          <input type="text" list="cf-prod-list" placeholder="상품명" value="${(fip.product||'').replace(/"/g,'&quot;')}" onchange="updateCallProduct('${c.id}','firstInterestProduct','product',this.value)">
+        </div>
+      </td>
+      <td>
+        <div class="cf-prod-cell">
+          <input type="text" list="cf-cat-list" placeholder="카테고리" value="${(cip.category||'').replace(/"/g,'&quot;')}" onchange="updateCallProduct('${c.id}','currentInterestProduct','category',this.value)">
+          <input type="text" list="cf-prod-list" placeholder="상품명" value="${(cip.product||'').replace(/"/g,'&quot;')}" onchange="updateCallProduct('${c.id}','currentInterestProduct','product',this.value)">
+        </div>
+      </td>
+      <td style="text-align:center">${payable?`<input type="checkbox" ${c.paymentNoticeSent?'checked':''} onchange="togglePaymentNotice('${c.id}')">`:'<span style="color:var(--t3)">—</span>'}</td>
+      <td style="text-align:center">${payable?`<input type="checkbox" ${c.paymentDone?'checked':''} onchange="togglePaymentDone('${c.id}')">`:'<span style="color:var(--t3)">—</span>'}</td>
+      <td style="white-space:nowrap"><button class="cf-mini-btn" onclick="openCallCustModal('${c.id}')">✏️</button> <button class="cf-mini-btn" onclick="delCallCustomer('${c.id}')">삭제</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── 렌더: 상단 대시보드(오늘/전체) + 퍼널 ──
+function renderCallDashboard(){
+  const all=getVisibleCallCustomers();
+  const mode=S.callDashMode||'today';
+  const today=cfToday();
+  const kpiEl=document.getElementById('cf-kpi-grid');
+  const funnelEl=document.getElementById('cf-funnel');
+  if(mode==='today'){
+    const todays=all.filter(c=>c.queuedDate===today);
+    const target=todays.length;
+    const done=todays.filter(c=>(c.attempts||[]).some(a=>a.date===today)).length;
+    const reservedAll=all.filter(c=>c.status==='예약대기').length;
+    const paidToday=all.filter(c=>c.paymentDoneDate===today).length;
+    if(kpiEl)kpiEl.innerHTML=[
+      {lbl:'오늘 목표 콜 수',val:`${target}건`},
+      {lbl:'오늘 완료',val:`${done}건`},
+      {lbl:'오늘 진행률',val:target?`${Math.round(done/target*100)}%`:'0%'},
+      {lbl:'예약대기(누적)',val:`${reservedAll}명`},
+      {lbl:'오늘 결제완료',val:`${paidToday}건`},
+    ].map(k=>`<div class="cf-kpi"><div class="cf-kpi-val">${k.val}</div><div class="cf-kpi-lbl">${k.lbl}</div></div>`).join('');
+  }else{
+    const total=all.length;
+    const cnt=st=>all.filter(c=>c.status===st).length;
+    const attempted=total-cnt('미시도');
+    const reservedOrPaid=cnt('예약대기')+cnt('결제완료');
+    const paid=cnt('결제완료');
+    const totalAttempts=all.reduce((sum,c)=>sum+(c.attempts||[]).length,0);
+    if(kpiEl)kpiEl.innerHTML=[
+      {lbl:'전체 고객 수',val:`${total}명`},
+      {lbl:'누적 통화 시도',val:`${totalAttempts}건`},
+      {lbl:'예약대기 전환율',val:attempted?`${Math.round(reservedOrPaid/attempted*100)}%`:'0%'},
+      {lbl:'결제 전환율',val:reservedOrPaid?`${Math.round(paid/reservedOrPaid*100)}%`:'0%'},
+      {lbl:'결제완료',val:`${paid}명`},
+    ].map(k=>`<div class="cf-kpi"><div class="cf-kpi-val">${k.val}</div><div class="cf-kpi-lbl">${k.lbl}</div></div>`).join('');
+  }
+  const stages=[['미시도','var(--t3)'],['시도중','var(--or)'],['상담완료','var(--t3)'],['예약대기','var(--bl)'],['결제완료','var(--gn)']];
+  const totalAll=all.length||1;
+  if(funnelEl)funnelEl.innerHTML=stages.map(([k,color])=>{
+    const n=all.filter(c=>c.status===k).length;
+    const pct=Math.max(n/totalAll*100,n?4:0);
+    return `<div class="cf-funnel-seg">
+      <div class="cf-funnel-val" style="color:${color}">${n}</div>
+      <div class="cf-funnel-bar" style="background:${color};opacity:${n?0.85:0.15};height:${8+pct*0.5}px"></div>
+      <div class="cf-funnel-lbl">${CF_STATUS_LABELS[k]}</div>
+    </div>`;
+  }).join('');
 }
 
 function openNicknameModal(){
@@ -8730,6 +9184,9 @@ async function supaLoad(){
         meetings: d.meetings||[],
         products: d.products||[],
         influencers: d.influencers||[],
+        callCustomers: d.callCustomers||[],
+        callProdCategories: d.callProdCategories||[],
+        callProdNames: d.callProdNames||[],
         revEntries: d.revEntries||[],
         utmEntries: d.utmEntries||[],
         personalNotes: d.personalNotes||{},
@@ -8764,6 +9221,9 @@ async function supaSyncInner(){
         meetings: S.meetings||[],
         products: S.products||[],
         influencers: S.influencers||[],
+        callCustomers: S.callCustomers||[],
+        callProdCategories: S.callProdCategories||[],
+        callProdNames: S.callProdNames||[],
         revEntries: S.revEntries||[],
         utmEntries: S.utmEntries||[],
         personalNotes: S.personalNotes||{},

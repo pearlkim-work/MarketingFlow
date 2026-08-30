@@ -735,6 +735,7 @@ select:focus{border-color:var(--lm);outline:none}
 .cf-badge.시도중{background:var(--orbg);color:var(--or);border-color:rgba(194,90,0,.3)}
 .cf-badge.상담완료{background:var(--surf3);color:var(--t3);border-color:var(--b2)}
 .cf-badge.예약대기{background:var(--blbg);color:var(--bl);border-color:rgba(26,120,194,.3)}
+.cf-badge.결제요청완료{background:rgba(138,92,246,.1);color:#8a5cf6;border-color:rgba(138,92,246,.3)}
 .cf-badge.결제완료{background:var(--gnbg);color:var(--gn);border-color:rgba(26,156,90,.3)}
 .cf-badge.포기{background:var(--rdbg);color:var(--rd);border-color:rgba(194,32,32,.3)}
 .cf-prod-cell{display:flex;flex-direction:column;gap:3px;min-width:110px}
@@ -1382,6 +1383,7 @@ select:focus{border-color:var(--lm);outline:none}
 
     <div class="cf-filter-bar" id="cf-filter-bar">
       <input type="text" class="inf-search" id="cf-search" placeholder="🔍 이름, 연락처 검색..." oninput="renderCallFlow()" style="width:200px">
+      <button class="btn-ghost" onclick="downloadCallCSV()">📤 CSV 다운로드</button>
       <button class="cal-ftag on on-all" data-cfilter="all" onclick="callFilterClick(this)">전체</button>
       <button class="cal-ftag" data-cfilter="queued" onclick="callFilterClick(this)">📋 오늘 리스트</button>
       <button class="cal-ftag" data-cfilter="미시도" onclick="callFilterClick(this)">미시도</button>
@@ -1393,12 +1395,13 @@ select:focus{border-color:var(--lm);outline:none}
     </div>
 
     <div class="data-table-wrap" style="overflow-x:auto">
-      <table class="data-table" id="cf-table" style="min-width:1360px">
+      <table class="data-table" id="cf-table" style="min-width:1680px">
         <thead><tr>
           <th style="width:40px">오늘</th>
           <th>이름</th><th>연락처</th><th style="min-width:150px">시도현황</th><th>관심도</th><th>상태</th>
           <th>초기신청상품</th><th style="min-width:120px">1차 관심상품</th><th style="min-width:120px">현재 관심상품</th>
-          <th>결제알림</th><th>결제완료</th><th></th>
+          <th style="min-width:110px">여행날짜</th><th style="min-width:100px">티켓명</th><th style="min-width:90px">결제가격</th>
+          <th>결제알림</th><th>결제요청완료</th><th>결제완료</th><th></th>
         </tr></thead>
         <tbody id="cf-tbody"></tbody>
       </table>
@@ -1444,8 +1447,8 @@ select:focus{border-color:var(--lm);outline:none}
         <select id="cf-log-category"></select>
       </div>
       <div style="flex:1">
-        <div style="font-size:10px;color:var(--t3);margin-bottom:3px">상품명</div>
-        <input type="text" list="cf-prod-list" id="cf-log-product" placeholder="상품명">
+        <div style="font-size:10px;color:var(--t3);margin-bottom:3px">상품번호</div>
+        <input type="text" list="cf-prod-list" id="cf-log-product" placeholder="상품번호">
       </div>
     </div>
     <datalist id="cf-prod-list"></datalist>
@@ -8675,7 +8678,7 @@ function normalizeOrgTags(){
 // 하루하루 직접 고를 콜 리스트, 시도 이력, 관심도/상태, 예약대기 후 결제알림·결제완료 체크까지 트래킹.
 function getVisibleCallCustomers(){return visibleByOrg(S.callCustomers);}
 function cfToday(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-const CF_STATUS_LABELS={'미시도':'미시도','시도중':'시도중','상담완료':'상담완료(관심없음)','예약대기':'예약대기','결제완료':'결제완료','포기':'연락포기'};
+const CF_STATUS_LABELS={'미시도':'미시도','시도중':'시도중','상담완료':'상담완료(관심없음)','예약대기':'예약대기','결제요청완료':'결제요청완료','결제완료':'결제완료','포기':'연락포기'};
 const CF_RESULT_TO_STATUS={'부재중':'시도중','재통화예정':'시도중','통화연결':'시도중','상담완료':'상담완료','예약대기':'예약대기','결제완료':'결제완료','연락처오류':'포기'};
 
 function cfAddSuggestion(category,product){
@@ -8725,6 +8728,7 @@ function saveCallCustomer(){
       currentInterestProduct:{category:'',product:''},
       interestLevel,status:'미시도',attempts:[],
       queued:false,queuedDate:null,
+      travelDate:'',ticketName:'',paymentPrice:'',
       paymentNoticeSent:false,paymentNoticeDate:null,
       paymentDone:false,paymentDoneDate:null,
       createdAt:Date.now(),updatedAt:Date.now()
@@ -8775,6 +8779,8 @@ function togglePaymentNotice(id){
   const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c)return;
   c.paymentNoticeSent=!c.paymentNoticeSent;
   c.paymentNoticeDate=c.paymentNoticeSent?cfToday():null;
+  if(c.paymentNoticeSent&&c.status==='예약대기')c.status='결제요청완료';
+  if(!c.paymentNoticeSent&&c.status==='결제요청완료')c.status='예약대기';
   save();renderCallFlow();
 }
 function togglePaymentDone(id){
@@ -8782,6 +8788,7 @@ function togglePaymentDone(id){
   c.paymentDone=!c.paymentDone;
   c.paymentDoneDate=c.paymentDone?cfToday():null;
   if(c.paymentDone)c.status='결제완료';
+  else if(c.status==='결제완료')c.status=c.paymentNoticeSent?'결제요청완료':'예약대기';
   save();renderCallFlow();
 }
 
@@ -8870,6 +8877,7 @@ function handleCallExcelUpload(evt){
           currentInterestProduct:{category:'',product:''},
           interestLevel:'',status:'미시도',attempts:[],
           queued:false,queuedDate:null,
+          travelDate:'',ticketName:'',paymentPrice:'',
           paymentNoticeSent:false,paymentNoticeDate:null,
           paymentDone:false,paymentDoneDate:null,
           createdAt:Date.now(),updatedAt:Date.now()
@@ -8884,10 +8892,8 @@ function handleCallExcelUpload(evt){
   reader.readAsArrayBuffer(file);
 }
 
-// ── 렌더: 목록 테이블 ──
-function renderCallFlow(){
-  cfRenderDatalists();
-  renderCallDashboard();
+// ── 현재 필터/검색 적용된 목록 (테이블 렌더 + CSV 내보내기 공용) ──
+function cfGetFilteredList(){
   const search=(document.getElementById('cf-search')?.value||'').trim().toLowerCase();
   let list=getVisibleCallCustomers().slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   const f=S.callFilter||'all';
@@ -8895,14 +8901,44 @@ function renderCallFlow(){
   if(f==='queued')list=list.filter(c=>c.queued&&c.queuedDate===today);
   else if(f!=='all')list=list.filter(c=>c.status===f);
   if(search)list=list.filter(c=>(c.name||'').toLowerCase().includes(search)||(c.phone||'').replace(/[^0-9]/g,'').includes(search.replace(/[^0-9]/g,'')));
+  return list;
+}
+// ── CSV 내보내기 (예약 시스템 업로드 양식: product_id,date,ticket_name,count,coupon_id,price,user_id,phone_number,name,email) ──
+function downloadCallCSV(){
+  const list=cfGetFilteredList();
+  if(!list.length){alert('내보낼 고객이 없어요');return;}
+  const header=['product_id','date','ticket_name','count','coupon_id','price','user_id','phone_number','name','email'];
+  const esc=v=>{
+    const str=String(v==null?'':v);
+    return /[",\n]/.test(str)?'"'+str.replace(/"/g,'""')+'"':str;
+  };
+  const rows=list.map(c=>{
+    const cip=c.currentInterestProduct||{};
+    return [cip.product||'',c.travelDate||'',c.ticketName||'','','',c.paymentPrice||'','',c.phone||'',c.name||'',''].map(esc).join(',');
+  });
+  const csv='\uFEFF'+header.join(',')+'\n'+rows.join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`콜전환_예약목록_${cfToday()}.csv`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ── 렌더: 목록 테이블 ──
+function renderCallFlow(){
+  cfRenderDatalists();
+  renderCallDashboard();
+  const today=cfToday();
+  let list=cfGetFilteredList();
   const tb=document.getElementById('cf-tbody');if(!tb)return;
-  if(!list.length){tb.innerHTML=`<tr><td colspan="11" style="text-align:center;padding:32px;color:var(--t3)">표시할 고객이 없어요</td></tr>`;return;}
+  if(!list.length){tb.innerHTML=`<tr><td colspan="15" style="text-align:center;padding:32px;color:var(--t3)">표시할 고객이 없어요</td></tr>`;return;}
   tb.innerHTML=list.map(c=>{
     const attempts=c.attempts||[];
     const lastAttempt=attempts[attempts.length-1];
     const fip=c.firstInterestProduct||{};
     const cip=c.currentInterestProduct||{};
-    const payable=(c.status==='예약대기'||c.status==='결제완료');
+    const payable=(c.status==='예약대기'||c.status==='결제요청완료'||c.status==='결제완료');
     return `<tr>
       <td style="text-align:center"><input type="checkbox" ${c.queued&&c.queuedDate===today?'checked':''} onchange="toggleCallQueue('${c.id}')"></td>
       <td style="font-weight:600;white-space:nowrap">${c.name}</td>
@@ -8931,16 +8967,20 @@ function renderCallFlow(){
       <td>
         <div class="cf-prod-cell">
           <select onchange="updateCallProduct('${c.id}','firstInterestProduct','category',this.value)" style="font-size:10px;padding:4px 6px">${cfCatOptions(fip.category)}</select>
-          <input type="text" list="cf-prod-list" placeholder="상품명" value="${(fip.product||'').replace(/"/g,'&quot;')}" onchange="updateCallProduct('${c.id}','firstInterestProduct','product',this.value)">
+          <input type="text" list="cf-prod-list" placeholder="상품번호" value="${(fip.product||'').replace(/"/g,'&quot;')}" onchange="updateCallProduct('${c.id}','firstInterestProduct','product',this.value)">
         </div>
       </td>
       <td>
         <div class="cf-prod-cell">
           <select onchange="updateCallProduct('${c.id}','currentInterestProduct','category',this.value)" style="font-size:10px;padding:4px 6px">${cfCatOptions(cip.category)}</select>
-          <input type="text" list="cf-prod-list" placeholder="상품명" value="${(cip.product||'').replace(/"/g,'&quot;')}" onchange="updateCallProduct('${c.id}','currentInterestProduct','product',this.value)">
+          <input type="text" list="cf-prod-list" placeholder="상품번호" value="${(cip.product||'').replace(/"/g,'&quot;')}" onchange="updateCallProduct('${c.id}','currentInterestProduct','product',this.value)">
         </div>
       </td>
+      <td><input type="date" value="${c.travelDate||''}" onchange="updateCallField('${c.id}','travelDate',this.value)" style="font-size:11px;padding:4px 6px;min-width:110px"></td>
+      <td><input type="text" placeholder="티켓명" value="${(c.ticketName||'').replace(/"/g,'&quot;')}" onchange="updateCallField('${c.id}','ticketName',this.value)" style="font-size:11px;padding:4px 6px;min-width:90px"></td>
+      <td><input type="text" placeholder="결제가격" value="${(c.paymentPrice||'').replace(/"/g,'&quot;')}" onchange="updateCallField('${c.id}','paymentPrice',this.value)" style="font-size:11px;padding:4px 6px;min-width:80px;text-align:right"></td>
       <td style="text-align:center">${payable?`<input type="checkbox" ${c.paymentNoticeSent?'checked':''} onchange="togglePaymentNotice('${c.id}')">`:'<span style="color:var(--t3)">—</span>'}</td>
+      <td style="text-align:center">${c.status==='결제요청완료'||c.status==='결제완료'?'✅':'<span style="color:var(--t3)">—</span>'}</td>
       <td style="text-align:center">${payable?`<input type="checkbox" ${c.paymentDone?'checked':''} onchange="togglePaymentDone('${c.id}')">`:'<span style="color:var(--t3)">—</span>'}</td>
       <td style="white-space:nowrap"><button class="cf-mini-btn" onclick="openCallCustModal('${c.id}')">✏️</button> <button class="cf-mini-btn" onclick="delCallCustomer('${c.id}')">삭제</button></td>
     </tr>`;
@@ -8971,7 +9011,7 @@ function renderCallDashboard(){
     const total=all.length;
     const cnt=st=>all.filter(c=>c.status===st).length;
     const attempted=total-cnt('미시도');
-    const reservedOrPaid=cnt('예약대기')+cnt('결제완료');
+    const reservedOrPaid=cnt('예약대기')+cnt('결제요청완료')+cnt('결제완료');
     const paid=cnt('결제완료');
     const totalAttempts=all.reduce((sum,c)=>sum+(c.attempts||[]).length,0);
     if(kpiEl)kpiEl.innerHTML=[
@@ -8982,7 +9022,7 @@ function renderCallDashboard(){
       {lbl:'결제완료',val:`${paid}명`},
     ].map(k=>`<div class="cf-kpi"><div class="cf-kpi-val">${k.val}</div><div class="cf-kpi-lbl">${k.lbl}</div></div>`).join('');
   }
-  const stages=[['미시도','var(--t3)'],['시도중','var(--or)'],['상담완료','var(--t3)'],['예약대기','var(--bl)'],['결제완료','var(--gn)']];
+  const stages=[['미시도','var(--t3)'],['시도중','var(--or)'],['상담완료','var(--t3)'],['예약대기','var(--bl)'],['결제요청완료','#8a5cf6'],['결제완료','var(--gn)']];
   const totalAll=all.length||1;
   if(funnelEl)funnelEl.innerHTML=stages.map(([k,color])=>{
     const n=all.filter(c=>c.status===k).length;

@@ -1409,7 +1409,7 @@ select:focus{border-color:var(--lm);outline:none}
     <div class="data-table-wrap" style="overflow-x:auto">
       <table class="data-table" id="cf-table" style="min-width:1780px">
         <thead><tr>
-          <th style="width:40px">오늘</th>
+          <th style="width:40px">오늘<br><input type="checkbox" id="cf-select-all-today" onchange="toggleAllTodayQueue(this.checked)" title="현재 필터에 보이는 고객 전체를 오늘 리스트에 추가/제거"></th>
           <th>이름</th><th>연락처</th><th style="min-width:150px">시도현황</th><th>관심도</th><th>상태</th>
           <th>초기신청상품</th><th style="min-width:120px">1차 관심상품</th><th style="min-width:120px">현재 관심상품</th>
           <th style="min-width:110px">여행날짜</th><th style="min-width:100px">티켓명</th><th style="min-width:90px">결제가격</th>
@@ -8784,6 +8784,16 @@ function toggleCallQueue(id){
   c.queuedDate=c.queued?cfToday():c.queuedDate;
   save();renderCallFlow();
 }
+// ── 현재 필터에 보이는 목록 전체를 오늘 리스트에 추가/제거 ──
+function toggleAllTodayQueue(checked){
+  const today=cfToday();
+  const list=cfGetFilteredList();
+  list.forEach(c=>{
+    c.queued=checked;
+    if(checked)c.queuedDate=today;
+  });
+  save();renderCallFlow();
+}
 function clearTodayQueue(){
   if(!confirm('오늘 콜 리스트를 비울까요? (고객 데이터는 삭제되지 않아요)'))return;
   const today=cfToday();
@@ -9057,7 +9067,12 @@ function renderCallFlow(){
   const today=cfToday();
   let list=cfGetFilteredList();
   const tb=document.getElementById('cf-tbody');if(!tb)return;
-  if(!list.length){tb.innerHTML=`<tr><td colspan="15" style="text-align:center;padding:32px;color:var(--t3)">표시할 고객이 없어요</td></tr>`;return;}
+  const selAllEl0=document.getElementById('cf-select-all-today');
+  if(!list.length){
+    tb.innerHTML=`<tr><td colspan="15" style="text-align:center;padding:32px;color:var(--t3)">표시할 고객이 없어요</td></tr>`;
+    if(selAllEl0){selAllEl0.checked=false;selAllEl0.indeterminate=false;}
+    return;
+  }
   tb.innerHTML=list.map(c=>{
     const attempts=c.attempts||[];
     const lastAttempt=attempts[attempts.length-1];
@@ -9111,6 +9126,12 @@ function renderCallFlow(){
       <td style="white-space:nowrap"><button class="cf-mini-btn" onclick="openCallCustModal('${c.id}')">✏️</button> <button class="cf-mini-btn" onclick="delCallCustomer('${c.id}')">삭제</button></td>
     </tr>`;
   }).join('');
+  const selAllEl=document.getElementById('cf-select-all-today');
+  if(selAllEl){
+    const queuedCount=list.filter(c=>c.queued&&c.queuedDate===today).length;
+    selAllEl.checked=queuedCount===list.length;
+    selAllEl.indeterminate=queuedCount>0&&queuedCount<list.length;
+  }
 }
 
 // ── 렌더: 상단 대시보드(오늘/전체) + 퍼널 ──

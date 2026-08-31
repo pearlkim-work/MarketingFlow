@@ -9736,9 +9736,11 @@ function renderCallDashboard(){
     const reservedOrPaid=cnt('예약대기')+cnt('결제알림완료')+cnt('결제완료');
     const paid=cnt('결제완료');
     const totalAttempts=all.reduce((sum,c)=>sum+(c.attempts||[]).length,0);
+    const calledPeople=all.filter(c=>(c.attempts||[]).length>0).length;
     if(kpiEl)kpiEl.innerHTML=[
       {lbl:'전체 고객 수',val:`${total}명`},
       {lbl:'누적 통화 시도',val:`${totalAttempts}건`},
+      {lbl:'실제 통화한 인원',val:`${calledPeople}명`},
       {lbl:'예약대기 전환율',val:attempted?`${Math.round(reservedOrPaid/attempted*100)}%`:'0%'},
       {lbl:'결제 전환율',val:reservedOrPaid?`${Math.round(paid/reservedOrPaid*100)}%`:'0%'},
       {lbl:'결제완료',val:`${paid}명`},

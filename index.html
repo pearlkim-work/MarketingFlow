@@ -1407,6 +1407,7 @@ select:focus{border-color:var(--lm);outline:none}
       <button class="cal-ftag on on-all" data-cfilter="all" onclick="callFilterClick(this)">전체</button>
       <button class="cal-ftag" data-cfilter="queued" onclick="callFilterClick(this)">📋 오늘 리스트</button>
       <button class="cal-ftag" data-cfilter="queued_tomorrow" onclick="callFilterClick(this)">📆 내일 리스트</button>
+      <button class="cal-ftag" data-cfilter="called" onclick="callFilterClick(this)">☎️ 통화완료리스트</button>
       <button class="cal-ftag" data-cfilter="미시도" onclick="callFilterClick(this)">미시도</button>
       <button class="cal-ftag" data-cfilter="시도중" onclick="callFilterClick(this)">시도중</button>
       <button class="cal-ftag" data-cfilter="상담완료_관심없음" onclick="callFilterClick(this)">상담완료(관심없음)</button>
@@ -9404,6 +9405,7 @@ function cfGetFilteredList(){
   const today=cfToday();
   if(f==='queued')list=list.filter(c=>c.queued&&c.queuedDate===today);
   else if(f==='queued_tomorrow')list=list.filter(c=>c.queued&&c.queuedDate===cfTomorrow());
+  else if(f==='called')list=list.filter(c=>(c.attempts||[]).length>0);
   else if(f==='부재중_last')list=list.filter(c=>{const a=c.attempts||[];return a.length&&a[a.length-1].result==='부재중';});
   else if(f==='상담완료_관심없음')list=list.filter(c=>c.status==='상담완료'&&(c.consultReason||'관심없음')!=='기타');
   else if(f==='상담완료_기타')list=list.filter(c=>c.status==='상담완료'&&c.consultReason==='기타');

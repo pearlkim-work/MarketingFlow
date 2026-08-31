@@ -1464,7 +1464,7 @@ select:focus{border-color:var(--lm);outline:none}
     <div style="display:flex;gap:8px">
       <div style="flex:1">
         <div style="font-size:10px;color:var(--t3);margin-bottom:3px">카테고리(현재 관심상품)</div>
-        <select id="cf-log-category"></select>
+        <input type="text" list="cf-cat-list" id="cf-log-category" placeholder="예: 산청">
       </div>
       <div style="flex:1">
         <div style="font-size:10px;color:var(--t3);margin-bottom:3px">상품번호</div>
@@ -1472,6 +1472,7 @@ select:focus{border-color:var(--lm);outline:none}
       </div>
     </div>
     <datalist id="cf-prod-list"></datalist>
+    <datalist id="cf-cat-list"></datalist>
     <div class="modal-btns"><button class="btn-cancel" onclick="closeCallLogModal()">취소</button><button class="btn-confirm" onclick="saveCallLog()">저장</button></div>
   </div>
 </div>
@@ -8746,6 +8747,11 @@ function normalizeOrgTags(){
   (S.mtgFolders||[]).forEach(f=>{if(!f.org)f.org='바바그라운드';});
   (S.callCustomers||[]).forEach(x=>{if(!x.org)x.org='바바그라운드';});
   (S.callScripts||[]).forEach(x=>{if(!x.org)x.org='바바그라운드';});
+  if(!S.callProdCategories)S.callProdCategories=[];
+  (S.callCustomers||[]).forEach(c=>{
+    const cats=[(c.firstInterestProduct&&c.firstInterestProduct.category)||'',(c.currentInterestProduct&&c.currentInterestProduct.category)||''];
+    cats.forEach(cat=>{cat=cat.trim();if(cat&&!S.callProdCategories.includes(cat))S.callProdCategories.push(cat);});
+  });
 }
 
 // ══════════ CALL FLOW (예약전환 콜 트래킹) ══════════
@@ -8762,13 +8768,14 @@ function cfAddSuggestion(category,product){
   if(category&&!S.callProdCategories.includes(category))S.callProdCategories.push(category);
   if(product&&!S.callProdNames.includes(product))S.callProdNames.push(product);
 }
-function cfCatOptions(selected){
-  const projs=getVisibleProjects();
-  return `<option value="">- 프로젝트 선택 -</option>`+projs.map(p=>`<option value="${(p.name||'').replace(/"/g,'&quot;')}" ${selected===p.name?'selected':''}>${p.name}</option>`).join('');
+function cfCatOptions(){
+  return (S.callProdCategories||[]).slice().sort((a,b)=>a.localeCompare(b,'ko')).map(c=>`<option value="${c.replace(/"/g,'&quot;')}">`).join('');
 }
 function cfRenderDatalists(){
   const prodDl=document.getElementById('cf-prod-list');
   if(prodDl)prodDl.innerHTML=(S.callProdNames||[]).map(p=>`<option value="${p.replace(/"/g,'&quot;')}">`).join('');
+  const catDl=document.getElementById('cf-cat-list');
+  if(catDl)catDl.innerHTML=cfCatOptions();
 }
 
 // ── 통화 멘트/스크립트: 자유 카테고리로 정리해두고 통화 중 바로 복사해서 참고 ──
@@ -8957,6 +8964,7 @@ function updateCallProduct(id,field,sub,value){
   if(!c[field]||typeof c[field]!=='object')c[field]={category:'',product:''};
   c[field][sub]=value.trim();
   if(sub==='product')cfAddSuggestion('',value.trim());
+  if(sub==='category')cfAddSuggestion(value.trim(),'');
   c.updatedAt=Date.now();save();cfRenderDatalists();
 }
 function updateCallInitProduct(id,value){
@@ -8996,7 +9004,7 @@ function openCallLogModal(id){
   document.getElementById('cf-log-result').value='부재중';
   document.getElementById('cf-log-memo').value='';
   document.getElementById('cf-log-nextdate').value=c.nextCallDate||'';
-  document.getElementById('cf-log-category').innerHTML=cfCatOptions((c.currentInterestProduct&&c.currentInterestProduct.category)||'');
+  document.getElementById('cf-log-category').value=(c.currentInterestProduct&&c.currentInterestProduct.category)||'';
   document.getElementById('cf-log-product').value=(c.currentInterestProduct&&c.currentInterestProduct.product)||'';
   cfRenderDatalists();
   document.getElementById('cf-log-modal-bg').style.display='flex';
@@ -9015,7 +9023,7 @@ function saveCallLog(){
   if(category||product){
     if(!c.firstInterestProduct||!c.firstInterestProduct.product)c.firstInterestProduct={category,product};
     c.currentInterestProduct={category,product};
-    cfAddSuggestion('',product);
+    cfAddSuggestion(category,product);
   }
   c.status=CF_RESULT_TO_STATUS[result]||c.status;
   if(c.status==='결제완료'){c.paymentDone=true;c.paymentDoneDate=cfToday();}
@@ -9076,6 +9084,7 @@ function handleCallExcelUpload(evt){
               if(initialInterestCategory){
                 if(!existing.firstInterestProduct)existing.firstInterestProduct={category:'',product:''};
                 existing.firstInterestProduct.category=initialInterestCategory;
+                cfAddSuggestion(initialInterestCategory,'');
               }
               existing.updatedAt=Date.now();
               updated++;
@@ -9099,6 +9108,7 @@ function handleCallExcelUpload(evt){
           paymentDone:false,paymentDoneDate:null,
           createdAt:Date.now(),updatedAt:Date.now()
         });
+        if(initialInterestCategory)cfAddSuggestion(initialInterestCategory,'');
         added++;
       });
       save();renderCallFlow();
@@ -9144,7 +9154,7 @@ function setCfSort(value){
 // (건수와 초기관심상품 카테고리를 모달에서 선택)
 function openSuggestModal(){
   const catSel=document.getElementById('cf-suggest-category');
-  if(catSel)catSel.innerHTML='<option value="">전체</option>'+getVisibleProjects().map(p=>`<option value="${(p.name||'').replace(/"/g,'&quot;')}">${p.name}</option>`).join('');
+  if(catSel)catSel.innerHTML='<option value="">전체</option>'+(S.callProdCategories||[]).slice().sort((a,b)=>a.localeCompare(b,'ko')).map(cat=>`<option value="${cat.replace(/"/g,'&quot;')}">${cat}</option>`).join('');
   document.getElementById('cf-suggest-count').value=20;
   document.getElementById('cf-suggest-modal-bg').style.display='flex';
 }
@@ -9202,7 +9212,8 @@ function renderCallFlow(){
   const catFilterEl=document.getElementById('cf-cat-filter');
   if(catFilterEl){
     const cur=S.callCategoryFilter||'';
-    catFilterEl.innerHTML='<option value="">초기관심상품: 전체</option>'+getVisibleProjects().map(p=>`<option value="${(p.name||'').replace(/"/g,'&quot;')}" ${cur===p.name?'selected':''}>${p.name}</option>`).join('');
+    const cfCats=(S.callProdCategories||[]).slice().sort((a,b)=>a.localeCompare(b,'ko'));
+    catFilterEl.innerHTML='<option value="">초기관심상품: 전체</option>'+cfCats.map(cat=>`<option value="${cat.replace(/"/g,'&quot;')}" ${cur===cat?'selected':''}>${cat}</option>`).join('');
   }
   const today=cfToday();
   let list=cfGetFilteredList();
@@ -9247,13 +9258,13 @@ function renderCallFlow(){
       <td><input type="text" value="${(c.initialProduct||'').replace(/"/g,'&quot;')}" onchange="updateCallInitProduct('${c.id}',this.value)" style="font-size:11px;padding:4px 6px;min-width:100px"></td>
       <td>
         <div class="cf-prod-cell">
-          <select onchange="updateCallProduct('${c.id}','firstInterestProduct','category',this.value)" style="font-size:10px;padding:4px 6px">${cfCatOptions(fip.category)}</select>
+          <input type="text" list="cf-cat-list" placeholder="예: 산청" value="${(fip.category||'').replace(/"/g,'&quot;')}" onchange="updateCallProduct('${c.id}','firstInterestProduct','category',this.value)" style="font-size:10px;padding:4px 6px">
           <input type="text" list="cf-prod-list" placeholder="상품번호" value="${(fip.product||'').replace(/"/g,'&quot;')}" onchange="updateCallProduct('${c.id}','firstInterestProduct','product',this.value)">
         </div>
       </td>
       <td>
         <div class="cf-prod-cell">
-          <select onchange="updateCallProduct('${c.id}','currentInterestProduct','category',this.value)" style="font-size:10px;padding:4px 6px">${cfCatOptions(cip.category)}</select>
+          <input type="text" list="cf-cat-list" placeholder="예: 산청" value="${(cip.category||'').replace(/"/g,'&quot;')}" onchange="updateCallProduct('${c.id}','currentInterestProduct','category',this.value)" style="font-size:10px;padding:4px 6px">
           <input type="text" list="cf-prod-list" placeholder="상품번호" value="${(cip.product||'').replace(/"/g,'&quot;')}" onchange="updateCallProduct('${c.id}','currentInterestProduct','product',this.value)">
         </div>
       </td>

@@ -1534,6 +1534,20 @@ select:focus{border-color:var(--lm);outline:none}
   </div>
 </div>
 
+<!-- 콜 트래킹: 오늘/내일 리스트에 사람 직접 골라 추가하는 모달 -->
+<div class="modal-bg" id="cf-addqueue-modal-bg" style="display:none" onclick="if(event.target===this)closeAddQueueModal()">
+  <div class="modal" style="width:460px;max-height:78vh;display:flex;flex-direction:column">
+    <div class="modal-title" id="cf-addqueue-title">리스트에 추가</div>
+    <div style="display:flex;gap:6px;margin-bottom:6px">
+      <input type="text" id="cf-addqueue-search" placeholder="🔍 이름, 연락처 검색..." style="flex:1" oninput="renderAddQueueList()">
+      <select id="cf-addqueue-category" onchange="renderAddQueueList()" style="flex:1"></select>
+    </div>
+    <div style="font-size:10px;color:var(--t3);margin-bottom:8px">체크하면 리스트에 추가되고, 체크를 풀면 빠져요. 이미 추가된 사람은 체크되어 있어요.</div>
+    <div id="cf-addqueue-list" style="overflow-y:auto;flex:1;display:flex;flex-direction:column"></div>
+    <div class="modal-btns"><div style="flex:1"></div><button class="btn-confirm" onclick="closeAddQueueModal()">완료</button></div>
+  </div>
+</div>
+
 <!-- 콜 트래킹: 오늘 콜 후보 추천 모달 -->
 <div class="modal-bg" id="cf-suggest-modal-bg" style="display:none" onclick="if(event.target===this)closeSuggestModal()">
   <div class="modal" style="width:380px">
@@ -9495,8 +9509,10 @@ function renderCallFlow(){
   const tb=document.getElementById('cf-tbody');if(!tb)return;
   const selAllEl0=document.getElementById('cf-select-all-today');
   const selAllElTom0=document.getElementById('cf-select-all-tomorrow');
+  const queueTargetForFilter=S.callFilter==='queued_tomorrow'?'tomorrow':(S.callFilter==='queued'?'today':null);
   if(!list.length){
-    tb.innerHTML=`<tr><td colspan="16" style="text-align:center;padding:32px;color:var(--t3)">표시할 고객이 없어요</td></tr>`;
+    const addBtnEmpty=queueTargetForFilter?`<div style="margin-top:10px"><button class="btn-ghost" onclick="openAddQueueModal('${queueTargetForFilter}')">+ ${queueTargetForFilter==='tomorrow'?'내일':'오늘'} 리스트에 추가하기</button></div>`:'';
+    tb.innerHTML=`<tr><td colspan="16" style="text-align:center;padding:32px;color:var(--t3)">표시할 고객이 없어요${addBtnEmpty}</td></tr>`;
     if(selAllEl0){selAllEl0.checked=false;selAllEl0.indeterminate=false;}
     if(selAllElTom0){selAllElTom0.checked=false;selAllElTom0.indeterminate=false;}
     return;
@@ -9559,6 +9575,9 @@ function renderCallFlow(){
       <td style="white-space:nowrap"><button class="cf-mini-btn" onclick="openCallCustModal('${c.id}')">✏️</button> <button class="cf-mini-btn" onclick="delCallCustomer('${c.id}')">삭제</button></td>
     </tr>`;
   }).join('');
+  if(queueTargetForFilter){
+    tb.innerHTML+=`<tr><td colspan="16" style="text-align:center;padding:14px"><button class="btn-ghost" onclick="openAddQueueModal('${queueTargetForFilter}')">+ ${queueTargetForFilter==='tomorrow'?'내일':'오늘'} 리스트에 추가하기</button></td></tr>`;
+  }
   const selAllEl=document.getElementById('cf-select-all-today');
   if(selAllEl){
     const queuedCount=list.filter(c=>c.queued&&c.queuedDate===today).length;
@@ -9766,6 +9785,52 @@ function saveLaborCostEntry(){
   S.callLaborCostByDate[date]=amt;
   save();renderLaborCostList();renderCallDashboard();
   document.getElementById('cf-labor-amount').value='';
+}
+// ── 오늘/내일 리스트에 사람을 직접 골라서 추가하는 모달 (카테고리로 걸러보거나, 검색해서 바로 체크) ──
+let _cfAddQueueTarget='today';
+function openAddQueueModal(target){
+  _cfAddQueueTarget=(target==='tomorrow')?'tomorrow':'today';
+  const titleEl=document.getElementById('cf-addqueue-title');
+  if(titleEl)titleEl.textContent=(_cfAddQueueTarget==='tomorrow'?'📆 내일':'📋 오늘')+' 리스트에 추가';
+  const catSel=document.getElementById('cf-addqueue-category');
+  if(catSel)catSel.innerHTML='<option value="">초기관심상품: 전체</option>'+(S.callProdCategories||[]).slice().sort((a,b)=>a.localeCompare(b,'ko')).map(cat=>`<option value="${cat.replace(/"/g,'&quot;')}">${cat}</option>`).join('');
+  const searchEl=document.getElementById('cf-addqueue-search');
+  if(searchEl)searchEl.value='';
+  renderAddQueueList();
+  document.getElementById('cf-addqueue-modal-bg').style.display='flex';
+}
+function closeAddQueueModal(){
+  document.getElementById('cf-addqueue-modal-bg').style.display='none';
+  renderCallFlow();
+}
+function renderAddQueueList(){
+  const el=document.getElementById('cf-addqueue-list');
+  if(!el)return;
+  const targetDate=_cfAddQueueTarget==='tomorrow'?cfTomorrow():cfToday();
+  const search=(document.getElementById('cf-addqueue-search')?.value||'').trim().toLowerCase();
+  const category=document.getElementById('cf-addqueue-category')?.value||'';
+  let list=getVisibleCallCustomers().slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  if(search){
+    const searchDigits=search.replace(/[^0-9]/g,'');
+    list=list.filter(c=>(c.name||'').toLowerCase().includes(search)||(searchDigits&&(c.phone||'').replace(/[^0-9]/g,'').includes(searchDigits)));
+  }
+  if(category)list=list.filter(c=>(c.firstInterestProduct&&c.firstInterestProduct.category)===category);
+  if(!list.length){el.innerHTML='<div style="font-size:11px;color:var(--t3);padding:12px 0;text-align:center">표시할 고객이 없어요</div>';return;}
+  el.innerHTML=list.map(c=>{
+    const checked=c.queued&&c.queuedDate===targetDate;
+    return `<label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid var(--b);font-size:12px;cursor:pointer">
+      <input type="checkbox" ${checked?'checked':''} onchange="toggleAddQueueItem('${c.id}',this.checked)">
+      <span style="flex:1">${c.name} <span style="color:var(--t3);font-size:10px">${c.phone}</span></span>
+      <span class="cf-badge ${c.status}" style="font-size:9px;padding:2px 6px;border-radius:8px">${CF_STATUS_LABELS[c.status]||c.status}</span>
+    </label>`;
+  }).join('');
+}
+function toggleAddQueueItem(id,checked){
+  const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c)return;
+  const targetDate=_cfAddQueueTarget==='tomorrow'?cfTomorrow():cfToday();
+  if(checked){c.queued=true;c.queuedDate=targetDate;}
+  else if(c.queuedDate===targetDate){c.queued=false;}
+  save();
 }
 // ── 상담완료 사유 분석 (관심없음 vs 기타, 기타 사유는 스크립트 개선 참고용으로 목록화) ──
 function renderReasonBreakdown(all){

@@ -8836,6 +8836,19 @@ function normalizeOrgTags(){
   (S.callCustomers||[]).forEach(c=>{
     if(c.status==='상담완료'&&!c.consultReason)c.consultReason='관심없음';
   });
+  // 오늘 부재중으로 기록됐지만 재통화 예정일이 비어있는 건 자동으로 "내일"로 채워서
+  // 내일 리스트에 부재중으로 넘어가도록 보정 (재통화 예정일이 이미 있으면 그대로 둠)
+  cfCarryMissedCallsToTomorrow();
+}
+function cfCarryMissedCallsToTomorrow(){
+  const today=cfToday(),tomorrow=cfTomorrow();
+  (S.callCustomers||[]).forEach(c=>{
+    const attempts=c.attempts||[];
+    const last=attempts[attempts.length-1];
+    if(last&&last.date===today&&last.result==='부재중'&&!c.nextCallDate){
+      c.nextCallDate=tomorrow;
+    }
+  });
 }
 
 // ══════════ CALL FLOW (예약전환 콜 트래킹) ══════════
@@ -9296,7 +9309,7 @@ function saveCallLog(){
   const memo=document.getElementById('cf-log-memo').value.trim();
   const category=document.getElementById('cf-log-category').value.trim();
   const product=document.getElementById('cf-log-product').value.trim();
-  const nextCallDate=document.getElementById('cf-log-nextdate').value||null;
+  const nextCallDate=document.getElementById('cf-log-nextdate').value||(result==='부재중'?cfTomorrow():null);
   const nextCallTime=document.getElementById('cf-log-nexttime').value||null;
   if(!c.attempts)c.attempts=[];
   const newAttempt={seq:c.attempts.length+1,date:cfToday(),result,memo};

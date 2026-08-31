@@ -224,6 +224,10 @@ input::placeholder,textarea::placeholder{color:var(--t3)}
 /* 인플루언서 DB 탭의 상태 필터(검토중/컨택중/...)도 같은 .cal-ftag 스타일을 재사용하므로 별도 유지 */
 .cal-ftag.on-sel{background:var(--gnbg);border-color:rgba(26,156,90,.35);color:var(--gn)}
 .cal-ftag.on-free{background:var(--gnbg);border-color:rgba(26,156,90,.35);color:var(--gn)}
+/* 오늘/내일 리스트 안의 하위 카테고리 칩: 위쪽 상단 필터 칩(둥근 알약 모양)과 헷갈리지
+   않도록 각진 모양 + 파란색 계열로 구분하고, 체크박스처럼 여러 개 동시 선택 가능 */
+.cf-subtag{border-radius:6px}
+.cf-subtag.on-msel{background:var(--blbg);border-color:rgba(26,120,194,.5);color:var(--bl);font-weight:600}
 .cal-grid{flex:1;display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--b)}
 .cal-dow{background:var(--surf);padding:7px 0;text-align:center;font-size:10px;font-weight:500;color:var(--t3)}
 .cal-cell{background:var(--surf);min-height:100px;padding:6px;cursor:pointer;transition:background .1s;position:relative}
@@ -9231,17 +9235,15 @@ function deleteCallHistoryItem(id,idx){
   c.attempts.forEach((a,i)=>{a.seq=i+1;});
   c.updatedAt=Date.now();save();renderCallHistoryList(c);renderCallFlow();
 }
-// 재통화 날짜를 저장하면: 그 날짜의 "오늘 리스트"에 자동으로 큐잉됨(사용자 요청) -> 그 날이 오면 별도 조작 없이 오늘 리스트에 바로 나타남
-function cfApplyNextCallQueue(c,nextCallDate){
-  if(nextCallDate){c.queued=true;c.queuedDate=nextCallDate;}
-  else{c.queued=false;c.queuedDate=null;}
-}
+// 재통화 예정일(nextCallDate)은 그 날짜가 되면 자동으로 해당 날짜 리스트에 나타남
+// (cfInQueueForDate 참고) — 수동 큐잉(c.queued/c.queuedDate)과는 별개로 동작하며
+// 서로 덮어쓰지 않음. 그래야 "오늘 리스트에 수동으로 넣어둔 사람"이 재통화 예정일을
+// 내일로 잡아도 오늘 리스트에서 사라지지 않고, 오늘/내일 리스트 둘 다에 나타날 수 있음.
 function saveCallHistoryDates(){
   const c=(S.callCustomers||[]).find(x=>x.id===_cfHistoryId);if(!c)return;
   const nextCallDate=document.getElementById('cf-history-nextdate').value||null;
   c.nextCallDate=nextCallDate;
   c.nextCallTime=document.getElementById('cf-history-nexttime').value||null;
-  cfApplyNextCallQueue(c,nextCallDate);
   c.updatedAt=Date.now();save();renderCallFlow();closeCallHistoryModal();
 }
 
@@ -9309,7 +9311,6 @@ function saveCallLog(){
   c.attempts.push(newAttempt);
   c.nextCallDate=nextCallDate;
   c.nextCallTime=nextCallTime;
-  cfApplyNextCallQueue(c,nextCallDate);
   if(category||product){
     if(!c.firstInterestProduct||!c.firstInterestProduct.product)c.firstInterestProduct={category,product};
     c.currentInterestProduct={category,product};
@@ -9413,20 +9414,39 @@ function handleCallExcelUpload(evt){
 // ── 현재 필터/검색 적용된 목록 (테이블 렌더 + CSV 내보내기 공용) ──
 // ── 상태 계열 필터(부재중/통화완료/미시도/시도중/상담완료 등) 판정 로직 — 상단 전체 필터와
 //    오늘/내일 리스트 안의 하위 카테고리 필터가 이 함수를 공용으로 씀 ──
+function cfStatusPredicate(c,sub){
+  if(!sub||sub==='all')return true;
+  if(sub==='called')return (c.attempts||[]).length>0;
+  if(sub==='부재중_last'){const a=c.attempts||[];return !!(a.length&&a[a.length-1].result==='부재중');}
+  if(sub==='상담완료_관심없음')return c.status==='상담완료'&&(c.consultReason||'관심없음')!=='기타';
+  if(sub==='상담완료_기타')return c.status==='상담완료'&&c.consultReason==='기타';
+  return c.status===sub;
+}
 function cfApplyStatusFilter(list,sub){
+  if(Array.isArray(sub)){
+    if(!sub.length)return list;
+    return list.filter(c=>sub.some(k=>cfStatusPredicate(c,k)));
+  }
   if(!sub||sub==='all')return list;
-  if(sub==='called')return list.filter(c=>(c.attempts||[]).length>0);
-  if(sub==='부재중_last')return list.filter(c=>{const a=c.attempts||[];return a.length&&a[a.length-1].result==='부재중';});
-  if(sub==='상담완료_관심없음')return list.filter(c=>c.status==='상담완료'&&(c.consultReason||'관심없음')!=='기타');
-  if(sub==='상담완료_기타')return list.filter(c=>c.status==='상담완료'&&c.consultReason==='기타');
-  return list.filter(c=>c.status===sub);
+  return list.filter(c=>cfStatusPredicate(c,sub));
+}
+// ── 오늘/내일 리스트 하위 카테고리 다중선택 상태를 배열 형태로 정규화해서 반환
+//    (예전 저장 형식이 문자열 하나였던 경우도 그대로 호환) ──
+function cfSubFilterArr(){
+  const v=S.callQueueSubFilter;
+  if(Array.isArray(v))return v;
+  if(v&&v!=='all')return [v];
+  return [];
+}
+function cfInQueueForDate(c,date){
+  return (c.queued&&c.queuedDate===date)||c.nextCallDate===date;
 }
 // ── 오늘/내일 리스트 각각의 "기본 모집단"(하위 카테고리 적용 전) ──
 function cfGetQueueBaseList(f){
   const all=getVisibleCallCustomers();
   const today=cfToday(),tomorrow=cfTomorrow();
-  if(f==='queued')return all.filter(c=>c.queued&&c.queuedDate===today);
-  if(f==='queued_tomorrow')return all.filter(c=>c.queued&&c.queuedDate===tomorrow);
+  if(f==='queued')return all.filter(c=>cfInQueueForDate(c,today));
+  if(f==='queued_tomorrow')return all.filter(c=>cfInQueueForDate(c,tomorrow));
   return all;
 }
 const CF_TOP_FILTERS=[
@@ -9446,9 +9466,9 @@ const CF_TOP_FILTERS=[
 ];
 function cfCountForTopFilter(key,all,today,tomorrow){
   if(key==='all')return all.length;
-  if(key==='queued')return all.filter(c=>c.queued&&c.queuedDate===today).length;
-  if(key==='queued_tomorrow')return all.filter(c=>c.queued&&c.queuedDate===tomorrow).length;
-  if(key==='unassigned')return all.filter(c=>!(c.queued&&(c.queuedDate===today||c.queuedDate===tomorrow))).length;
+  if(key==='queued')return all.filter(c=>cfInQueueForDate(c,today)).length;
+  if(key==='queued_tomorrow')return all.filter(c=>cfInQueueForDate(c,tomorrow)).length;
+  if(key==='unassigned')return all.filter(c=>!(cfInQueueForDate(c,today)||cfInQueueForDate(c,tomorrow))).length;
   return cfApplyStatusFilter(all,key).length;
 }
 // ── 상단 필터 칩들을 인원수와 함께 매번 다시 그림 ──
@@ -9476,7 +9496,7 @@ const CF_QUEUE_SUBFILTERS=[
   {key:'결제완료',label:'결제완료'},
   {key:'포기',label:'연락포기'}
 ];
-// ── 오늘/내일 리스트 안에서만 뜨는 하위 카테고리 칩 (인원수 포함) ──
+// ── 오늘/내일 리스트 안에서만 뜨는 하위 카테고리 칩 (인원수 포함, 여러 개 중복 선택 가능) ──
 function renderQueueSubFilterBar(){
   const el=document.getElementById('cf-queue-subfilter-bar');
   if(!el)return;
@@ -9484,14 +9504,25 @@ function renderQueueSubFilterBar(){
   if(!show){el.style.display='none';el.innerHTML='';return;}
   el.style.display='flex';
   const base=cfGetQueueBaseList(S.callFilter);
-  const cur=S.callQueueSubFilter||'all';
+  const sel=cfSubFilterArr();
   el.innerHTML=CF_QUEUE_SUBFILTERS.map(o=>{
     const n=o.key==='all'?base.length:cfApplyStatusFilter(base,o.key).length;
-    return `<button type="button" class="cal-ftag ${cur===o.key?(o.key==='all'?'on on-all':'on on-sel'):''}" onclick="setCallQueueSubFilter('${o.key}')">${o.label}(${n}명)</button>`;
+    if(o.key==='all'){
+      return `<button type="button" class="cal-ftag cf-subtag ${sel.length===0?'on on-all':''}" onclick="setCallQueueSubFilter('all')">${o.label}(${n}명)</button>`;
+    }
+    const on=sel.includes(o.key);
+    return `<button type="button" class="cal-ftag cf-subtag ${on?'on-msel':''}" onclick="setCallQueueSubFilter('${o.key}')">${on?'☑':'☐'} ${o.label}(${n}명)</button>`;
   }).join('');
 }
 function setCallQueueSubFilter(key){
-  S.callQueueSubFilter=key;
+  if(key==='all'){
+    S.callQueueSubFilter=[];
+  }else{
+    const arr=cfSubFilterArr().slice();
+    const idx=arr.indexOf(key);
+    if(idx>=0)arr.splice(idx,1);else arr.push(key);
+    S.callQueueSubFilter=arr;
+  }
   save();renderCallFlow();
 }
 function cfGetFilteredList(){
@@ -9500,13 +9531,13 @@ function cfGetFilteredList(){
   const f=S.callFilter||'all';
   const today=cfToday();
   if(f==='queued'){
-    list=list.filter(c=>c.queued&&c.queuedDate===today);
-    list=cfApplyStatusFilter(list,S.callQueueSubFilter);
+    list=list.filter(c=>cfInQueueForDate(c,today));
+    list=cfApplyStatusFilter(list,cfSubFilterArr());
   }else if(f==='queued_tomorrow'){
-    list=list.filter(c=>c.queued&&c.queuedDate===cfTomorrow());
-    list=cfApplyStatusFilter(list,S.callQueueSubFilter);
+    list=list.filter(c=>cfInQueueForDate(c,cfTomorrow()));
+    list=cfApplyStatusFilter(list,cfSubFilterArr());
   }else if(f==='unassigned'){
-    list=list.filter(c=>!(c.queued&&(c.queuedDate===today||c.queuedDate===cfTomorrow())));
+    list=list.filter(c=>!(cfInQueueForDate(c,today)||cfInQueueForDate(c,cfTomorrow())));
   }else if(f!=='all'){
     list=cfApplyStatusFilter(list,f);
   }
@@ -9566,10 +9597,10 @@ function runSuggestToday(){
   const targetLabel=targetTomorrow?'내일':'오늘';
   const today=cfToday();
   const all=getVisibleCallCustomers();
-  const alreadyQueued=all.filter(c=>c.queued&&c.queuedDate===targetDate);
+  const alreadyQueued=all.filter(c=>cfInQueueForDate(c,targetDate));
   const need=n-alreadyQueued.length;
   if(need<=0){alert(`이미 ${targetLabel} 리스트에 ${alreadyQueued.length}명이 있어요.`);closeSuggestModal();return;}
-  let pool=all.filter(c=>!(c.queued&&c.queuedDate===targetDate));
+  let pool=all.filter(c=>!cfInQueueForDate(c,targetDate));
   if(category)pool=pool.filter(c=>(c.firstInterestProduct&&c.firstInterestProduct.category)===category);
   const doneStatuses=['결제완료','포기','상담완료'];
   const overdue=pool.filter(c=>c.nextCallDate&&c.nextCallDate<=today&&!doneStatuses.includes(c.status));
@@ -9717,7 +9748,7 @@ function renderCallDashboard(){
   const kpiEl=document.getElementById('cf-kpi-grid');
   const funnelEl=document.getElementById('cf-funnel');
   if(mode==='today'){
-    const todays=all.filter(c=>c.queuedDate===today);
+    const todays=all.filter(c=>cfInQueueForDate(c,today));
     const target=todays.length;
     const done=todays.filter(c=>(c.attempts||[]).some(a=>a.date===today)).length;
     const reservedAll=all.filter(c=>c.status==='예약대기').length;
@@ -9849,11 +9880,9 @@ function renderRevenueSection(all,mode){
   <div class="cf-kpi-grid">
     <div class="cf-kpi"><div class="cf-kpi-val" style="color:var(--gn)">${fmt(confirmed)}원</div><div class="cf-kpi-lbl">확정 매출 (결제완료)</div></div>
     <div class="cf-kpi"><div class="cf-kpi-val" style="color:var(--or)">${fmt(pipeline)}원</div><div class="cf-kpi-lbl">예상 매출 (예약대기·알림완료, 누적)</div></div>
-    <div class="cf-kpi" style="cursor:pointer" onclick="openLaborCostModal()" title="클릭하면 인건비를 입력/수정할 수 있어요 (금액은 화면에 표시되지 않아요)">
-      <div class="cf-kpi-val">${laborCost?'🔒 입력됨':'✏️ 입력하기'}</div>
-      <div class="cf-kpi-lbl">인건비 (${laborLbl})</div>
+    <div class="cf-kpi" style="cursor:pointer" onclick="openLaborCostModal()" title="클릭하면 인건비를 입력/수정할 수 있어요">
+      <div class="cf-kpi-val" style="color:${roasColor}">${roas===null?'-':roas+'%'}</div><div class="cf-kpi-lbl">ROAS (확정 매출 기준)</div>
     </div>
-    <div class="cf-kpi"><div class="cf-kpi-val" style="color:${roasColor}">${roas===null?'-':roas+'%'}</div><div class="cf-kpi-lbl">ROAS (확정 매출 기준)</div></div>
   </div>
   <div style="font-size:11px;font-weight:600;color:${roasColor};margin-top:4px">${roasLabel}</div>`;
 }

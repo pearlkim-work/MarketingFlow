@@ -1404,7 +1404,8 @@ select:focus{border-color:var(--lm);outline:none}
       <button class="cal-ftag" data-cfilter="queued" onclick="callFilterClick(this)">📋 오늘 리스트</button>
       <button class="cal-ftag" data-cfilter="미시도" onclick="callFilterClick(this)">미시도</button>
       <button class="cal-ftag" data-cfilter="시도중" onclick="callFilterClick(this)">시도중</button>
-      <button class="cal-ftag" data-cfilter="상담완료" onclick="callFilterClick(this)">상담완료(관심없음)</button>
+      <button class="cal-ftag" data-cfilter="상담완료_관심없음" onclick="callFilterClick(this)">상담완료(관심없음)</button>
+      <button class="cal-ftag" data-cfilter="상담완료_기타" onclick="callFilterClick(this)">상담완료(기타사유)</button>
       <button class="cal-ftag" data-cfilter="예약대기" onclick="callFilterClick(this)">예약대기</button>
       <button class="cal-ftag" data-cfilter="결제알림완료" onclick="callFilterClick(this)">결제알림완료</button>
       <button class="cal-ftag" data-cfilter="결제완료" onclick="callFilterClick(this)">결제완료</button>
@@ -1450,16 +1451,24 @@ select:focus{border-color:var(--lm);outline:none}
   <div class="modal" style="width:460px">
     <div class="modal-title">📞 전화 기록 추가 — <span id="cf-log-cust-name"></span></div>
     <div style="font-size:11px;color:var(--t3)" id="cf-log-seq-lbl"></div>
-    <select id="cf-log-result">
+    <select id="cf-log-result" onchange="cfToggleReasonWrap('cf-log')">
       <option value="부재중">부재중</option>
       <option value="재통화예정">재통화예정</option>
       <option value="통화연결">통화연결(상담중)</option>
-      <option value="상담완료">상담완료(관심없음)</option>
+      <option value="상담완료">상담완료</option>
       <option value="예약대기">예약대기 전환</option>
       <option value="결제완료">결제완료</option>
       <option value="연락처오류">연락처 오류/연락두절(포기)</option>
     </select>
     <textarea id="cf-log-memo" placeholder="통화 메모" rows="3"></textarea>
+    <div id="cf-log-reason-wrap" style="display:none">
+      <div style="font-size:10px;color:var(--t3);margin-bottom:3px">상담완료 사유</div>
+      <select id="cf-log-reason" onchange="cfToggleReasonNote('cf-log')">
+        <option value="관심없음">관심없음</option>
+        <option value="기타">기타(직접 입력)</option>
+      </select>
+      <input type="text" id="cf-log-reason-note" placeholder="기타 사유를 적어주세요" style="display:none;margin-top:6px;width:100%;box-sizing:border-box">
+    </div>
     <div>
       <div style="font-size:10px;color:var(--t3);margin-bottom:3px">다음 재통화 예정일시 (선택)</div>
       <div style="display:flex;gap:6px">
@@ -8785,6 +8794,10 @@ function normalizeOrgTags(){
       c.currentInterestProducts=(legacy&&(legacy.category||legacy.product))?[{category:legacy.category||'',product:legacy.product||''}]:[];
     }
   });
+  // 상담완료(관심없음/기타) 구분 — 기존에 이미 상담완료였던 고객은 전부 "관심없음" 의미였으므로 기본값으로 채움
+  (S.callCustomers||[]).forEach(c=>{
+    if(c.status==='상담완료'&&!c.consultReason)c.consultReason='관심없음';
+  });
 }
 
 // ══════════ CALL FLOW (예약전환 콜 트래킹) ══════════
@@ -8792,7 +8805,7 @@ function normalizeOrgTags(){
 // 하루하루 직접 고를 콜 리스트, 시도 이력, 관심도/상태, 예약대기 후 결제알림·결제완료 체크까지 트래킹.
 function getVisibleCallCustomers(){return visibleByOrg(S.callCustomers);}
 function cfToday(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-const CF_STATUS_LABELS={'미시도':'미시도','시도중':'시도중','상담완료':'상담완료(관심없음)','예약대기':'예약대기','결제알림완료':'결제알림완료','결제완료':'결제완료','포기':'연락포기'};
+const CF_STATUS_LABELS={'미시도':'미시도','시도중':'시도중','상담완료':'상담완료','예약대기':'예약대기','결제알림완료':'결제알림완료','결제완료':'결제완료','포기':'연락포기'};
 const CF_RESULT_TO_STATUS={'부재중':'시도중','재통화예정':'시도중','통화연결':'시도중','상담완료':'상담완료','예약대기':'예약대기','결제완료':'결제완료','연락처오류':'포기'};
 
 function cfAddSuggestion(category,product){
@@ -9005,6 +9018,19 @@ function updateCallInitProduct(id,value){
   const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c)return;
   c.initialProduct=value.trim();c.updatedAt=Date.now();save();
 }
+// ── 상담완료 사유(관심없음/기타) 입력칸 토글 — 전화기록 모달(cf-log-*)에서 사용 ──
+function cfToggleReasonWrap(prefix){
+  const resultEl=document.getElementById(prefix+'-result');
+  const wrap=document.getElementById(prefix+'-reason-wrap');
+  if(!resultEl||!wrap)return;
+  wrap.style.display=resultEl.value==='상담완료'?'block':'none';
+}
+function cfToggleReasonNote(prefix){
+  const reasonEl=document.getElementById(prefix+'-reason');
+  const noteEl=document.getElementById(prefix+'-reason-note');
+  if(!reasonEl||!noteEl)return;
+  noteEl.style.display=reasonEl.value==='기타'?'block':'none';
+}
 // ── 현재 관심상품 여러 개 선택/입력 지원 ──
 function addCurrentInterestProduct(id){
   const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c)return;
@@ -9053,7 +9079,7 @@ function renderCfOverdueBanner(){
 // ── 고객 클릭 -> 1차부터의 전체 통화이력 보기/바로 수정 ──
 let _cfHistoryId=null;
 const CF_RESULT_OPTS=['부재중','재통화예정','통화연결','상담완료','예약대기','결제완료','연락처오류'];
-const CF_RESULT_OPT_LABELS={'부재중':'부재중','재통화예정':'재통화예정','통화연결':'통화연결(상담중)','상담완료':'상담완료(관심없음)','예약대기':'예약대기 전환','결제완료':'결제완료','연락처오류':'연락처 오류/연락두절(포기)'};
+const CF_RESULT_OPT_LABELS={'부재중':'부재중','재통화예정':'재통화예정','통화연결':'통화연결(상담중)','상담완료':'상담완료','예약대기':'예약대기 전환','결제완료':'결제완료','연락처오류':'연락처 오류/연락두절(포기)'};
 function openCallHistoryModal(id){
   _cfHistoryId=id;
   const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c)return;
@@ -9077,19 +9103,40 @@ function renderCallHistoryList(c){
           <button type="button" class="cf-mini-btn" onclick="deleteCallHistoryItem('${c.id}',${idx})">삭제</button>
         </div>
       </div>
-      <select onchange="updateCallHistoryField('${c.id}',${idx},'result',this.value)" style="font-size:11px;padding:4px 6px;margin-bottom:6px;width:100%">
+      <select onchange="updateCallHistoryField('${c.id}',${idx},'result',this.value);cfToggleHistReasonWrap('${c.id}',${idx})" style="font-size:11px;padding:4px 6px;margin-bottom:6px;width:100%">
         ${CF_RESULT_OPTS.map(r=>`<option value="${r}" ${a.result===r?'selected':''}>${CF_RESULT_OPT_LABELS[r]}</option>`).join('')}
       </select>
+      <div id="cf-hist-reason-wrap-${idx}" style="display:${a.result==='상담완료'?'block':'none'};margin-bottom:6px">
+        <select id="cf-hist-reason-${idx}" onchange="updateCallHistoryField('${c.id}',${idx},'reason',this.value);cfToggleHistReasonNote('${c.id}',${idx})" style="font-size:11px;padding:4px 6px">
+          <option value="관심없음" ${(a.reason||'관심없음')==='관심없음'?'selected':''}>관심없음</option>
+          <option value="기타" ${a.reason==='기타'?'selected':''}>기타(직접 입력)</option>
+        </select>
+        <input type="text" id="cf-hist-reason-note-${idx}" value="${(a.reasonNote||'').replace(/"/g,'&quot;')}" onchange="updateCallHistoryField('${c.id}',${idx},'reasonNote',this.value)" placeholder="기타 사유를 적어주세요" style="display:${a.reason==='기타'?'inline-block':'none'};margin-top:6px;width:100%;box-sizing:border-box;font-size:11px;padding:4px 6px">
+      </div>
       <textarea onchange="updateCallHistoryField('${c.id}',${idx},'memo',this.value)" rows="2" style="width:100%;font-size:11px;box-sizing:border-box" placeholder="통화 메모">${(a.memo||'').replace(/</g,'&lt;')}</textarea>
     </div>
   `).join('');
 }
+function cfToggleHistReasonWrap(id,idx){
+  const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c||!c.attempts||!c.attempts[idx])return;
+  const wrap=document.getElementById(`cf-hist-reason-wrap-${idx}`);
+  if(wrap)wrap.style.display=c.attempts[idx].result==='상담완료'?'block':'none';
+}
+function cfToggleHistReasonNote(id,idx){
+  const sel=document.getElementById(`cf-hist-reason-${idx}`);
+  const note=document.getElementById(`cf-hist-reason-note-${idx}`);
+  if(sel&&note)note.style.display=sel.value==='기타'?'inline-block':'none';
+}
 function updateCallHistoryField(id,idx,field,value){
   const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c||!c.attempts||!c.attempts[idx])return;
-  c.attempts[idx][field]=field==='memo'?value:value.trim();
+  c.attempts[idx][field]=(field==='memo'||field==='reasonNote')?value:value.trim();
   if(field==='result'&&idx===c.attempts.length-1){
     c.status=CF_RESULT_TO_STATUS[value]||c.status;
     if(c.status==='결제완료'){c.paymentDone=true;c.paymentDoneDate=c.paymentDoneDate||cfToday();}
+  }
+  if((field==='reason'||field==='reasonNote')&&idx===c.attempts.length-1){
+    c.consultReason=c.attempts[idx].reason||'관심없음';
+    c.consultReasonNote=c.consultReason==='기타'?(c.attempts[idx].reasonNote||''):'';
   }
   c.updatedAt=Date.now();save();renderCallFlow();renderCallHistoryList(c);
 }
@@ -9145,6 +9192,9 @@ function openCallLogModal(id){
   document.getElementById('cf-log-seq-lbl').textContent=`${(c.attempts||[]).length+1}차 시도 기록`;
   document.getElementById('cf-log-result').value='부재중';
   document.getElementById('cf-log-memo').value='';
+  document.getElementById('cf-log-reason').value='관심없음';
+  document.getElementById('cf-log-reason-note').value='';
+  cfToggleReasonWrap('cf-log');cfToggleReasonNote('cf-log');
   document.getElementById('cf-log-nextdate').value=c.nextCallDate||'';
   document.getElementById('cf-log-nexttime').value=c.nextCallTime||'';
   const _cip0=(c.currentInterestProducts&&c.currentInterestProducts[0])||c.currentInterestProduct||{};
@@ -9163,7 +9213,16 @@ function saveCallLog(){
   const nextCallDate=document.getElementById('cf-log-nextdate').value||null;
   const nextCallTime=document.getElementById('cf-log-nexttime').value||null;
   if(!c.attempts)c.attempts=[];
-  c.attempts.push({seq:c.attempts.length+1,date:cfToday(),result,memo});
+  const newAttempt={seq:c.attempts.length+1,date:cfToday(),result,memo};
+  if(result==='상담완료'){
+    const reason=document.getElementById('cf-log-reason').value;
+    const reasonNote=document.getElementById('cf-log-reason-note').value.trim();
+    newAttempt.reason=reason;
+    newAttempt.reasonNote=reason==='기타'?reasonNote:'';
+    c.consultReason=reason;
+    c.consultReasonNote=reason==='기타'?reasonNote:'';
+  }
+  c.attempts.push(newAttempt);
   c.nextCallDate=nextCallDate;
   c.nextCallTime=nextCallTime;
   cfApplyNextCallQueue(c,nextCallDate);
@@ -9277,6 +9336,8 @@ function cfGetFilteredList(){
   const today=cfToday();
   if(f==='queued')list=list.filter(c=>c.queued&&c.queuedDate===today);
   else if(f==='부재중_last')list=list.filter(c=>{const a=c.attempts||[];return a.length&&a[a.length-1].result==='부재중';});
+  else if(f==='상담완료_관심없음')list=list.filter(c=>c.status==='상담완료'&&(c.consultReason||'관심없음')!=='기타');
+  else if(f==='상담완료_기타')list=list.filter(c=>c.status==='상담완료'&&c.consultReason==='기타');
   else if(f!=='all')list=list.filter(c=>c.status===f);
   if(search)list=list.filter(c=>(c.name||'').toLowerCase().includes(search)||(c.phone||'').replace(/[^0-9]/g,'').includes(search.replace(/[^0-9]/g,'')));
   if(S.callCategoryFilter)list=list.filter(c=>(c.firstInterestProduct&&c.firstInterestProduct.category)===S.callCategoryFilter);
@@ -9406,6 +9467,7 @@ function renderCallFlow(){
         <select onchange="updateCallField('${c.id}','status',this.value)" class="cf-badge ${c.status}" style="font-size:10px;padding:3px 6px;border-radius:10px">
           ${Object.keys(CF_STATUS_LABELS).map(k=>`<option value="${k}" ${c.status===k?'selected':''}>${CF_STATUS_LABELS[k]}</option>`).join('')}
         </select>
+        ${c.status==='상담완료'?`<div style="font-size:9px;color:var(--t3);margin-top:2px">${c.consultReason==='기타'?('기타: '+((c.consultReasonNote||'').slice(0,20))):'관심없음'}</div>`:''}
       </td>
       <td><input type="text" value="${(c.initialProduct||'').replace(/"/g,'&quot;')}" onchange="updateCallInitProduct('${c.id}',this.value)" style="font-size:11px;padding:4px 6px;min-width:100px"></td>
       <td>

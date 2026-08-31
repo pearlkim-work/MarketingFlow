@@ -1378,6 +1378,8 @@ select:focus{border-color:var(--lm);outline:none}
       </div>
     </div>
 
+    <div id="cf-overdue-banner" style="display:none;background:#fee2e2;border:1px solid #ef4444;color:#b91c1c;border-radius:var(--r);padding:10px 14px;margin-bottom:12px;font-size:12px;font-weight:600;position:sticky;top:0;z-index:5"></div>
+
     <div class="cf-dash">
       <div class="cf-dash-toggle">
         <button class="cal-ftag on on-all" onclick="setCallDashMode('today')" id="cf-dash-today-btn">오늘 대시보드</button>
@@ -1407,6 +1409,7 @@ select:focus{border-color:var(--lm);outline:none}
       <button class="cal-ftag" data-cfilter="결제알림완료" onclick="callFilterClick(this)">결제알림완료</button>
       <button class="cal-ftag" data-cfilter="결제완료" onclick="callFilterClick(this)">결제완료</button>
       <button class="cal-ftag" data-cfilter="포기" onclick="callFilterClick(this)">연락포기</button>
+      <button class="cal-ftag" data-cfilter="부재중_last" onclick="callFilterClick(this)">📵 부재중만</button>
     </div>
 
     <div class="data-table-wrap" style="overflow-x:auto">
@@ -1458,8 +1461,11 @@ select:focus{border-color:var(--lm);outline:none}
     </select>
     <textarea id="cf-log-memo" placeholder="통화 메모" rows="3"></textarea>
     <div>
-      <div style="font-size:10px;color:var(--t3);margin-bottom:3px">다음 재통화 예정일 (선택)</div>
-      <input type="date" id="cf-log-nextdate">
+      <div style="font-size:10px;color:var(--t3);margin-bottom:3px">다음 재통화 예정일시 (선택)</div>
+      <div style="display:flex;gap:6px">
+        <input type="date" id="cf-log-nextdate" style="flex:1">
+        <input type="time" id="cf-log-nexttime" style="flex:1">
+      </div>
     </div>
     <div style="display:flex;gap:8px">
       <div style="flex:1">
@@ -1477,6 +1483,25 @@ select:focus{border-color:var(--lm);outline:none}
   </div>
 </div>
 
+
+<!-- 콜 트래킹: 고객 상세 — 1차부터의 전체 통화이력 보기 + 바로 수정 -->
+<div class="modal-bg" id="cf-history-modal-bg" style="display:none" onclick="if(event.target===this)closeCallHistoryModal()">
+  <div class="modal" style="width:480px;max-height:82vh;display:flex;flex-direction:column">
+    <div class="modal-title">📞 통화 이력 — <span id="cf-history-cust-name"></span></div>
+    <div id="cf-history-list" style="overflow-y:auto;flex:1;margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px;align-items:flex-end;border-top:1px solid var(--b2);padding-top:10px">
+      <div style="flex:1">
+        <div style="font-size:10px;color:var(--t3);margin-bottom:3px">다음 재통화 날짜</div>
+        <input type="date" id="cf-history-nextdate" style="width:100%">
+      </div>
+      <div style="flex:1">
+        <div style="font-size:10px;color:var(--t3);margin-bottom:3px">시간</div>
+        <input type="time" id="cf-history-nexttime" style="width:100%">
+      </div>
+    </div>
+    <div class="modal-btns"><button class="btn-cancel" onclick="closeCallHistoryModal()">닫기</button><button class="btn-confirm" onclick="saveCallHistoryDates()">저장</button></div>
+  </div>
+</div>
 
 <!-- 콜 트래킹: 오늘 콜 후보 추천 모달 -->
 <div class="modal-bg" id="cf-suggest-modal-bg" style="display:none" onclick="if(event.target===this)closeSuggestModal()">
@@ -8752,6 +8777,14 @@ function normalizeOrgTags(){
     const cats=[(c.firstInterestProduct&&c.firstInterestProduct.category)||'',(c.currentInterestProduct&&c.currentInterestProduct.category)||''];
     cats.forEach(cat=>{cat=cat.trim();if(cat&&!S.callProdCategories.includes(cat))S.callProdCategories.push(cat);});
   });
+  // 사용자 요청: "현재 관심상품"을 2개 이상 선택할 수 있게 배열로 확장.
+  // 기존 단일 currentInterestProduct 값은 지우지 않고 그대로 둔 채, 배열 필드만 추가로 채움(유실 없음).
+  (S.callCustomers||[]).forEach(c=>{
+    if(!Array.isArray(c.currentInterestProducts)){
+      const legacy=c.currentInterestProduct;
+      c.currentInterestProducts=(legacy&&(legacy.category||legacy.product))?[{category:legacy.category||'',product:legacy.product||''}]:[];
+    }
+  });
 }
 
 // ══════════ CALL FLOW (예약전환 콜 트래킹) ══════════
@@ -8907,8 +8940,9 @@ function saveCallCustomer(){
       name,phone,initialProduct,
       firstInterestProduct:{category:'',product:''},
       currentInterestProduct:{category:'',product:''},
+      currentInterestProducts:[],
       interestLevel,status:'미시도',attempts:[],
-      queued:false,queuedDate:null,nextCallDate:null,assignee:'',
+      queued:false,queuedDate:null,nextCallDate:null,nextCallTime:null,assignee:'',
       travelDate:'',ticketName:'',paymentPrice:'',
       paymentNoticeSent:false,paymentNoticeDate:null,
       paymentDone:false,paymentDoneDate:null,
@@ -8971,6 +9005,114 @@ function updateCallInitProduct(id,value){
   const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c)return;
   c.initialProduct=value.trim();c.updatedAt=Date.now();save();
 }
+// ── 현재 관심상품 여러 개 선택/입력 지원 ──
+function addCurrentInterestProduct(id){
+  const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c)return;
+  if(!Array.isArray(c.currentInterestProducts))c.currentInterestProducts=[];
+  c.currentInterestProducts.push({category:'',product:''});
+  c.updatedAt=Date.now();save();renderCallFlow();
+}
+function removeCurrentInterestProduct(id,idx){
+  const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c||!Array.isArray(c.currentInterestProducts))return;
+  c.currentInterestProducts.splice(idx,1);
+  c.updatedAt=Date.now();save();renderCallFlow();
+}
+function updateCurrentInterestProductAt(id,idx,sub,value){
+  const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c)return;
+  if(!Array.isArray(c.currentInterestProducts))c.currentInterestProducts=[];
+  if(!c.currentInterestProducts[idx])c.currentInterestProducts[idx]={category:'',product:''};
+  c.currentInterestProducts[idx][sub]=value.trim();
+  if(sub==='category')cfAddSuggestion(value.trim(),'');
+  if(sub==='product')cfAddSuggestion('',value.trim());
+  c.updatedAt=Date.now();save();cfRenderDatalists();
+}
+// ── 재통화 예정 시각이 지났는지 판단 + 상단 빨간 알림 배너 ──
+function cfIsOverdue(c){
+  if(!c.nextCallDate)return false;
+  const today=cfToday();
+  if(c.nextCallDate<today)return true;
+  if(c.nextCallDate===today){
+    if(!c.nextCallTime)return false;
+    const parts=c.nextCallTime.split(':');
+    const h=parseInt(parts[0],10),m=parseInt(parts[1],10);
+    if(isNaN(h)||isNaN(m))return false;
+    const target=new Date();target.setHours(h,m,0,0);
+    return new Date()>=target;
+  }
+  return false;
+}
+function renderCfOverdueBanner(){
+  const el=document.getElementById('cf-overdue-banner');
+  if(!el)return;
+  const list=getVisibleCallCustomers().filter(cfIsOverdue);
+  if(!list.length){el.style.display='none';el.innerHTML='';return;}
+  const items=list.slice(0,5).map(c=>`${c.name}(${c.nextCallTime||c.nextCallDate})`).join(', ');
+  el.innerHTML=`⏰ 재통화 예정 시간이 지난 고객 ${list.length}명 — ${items}${list.length>5?' 외':''}`;
+  el.style.display='block';
+}
+// ── 고객 클릭 -> 1차부터의 전체 통화이력 보기/바로 수정 ──
+let _cfHistoryId=null;
+const CF_RESULT_OPTS=['부재중','재통화예정','통화연결','상담완료','예약대기','결제완료','연락처오류'];
+const CF_RESULT_OPT_LABELS={'부재중':'부재중','재통화예정':'재통화예정','통화연결':'통화연결(상담중)','상담완료':'상담완료(관심없음)','예약대기':'예약대기 전환','결제완료':'결제완료','연락처오류':'연락처 오류/연락두절(포기)'};
+function openCallHistoryModal(id){
+  _cfHistoryId=id;
+  const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c)return;
+  document.getElementById('cf-history-cust-name').textContent=`${c.name} (${c.phone})`;
+  document.getElementById('cf-history-nextdate').value=c.nextCallDate||'';
+  document.getElementById('cf-history-nexttime').value=c.nextCallTime||'';
+  renderCallHistoryList(c);
+  document.getElementById('cf-history-modal-bg').style.display='flex';
+}
+function closeCallHistoryModal(){document.getElementById('cf-history-modal-bg').style.display='none';_cfHistoryId=null;}
+function renderCallHistoryList(c){
+  const wrap=document.getElementById('cf-history-list');if(!wrap)return;
+  const attempts=c.attempts||[];
+  if(!attempts.length){wrap.innerHTML=`<div style="color:var(--t3);font-size:12px;text-align:center;padding:16px">아직 통화 기록이 없어요</div>`;return;}
+  wrap.innerHTML=attempts.map((a,idx)=>`
+    <div style="border:1px solid var(--b2);border-radius:var(--rs);padding:10px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <b style="font-size:12px">${idx+1}차 통화</b>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="date" value="${a.date||''}" onchange="updateCallHistoryField('${c.id}',${idx},'date',this.value)" style="font-size:11px;padding:3px 5px">
+          <button type="button" class="cf-mini-btn" onclick="deleteCallHistoryItem('${c.id}',${idx})">삭제</button>
+        </div>
+      </div>
+      <select onchange="updateCallHistoryField('${c.id}',${idx},'result',this.value)" style="font-size:11px;padding:4px 6px;margin-bottom:6px;width:100%">
+        ${CF_RESULT_OPTS.map(r=>`<option value="${r}" ${a.result===r?'selected':''}>${CF_RESULT_OPT_LABELS[r]}</option>`).join('')}
+      </select>
+      <textarea onchange="updateCallHistoryField('${c.id}',${idx},'memo',this.value)" rows="2" style="width:100%;font-size:11px;box-sizing:border-box" placeholder="통화 메모">${(a.memo||'').replace(/</g,'&lt;')}</textarea>
+    </div>
+  `).join('');
+}
+function updateCallHistoryField(id,idx,field,value){
+  const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c||!c.attempts||!c.attempts[idx])return;
+  c.attempts[idx][field]=field==='memo'?value:value.trim();
+  if(field==='result'&&idx===c.attempts.length-1){
+    c.status=CF_RESULT_TO_STATUS[value]||c.status;
+    if(c.status==='결제완료'){c.paymentDone=true;c.paymentDoneDate=c.paymentDoneDate||cfToday();}
+  }
+  c.updatedAt=Date.now();save();renderCallFlow();renderCallHistoryList(c);
+}
+function deleteCallHistoryItem(id,idx){
+  const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c||!c.attempts)return;
+  if(!confirm(`${idx+1}차 통화 기록을 삭제할까요? (되돌릴 수 없어요)`))return;
+  c.attempts.splice(idx,1);
+  c.attempts.forEach((a,i)=>{a.seq=i+1;});
+  c.updatedAt=Date.now();save();renderCallHistoryList(c);renderCallFlow();
+}
+// 재통화 날짜를 저장하면: 그 날짜의 "오늘 리스트"에 자동으로 큐잉됨(사용자 요청) -> 그 날이 오면 별도 조작 없이 오늘 리스트에 바로 나타남
+function cfApplyNextCallQueue(c,nextCallDate){
+  if(nextCallDate){c.queued=true;c.queuedDate=nextCallDate;}
+  else{c.queued=false;c.queuedDate=null;}
+}
+function saveCallHistoryDates(){
+  const c=(S.callCustomers||[]).find(x=>x.id===_cfHistoryId);if(!c)return;
+  const nextCallDate=document.getElementById('cf-history-nextdate').value||null;
+  c.nextCallDate=nextCallDate;
+  c.nextCallTime=document.getElementById('cf-history-nexttime').value||null;
+  cfApplyNextCallQueue(c,nextCallDate);
+  c.updatedAt=Date.now();save();renderCallFlow();closeCallHistoryModal();
+}
 
 // ── 결제알림/결제완료 체크 (예약대기·결제완료 상태에서만 표시) ──
 function togglePaymentNotice(id){
@@ -9004,8 +9146,10 @@ function openCallLogModal(id){
   document.getElementById('cf-log-result').value='부재중';
   document.getElementById('cf-log-memo').value='';
   document.getElementById('cf-log-nextdate').value=c.nextCallDate||'';
-  document.getElementById('cf-log-category').value=(c.currentInterestProduct&&c.currentInterestProduct.category)||'';
-  document.getElementById('cf-log-product').value=(c.currentInterestProduct&&c.currentInterestProduct.product)||'';
+  document.getElementById('cf-log-nexttime').value=c.nextCallTime||'';
+  const _cip0=(c.currentInterestProducts&&c.currentInterestProducts[0])||c.currentInterestProduct||{};
+  document.getElementById('cf-log-category').value=_cip0.category||'';
+  document.getElementById('cf-log-product').value=_cip0.product||'';
   cfRenderDatalists();
   document.getElementById('cf-log-modal-bg').style.display='flex';
 }
@@ -9017,12 +9161,17 @@ function saveCallLog(){
   const category=document.getElementById('cf-log-category').value.trim();
   const product=document.getElementById('cf-log-product').value.trim();
   const nextCallDate=document.getElementById('cf-log-nextdate').value||null;
+  const nextCallTime=document.getElementById('cf-log-nexttime').value||null;
   if(!c.attempts)c.attempts=[];
   c.attempts.push({seq:c.attempts.length+1,date:cfToday(),result,memo});
   c.nextCallDate=nextCallDate;
+  c.nextCallTime=nextCallTime;
+  cfApplyNextCallQueue(c,nextCallDate);
   if(category||product){
     if(!c.firstInterestProduct||!c.firstInterestProduct.product)c.firstInterestProduct={category,product};
     c.currentInterestProduct={category,product};
+    if(!Array.isArray(c.currentInterestProducts))c.currentInterestProducts=[];
+    c.currentInterestProducts[0]={category,product};
     cfAddSuggestion(category,product);
   }
   c.status=CF_RESULT_TO_STATUS[result]||c.status;
@@ -9101,8 +9250,9 @@ function handleCallExcelUpload(evt){
           name:finalName,phone,initialProduct,
           firstInterestProduct:{category:initialInterestCategory,product:''},
           currentInterestProduct:{category:'',product:''},
+          currentInterestProducts:[],
           interestLevel:'',status:'미시도',attempts:[],
-          queued:false,queuedDate:null,nextCallDate:null,assignee:'',
+          queued:false,queuedDate:null,nextCallDate:null,nextCallTime:null,assignee:'',
           travelDate:'',ticketName:'',paymentPrice:'',
           paymentNoticeSent:false,paymentNoticeDate:null,
           paymentDone:false,paymentDoneDate:null,
@@ -9126,6 +9276,7 @@ function cfGetFilteredList(){
   const f=S.callFilter||'all';
   const today=cfToday();
   if(f==='queued')list=list.filter(c=>c.queued&&c.queuedDate===today);
+  else if(f==='부재중_last')list=list.filter(c=>{const a=c.attempts||[];return a.length&&a[a.length-1].result==='부재중';});
   else if(f!=='all')list=list.filter(c=>c.status===f);
   if(search)list=list.filter(c=>(c.name||'').toLowerCase().includes(search)||(c.phone||'').replace(/[^0-9]/g,'').includes(search.replace(/[^0-9]/g,'')));
   if(S.callCategoryFilter)list=list.filter(c=>(c.firstInterestProduct&&c.firstInterestProduct.category)===S.callCategoryFilter);
@@ -9209,6 +9360,7 @@ function downloadCallCSV(){
 function renderCallFlow(){
   cfRenderDatalists();
   renderCallDashboard();
+  renderCfOverdueBanner();
   const catFilterEl=document.getElementById('cf-cat-filter');
   if(catFilterEl){
     const cur=S.callCategoryFilter||'';
@@ -9228,11 +9380,11 @@ function renderCallFlow(){
     const attempts=c.attempts||[];
     const lastAttempt=attempts[attempts.length-1];
     const fip=c.firstInterestProduct||{};
-    const cip=c.currentInterestProduct||{};
+    const cips=Array.isArray(c.currentInterestProducts)?c.currentInterestProducts:(c.currentInterestProduct&&(c.currentInterestProduct.category||c.currentInterestProduct.product)?[c.currentInterestProduct]:[]);
     const payable=(c.status==='예약대기'||c.status==='결제알림완료'||c.status==='결제완료');
     return `<tr>
       <td style="text-align:center"><input type="checkbox" ${c.queued&&c.queuedDate===today?'checked':''} onchange="toggleCallQueue('${c.id}')"></td>
-      <td style="font-weight:600;white-space:nowrap">${c.name}</td>
+      <td style="font-weight:600;white-space:nowrap;cursor:pointer;text-decoration:underline" onclick="openCallHistoryModal('${c.id}')" title="클릭하면 1차부터의 전체 통화이력을 보고 바로 수정할 수 있어요">${c.name}</td>
       <td style="white-space:nowrap">${c.phone}</td>
       <td>
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
@@ -9240,7 +9392,7 @@ function renderCallFlow(){
           <button class="cf-mini-btn" onclick="openCallLogModal('${c.id}')">📞 기록추가</button>
         </div>
         ${lastAttempt?`<div class="cf-attempt-note" title="${(lastAttempt.memo||'').replace(/"/g,'&quot;')}">${lastAttempt.date} · ${lastAttempt.result}${lastAttempt.memo?' · '+lastAttempt.memo:''}</div>`:''}
-        ${c.nextCallDate?`<div class="cf-attempt-note" style="color:var(--or)">📅 다음예정 ${c.nextCallDate}</div>`:''}
+        ${c.nextCallDate?`<div class="cf-attempt-note" style="color:var(--or)">📅 다음예정 ${c.nextCallDate}${c.nextCallTime?' '+c.nextCallTime:''}</div>`:''}
       </td>
       <td>
         <select onchange="updateCallField('${c.id}','interestLevel',this.value)" style="font-size:11px;padding:4px 6px">
@@ -9263,10 +9415,13 @@ function renderCallFlow(){
         </div>
       </td>
       <td>
-        <div class="cf-prod-cell">
-          <input type="text" list="cf-cat-list" placeholder="예: 산청" value="${(cip.category||'').replace(/"/g,'&quot;')}" onchange="updateCallProduct('${c.id}','currentInterestProduct','category',this.value)" style="font-size:10px;padding:4px 6px">
-          <input type="text" list="cf-prod-list" placeholder="상품번호" value="${(cip.product||'').replace(/"/g,'&quot;')}" onchange="updateCallProduct('${c.id}','currentInterestProduct','product',this.value)">
-        </div>
+        ${(cips.length?cips:[{category:'',product:''}]).map((p,_i)=>`
+        <div class="cf-prod-cell" style="margin-bottom:3px">
+          <input type="text" list="cf-cat-list" placeholder="예: 산청" value="${(p.category||'').replace(/"/g,'&quot;')}" onchange="updateCurrentInterestProductAt('${c.id}',${_i},'category',this.value)" style="font-size:10px;padding:4px 6px">
+          <input type="text" list="cf-prod-list" placeholder="상품번호" value="${(p.product||'').replace(/"/g,'&quot;')}" onchange="updateCurrentInterestProductAt('${c.id}',${_i},'product',this.value)">
+          ${cips.length>1?`<button type="button" class="cf-mini-btn" onclick="removeCurrentInterestProduct('${c.id}',${_i})" title="이 항목 삭제">×</button>`:''}
+        </div>`).join('')}
+        <button type="button" class="cf-mini-btn" onclick="addCurrentInterestProduct('${c.id}')" style="font-size:10px">+ 관심상품 추가</button>
       </td>
       <td><input type="date" value="${c.travelDate||''}" onchange="updateCallField('${c.id}','travelDate',this.value)" style="font-size:11px;padding:4px 6px;min-width:110px"></td>
       <td><input type="text" placeholder="티켓명" value="${(c.ticketName||'').replace(/"/g,'&quot;')}" onchange="updateCallField('${c.id}','ticketName',this.value)" style="font-size:11px;padding:4px 6px;min-width:90px"></td>
@@ -9650,6 +9805,8 @@ async function supaSyncInner(){
 
 // save 함수에 Supabase 동기화 추가
 
+// 재통화 예정 시각이 지났는지 30초마다 체크 -> 상단 빨간 알림 배너 갱신
+setInterval(()=>{ if(typeof renderCfOverdueBanner==='function')renderCfOverdueBanner(); }, 30000);
 // 30초마다 자동 동기화 (다른 팀원 변경사항 반영)
 setInterval(async ()=>{
   // 버그 수정: 사용자가 입력창에 뭔가를 타이핑하고 있는 도중에 화면을 통째로 다시 그리면

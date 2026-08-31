@@ -1405,21 +1405,9 @@ select:focus{border-color:var(--lm);outline:none}
         <option value="stale">정렬: 오래 연락 안한순</option>
       </select>
       <select id="cf-cat-filter" onchange="setCfCategoryFilter(this.value)" style="font-size:11px;padding:5px 8px"></select>
-      <button class="cal-ftag on on-all" data-cfilter="all" onclick="callFilterClick(this)">전체</button>
-      <button class="cal-ftag" data-cfilter="queued" onclick="callFilterClick(this)">📋 오늘 리스트</button>
-      <button class="cal-ftag" data-cfilter="queued_tomorrow" onclick="callFilterClick(this)">📆 내일 리스트</button>
-      <button class="cal-ftag" data-cfilter="unassigned" onclick="callFilterClick(this)">🗂️ 미배정(오늘/내일 아님)</button>
-      <button class="cal-ftag" data-cfilter="called" onclick="callFilterClick(this)">☎️ 통화완료리스트</button>
-      <button class="cal-ftag" data-cfilter="미시도" onclick="callFilterClick(this)">미시도</button>
-      <button class="cal-ftag" data-cfilter="시도중" onclick="callFilterClick(this)">시도중</button>
-      <button class="cal-ftag" data-cfilter="상담완료_관심없음" onclick="callFilterClick(this)">상담완료(관심없음)</button>
-      <button class="cal-ftag" data-cfilter="상담완료_기타" onclick="callFilterClick(this)">상담완료(기타사유)</button>
-      <button class="cal-ftag" data-cfilter="예약대기" onclick="callFilterClick(this)">예약대기</button>
-      <button class="cal-ftag" data-cfilter="결제알림완료" onclick="callFilterClick(this)">결제알림완료</button>
-      <button class="cal-ftag" data-cfilter="결제완료" onclick="callFilterClick(this)">결제완료</button>
-      <button class="cal-ftag" data-cfilter="포기" onclick="callFilterClick(this)">연락포기</button>
-      <button class="cal-ftag" data-cfilter="부재중_last" onclick="callFilterClick(this)">📵 부재중만</button>
+      <span id="cf-filter-chips" style="display:contents"></span>
     </div>
+    <div class="cf-filter-bar" id="cf-queue-subfilter-bar" style="display:none"></div>
 
     <div class="data-table-wrap" style="overflow-x:auto">
       <table class="data-table" id="cf-table" style="min-width:1860px">
@@ -2552,7 +2540,7 @@ let S={
   planCalY:new Date().getFullYear(),planCalM:new Date().getMonth(),
   fullCalY:new Date().getFullYear(),fullCalM:new Date().getMonth(),
   selDate:null,planSelDate:null,editAdId:null,editProdId:null,
-  prodTypeFilter:'all',calFilter:'all',infFilter:'all',callFilter:'all',callDashMode:'today',callSort:'recent',callCategoryFilter:'',
+  prodTypeFilter:'all',calFilter:'all',infFilter:'all',callFilter:'all',callDashMode:'today',callSort:'recent',callCategoryFilter:'',callQueueSubFilter:'all',
   callCustomers:[],callProdCategories:[],callProdNames:[],callScripts:[],callLaborCostByDate:{}
 };
 
@@ -9338,8 +9326,6 @@ function saveCallLog(){
 // ── 필터 ──
 function callFilterClick(btn){
   S.callFilter=btn.dataset.cfilter;
-  document.querySelectorAll('#cf-filter-bar [data-cfilter]').forEach(b=>b.classList.remove('on','on-all','on-sel'));
-  btn.classList.add('on',S.callFilter==='all'?'on-all':'on-sel');
   save();renderCallFlow();
 }
 function setCallDashMode(mode){
@@ -9425,19 +9411,105 @@ function handleCallExcelUpload(evt){
 }
 
 // ── 현재 필터/검색 적용된 목록 (테이블 렌더 + CSV 내보내기 공용) ──
+// ── 상태 계열 필터(부재중/통화완료/미시도/시도중/상담완료 등) 판정 로직 — 상단 전체 필터와
+//    오늘/내일 리스트 안의 하위 카테고리 필터가 이 함수를 공용으로 씀 ──
+function cfApplyStatusFilter(list,sub){
+  if(!sub||sub==='all')return list;
+  if(sub==='called')return list.filter(c=>(c.attempts||[]).length>0);
+  if(sub==='부재중_last')return list.filter(c=>{const a=c.attempts||[];return a.length&&a[a.length-1].result==='부재중';});
+  if(sub==='상담완료_관심없음')return list.filter(c=>c.status==='상담완료'&&(c.consultReason||'관심없음')!=='기타');
+  if(sub==='상담완료_기타')return list.filter(c=>c.status==='상담완료'&&c.consultReason==='기타');
+  return list.filter(c=>c.status===sub);
+}
+// ── 오늘/내일 리스트 각각의 "기본 모집단"(하위 카테고리 적용 전) ──
+function cfGetQueueBaseList(f){
+  const all=getVisibleCallCustomers();
+  const today=cfToday(),tomorrow=cfTomorrow();
+  if(f==='queued')return all.filter(c=>c.queued&&c.queuedDate===today);
+  if(f==='queued_tomorrow')return all.filter(c=>c.queued&&c.queuedDate===tomorrow);
+  return all;
+}
+const CF_TOP_FILTERS=[
+  {key:'all',label:'전체'},
+  {key:'queued',label:'📋 오늘 리스트'},
+  {key:'queued_tomorrow',label:'📆 내일 리스트'},
+  {key:'unassigned',label:'🗂️ 미배정(오늘/내일 아님)'},
+  {key:'called',label:'☎️ 통화완료리스트'},
+  {key:'미시도',label:'미시도'},
+  {key:'시도중',label:'시도중'},
+  {key:'상담완료_관심없음',label:'상담완료(관심없음)'},
+  {key:'상담완료_기타',label:'상담완료(기타사유)'},
+  {key:'예약대기',label:'예약대기'},
+  {key:'결제알림완료',label:'결제알림완료'},
+  {key:'결제완료',label:'결제완료'},
+  {key:'포기',label:'연락포기'}
+];
+function cfCountForTopFilter(key,all,today,tomorrow){
+  if(key==='all')return all.length;
+  if(key==='queued')return all.filter(c=>c.queued&&c.queuedDate===today).length;
+  if(key==='queued_tomorrow')return all.filter(c=>c.queued&&c.queuedDate===tomorrow).length;
+  if(key==='unassigned')return all.filter(c=>!(c.queued&&(c.queuedDate===today||c.queuedDate===tomorrow))).length;
+  return cfApplyStatusFilter(all,key).length;
+}
+// ── 상단 필터 칩들을 인원수와 함께 매번 다시 그림 ──
+function renderCfFilterChips(){
+  const el=document.getElementById('cf-filter-chips');
+  if(!el)return;
+  const all=getVisibleCallCustomers();
+  const today=cfToday(),tomorrow=cfTomorrow();
+  const cur=S.callFilter||'all';
+  el.innerHTML=CF_TOP_FILTERS.map(o=>{
+    const n=cfCountForTopFilter(o.key,all,today,tomorrow);
+    return `<button type="button" class="cal-ftag ${cur===o.key?(o.key==='all'?'on on-all':'on on-sel'):''}" data-cfilter="${o.key}" onclick="callFilterClick(this)">${o.label}(${n}명)</button>`;
+  }).join('');
+}
+const CF_QUEUE_SUBFILTERS=[
+  {key:'all',label:'전체'},
+  {key:'부재중_last',label:'📵 부재중'},
+  {key:'called',label:'☎️ 통화완료'},
+  {key:'미시도',label:'미시도'},
+  {key:'시도중',label:'시도중'},
+  {key:'상담완료_관심없음',label:'상담완료(관심없음)'},
+  {key:'상담완료_기타',label:'상담완료(기타사유)'},
+  {key:'예약대기',label:'예약대기'},
+  {key:'결제알림완료',label:'결제알림완료'},
+  {key:'결제완료',label:'결제완료'},
+  {key:'포기',label:'연락포기'}
+];
+// ── 오늘/내일 리스트 안에서만 뜨는 하위 카테고리 칩 (인원수 포함) ──
+function renderQueueSubFilterBar(){
+  const el=document.getElementById('cf-queue-subfilter-bar');
+  if(!el)return;
+  const show=(S.callFilter==='queued'||S.callFilter==='queued_tomorrow');
+  if(!show){el.style.display='none';el.innerHTML='';return;}
+  el.style.display='flex';
+  const base=cfGetQueueBaseList(S.callFilter);
+  const cur=S.callQueueSubFilter||'all';
+  el.innerHTML=CF_QUEUE_SUBFILTERS.map(o=>{
+    const n=o.key==='all'?base.length:cfApplyStatusFilter(base,o.key).length;
+    return `<button type="button" class="cal-ftag ${cur===o.key?(o.key==='all'?'on on-all':'on on-sel'):''}" onclick="setCallQueueSubFilter('${o.key}')">${o.label}(${n}명)</button>`;
+  }).join('');
+}
+function setCallQueueSubFilter(key){
+  S.callQueueSubFilter=key;
+  save();renderCallFlow();
+}
 function cfGetFilteredList(){
   const search=(document.getElementById('cf-search')?.value||'').trim().toLowerCase();
   let list=getVisibleCallCustomers().slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   const f=S.callFilter||'all';
   const today=cfToday();
-  if(f==='queued')list=list.filter(c=>c.queued&&c.queuedDate===today);
-  else if(f==='queued_tomorrow')list=list.filter(c=>c.queued&&c.queuedDate===cfTomorrow());
-  else if(f==='unassigned')list=list.filter(c=>!(c.queued&&(c.queuedDate===today||c.queuedDate===cfTomorrow())));
-  else if(f==='called')list=list.filter(c=>(c.attempts||[]).length>0);
-  else if(f==='부재중_last')list=list.filter(c=>{const a=c.attempts||[];return a.length&&a[a.length-1].result==='부재중';});
-  else if(f==='상담완료_관심없음')list=list.filter(c=>c.status==='상담완료'&&(c.consultReason||'관심없음')!=='기타');
-  else if(f==='상담완료_기타')list=list.filter(c=>c.status==='상담완료'&&c.consultReason==='기타');
-  else if(f!=='all')list=list.filter(c=>c.status===f);
+  if(f==='queued'){
+    list=list.filter(c=>c.queued&&c.queuedDate===today);
+    list=cfApplyStatusFilter(list,S.callQueueSubFilter);
+  }else if(f==='queued_tomorrow'){
+    list=list.filter(c=>c.queued&&c.queuedDate===cfTomorrow());
+    list=cfApplyStatusFilter(list,S.callQueueSubFilter);
+  }else if(f==='unassigned'){
+    list=list.filter(c=>!(c.queued&&(c.queuedDate===today||c.queuedDate===cfTomorrow())));
+  }else if(f!=='all'){
+    list=cfApplyStatusFilter(list,f);
+  }
   if(search)list=list.filter(c=>(c.name||'').toLowerCase().includes(search)||(c.phone||'').replace(/[^0-9]/g,'').includes(search.replace(/[^0-9]/g,'')));
   if(S.callCategoryFilter)list=list.filter(c=>(c.firstInterestProduct&&c.firstInterestProduct.category)===S.callCategoryFilter);
   let sorted=cfSortList(list);
@@ -9540,6 +9612,8 @@ function renderCallFlow(){
   renderCallDashboard();
   renderCfUpcomingBanner();
   renderCfOverdueBanner();
+  renderCfFilterChips();
+  renderQueueSubFilterBar();
   const catFilterEl=document.getElementById('cf-cat-filter');
   if(catFilterEl){
     const cur=S.callCategoryFilter||'';

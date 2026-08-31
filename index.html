@@ -981,6 +981,8 @@ select:focus{border-color:var(--lm);outline:none}
         <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="카카오 CRM" onchange="syncPlanGroups();updateChBudgetTotal()" checked style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> CRM</label><input type="text" inputmode="decimal" class="ch-budget-inp" data-ch="카카오 CRM" placeholder="예산" oninput="fmtNumInput(this);updateChBudgetTotal()" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
         <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="유튜브" onchange="syncPlanGroups();updateChBudgetTotal()" style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 유튜브</label><input type="text" inputmode="decimal" class="ch-budget-inp" data-ch="유튜브" placeholder="예산" oninput="fmtNumInput(this);updateChBudgetTotal()" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
         <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="당근마켓" onchange="syncPlanGroups();updateChBudgetTotal()" style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 당근</label><input type="text" inputmode="decimal" class="ch-budget-inp" data-ch="당근마켓" placeholder="예산" oninput="fmtNumInput(this);updateChBudgetTotal()" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
+        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="오가닉 컨텐츠" onchange="syncPlanGroups();updateChBudgetTotal()" style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 오가닉 컨텐츠</label><input type="text" inputmode="decimal" class="ch-budget-inp" data-ch="오가닉 컨텐츠" placeholder="예산" oninput="fmtNumInput(this);updateChBudgetTotal()" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
+        <div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;flex:1"><input type="checkbox" data-ch="카카오톡 메시지" onchange="syncPlanGroups();updateChBudgetTotal()" style="width:14px;height:14px;accent-color:#8bc34a;cursor:pointer"> 카카오톡 메시지</label><input type="text" inputmode="decimal" class="ch-budget-inp" data-ch="카카오톡 메시지" placeholder="예산" oninput="fmtNumInput(this);updateChBudgetTotal()" onchange="updateChBudget(this)" style="width:88px;font-size:11px;padding:4px 6px;border:1px solid var(--b2);border-radius:var(--rs);background:var(--surf2);text-align:right;font-family:inherit"></div>
       </div>
 
       <div class="ch-add-row" style="margin-bottom:14px">
@@ -3142,7 +3144,7 @@ function loadPlanInputFromProj(proj){
 document.querySelectorAll('#ch-chips .chip').forEach(c=>c.addEventListener('click',()=>{c.classList.toggle('on');renderProjSummary();}));
 function getChs(){return[...document.querySelectorAll('#ch-chips .chip.sel')].map(c=>c.dataset.ch)}
 // 기본 제공 6개 항목(이 외에는 사용자가 직접 추가한 커스텀 항목으로 취급)
-const DEFAULT_CHS=['Meta 광고','네이버 검색','인플루언서/블로그','카카오 CRM','유튜브','당근마켓'];
+const DEFAULT_CHS=['Meta 광고','네이버 검색','인플루언서/블로그','카카오 CRM','유튜브','당근마켓','오가닉 컨텐츠','카카오톡 메시지'];
 // 체크박스+예산입력 한 행(row) DOM 생성 (기본 제공 항목 외에 커스텀 항목 추가/복원 시 공통으로 사용)
 function createChannelRow(ch,checked){
   const row=document.createElement('div');
@@ -9062,13 +9064,14 @@ function handleCallExcelUpload(evt){
         const phone=String(r['연락처']||r['전화번호']||r['phone']||'').trim();
         const initialProduct=String(r['초기신청상품']||r['초기 신청상품']||'').trim();
         const initialInterestCategory=String(r['초기관심상품']||r['초기 관심상품']||r['1차관심상품']||'').trim();
-        if(!name||!phone)return;
+        if(!name&&!phone)return;
+        const finalName=name||'<이름없음>';
         const phoneKey=phone.replace(/[^0-9]/g,'');
         if(phoneKey&&existingPhones.has(phoneKey)){
           if(overwrite){
             const existing=S.callCustomers.find(c=>String(c.phone).replace(/[^0-9]/g,'')===phoneKey);
             if(existing){
-              if(name)existing.name=name;
+              if(name)existing.name=name;  // 엑셀 쪽 이름이 비어있으면 기존 이름을 그대로 둠
               if(initialProduct)existing.initialProduct=initialProduct;
               if(initialInterestCategory){
                 if(!existing.firstInterestProduct)existing.firstInterestProduct={category:'',product:''};
@@ -9086,7 +9089,7 @@ function handleCallExcelUpload(evt){
         S.callCustomers.unshift({
           id:Date.now().toString()+Math.random().toString(36).slice(2,6)+i,
           org:_mfUser?.org||'바바그라운드',
-          name,phone,initialProduct,
+          name:finalName,phone,initialProduct,
           firstInterestProduct:{category:initialInterestCategory,product:''},
           currentInterestProduct:{category:'',product:''},
           interestLevel:'',status:'미시도',attempts:[],

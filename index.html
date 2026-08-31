@@ -1379,6 +1379,7 @@ select:focus{border-color:var(--lm);outline:none}
       </div>
     </div>
 
+    <div id="cf-upcoming-banner" style="display:none;background:#fff7ed;border:1px solid #f97316;color:#c2410c;border-radius:var(--r);padding:10px 14px;margin-bottom:12px;font-size:12px;font-weight:600"></div>
     <div id="cf-overdue-banner" style="display:none;background:#fee2e2;border:1px solid #ef4444;color:#b91c1c;border-radius:var(--r);padding:10px 14px;margin-bottom:12px;font-size:12px;font-weight:600;position:sticky;top:0;z-index:5"></div>
 
     <div class="cf-dash">
@@ -1407,6 +1408,7 @@ select:focus{border-color:var(--lm);outline:none}
       <button class="cal-ftag on on-all" data-cfilter="all" onclick="callFilterClick(this)">전체</button>
       <button class="cal-ftag" data-cfilter="queued" onclick="callFilterClick(this)">📋 오늘 리스트</button>
       <button class="cal-ftag" data-cfilter="queued_tomorrow" onclick="callFilterClick(this)">📆 내일 리스트</button>
+      <button class="cal-ftag" data-cfilter="unassigned" onclick="callFilterClick(this)">🗂️ 미배정(오늘/내일 아님)</button>
       <button class="cal-ftag" data-cfilter="called" onclick="callFilterClick(this)">☎️ 통화완료리스트</button>
       <button class="cal-ftag" data-cfilter="미시도" onclick="callFilterClick(this)">미시도</button>
       <button class="cal-ftag" data-cfilter="시도중" onclick="callFilterClick(this)">시도중</button>
@@ -9145,6 +9147,31 @@ function renderCfOverdueBanner(){
   el.innerHTML=`⏰ 재통화 예정 시간이 지난 고객 ${list.length}명 — ${items}${list.length>5?' 외':''}`;
   el.style.display='block';
 }
+// ── 재통화 예정 시각이 곧(15분 이내) 다가오는지 판단 + 상단 주황 알림 배너 ──
+function cfIsUpcoming(c,withinMinutes){
+  if(!c.nextCallDate||c.nextCallDate!==cfToday()||!c.nextCallTime)return false;
+  const parts=c.nextCallTime.split(':');
+  const h=parseInt(parts[0],10),m=parseInt(parts[1],10);
+  if(isNaN(h)||isNaN(m))return false;
+  const target=new Date();target.setHours(h,m,0,0);
+  const diffMin=(target-new Date())/60000;
+  return diffMin>0&&diffMin<=withinMinutes;
+}
+function renderCfUpcomingBanner(){
+  const el=document.getElementById('cf-upcoming-banner');
+  if(!el)return;
+  const list=getVisibleCallCustomers().filter(c=>cfIsUpcoming(c,15));
+  if(!list.length){el.style.display='none';el.innerHTML='';return;}
+  list.sort((a,b)=>(a.nextCallTime||'').localeCompare(b.nextCallTime||''));
+  const items=list.slice(0,5).map(c=>{
+    const parts=c.nextCallTime.split(':');
+    const target=new Date();target.setHours(parseInt(parts[0],10),parseInt(parts[1],10),0,0);
+    const mins=Math.max(1,Math.round((target-new Date())/60000));
+    return `${c.name}(${c.nextCallTime}, ${mins}분 후)`;
+  }).join(', ');
+  el.innerHTML=`🔔 곧 통화 예정인 고객 ${list.length}명 — ${items}${list.length>5?' 외':''}`;
+  el.style.display='block';
+}
 // ── 고객 클릭 -> 1차부터의 전체 통화이력 보기/바로 수정 ──
 let _cfHistoryId=null;
 const CF_RESULT_OPTS=['부재중','재통화예정','통화연결','상담완료','예약대기','결제완료','연락처오류'];
@@ -9405,6 +9432,7 @@ function cfGetFilteredList(){
   const today=cfToday();
   if(f==='queued')list=list.filter(c=>c.queued&&c.queuedDate===today);
   else if(f==='queued_tomorrow')list=list.filter(c=>c.queued&&c.queuedDate===cfTomorrow());
+  else if(f==='unassigned')list=list.filter(c=>!(c.queued&&(c.queuedDate===today||c.queuedDate===cfTomorrow())));
   else if(f==='called')list=list.filter(c=>(c.attempts||[]).length>0);
   else if(f==='부재중_last')list=list.filter(c=>{const a=c.attempts||[];return a.length&&a[a.length-1].result==='부재중';});
   else if(f==='상담완료_관심없음')list=list.filter(c=>c.status==='상담완료'&&(c.consultReason||'관심없음')!=='기타');
@@ -9412,7 +9440,19 @@ function cfGetFilteredList(){
   else if(f!=='all')list=list.filter(c=>c.status===f);
   if(search)list=list.filter(c=>(c.name||'').toLowerCase().includes(search)||(c.phone||'').replace(/[^0-9]/g,'').includes(search.replace(/[^0-9]/g,'')));
   if(S.callCategoryFilter)list=list.filter(c=>(c.firstInterestProduct&&c.firstInterestProduct.category)===S.callCategoryFilter);
-  return cfSortList(list);
+  let sorted=cfSortList(list);
+  if(f==='queued')sorted=cfPrioritizeScheduled(sorted,today);
+  else if(f==='queued_tomorrow')sorted=cfPrioritizeScheduled(sorted,cfTomorrow());
+  return sorted;
+}
+// ── 오늘/내일 리스트에서, 재통화 예정 시각이 잡혀있는 사람을 맨 위로(빠른 시간순) 올림 ──
+// (오늘 통화 중 "내일 몇시에 다시 통화" 라고 재통화일시를 남긴 사람들이 자동으로 여기 오는데,
+//  그 사람들을 놓치지 않도록 리스트 맨 위에서 바로 보이게 함)
+function cfPrioritizeScheduled(list,targetDate){
+  const scheduled=list.filter(c=>c.nextCallDate===targetDate&&c.nextCallTime);
+  scheduled.sort((a,b)=>(a.nextCallTime||'').localeCompare(b.nextCallTime||''));
+  const rest=list.filter(c=>!(c.nextCallDate===targetDate&&c.nextCallTime));
+  return [...scheduled,...rest];
 }
 function setCfCategoryFilter(value){
   S.callCategoryFilter=value;save();renderCallFlow();
@@ -9498,6 +9538,7 @@ function downloadCallCSV(){
 function renderCallFlow(){
   cfRenderDatalists();
   renderCallDashboard();
+  renderCfUpcomingBanner();
   renderCfOverdueBanner();
   const catFilterEl=document.getElementById('cf-cat-filter');
   if(catFilterEl){
@@ -10175,7 +10216,7 @@ async function supaSyncInner(){
 // save 함수에 Supabase 동기화 추가
 
 // 재통화 예정 시각이 지났는지 30초마다 체크 -> 상단 빨간 알림 배너 갱신
-setInterval(()=>{ if(typeof renderCfOverdueBanner==='function')renderCfOverdueBanner(); }, 30000);
+setInterval(()=>{ if(typeof renderCfOverdueBanner==='function')renderCfOverdueBanner(); if(typeof renderCfUpcomingBanner==='function')renderCfUpcomingBanner(); }, 30000);
 // 30초마다 자동 동기화 (다른 팀원 변경사항 반영)
 setInterval(async ()=>{
   // 버그 수정: 사용자가 입력창에 뭔가를 타이핑하고 있는 도중에 화면을 통째로 다시 그리면

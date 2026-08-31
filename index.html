@@ -1389,6 +1389,9 @@ select:focus{border-color:var(--lm);outline:none}
       <div class="cf-funnel" id="cf-funnel"></div>
       <div class="cf-funnel-conv" id="cf-funnel-conv"></div>
       <div id="cf-assignee-breakdown"></div>
+      <div id="cf-revenue-section"></div>
+      <div id="cf-reason-breakdown"></div>
+      <div id="cf-daily-trend"></div>
     </div>
 
     <div class="cf-filter-bar" id="cf-filter-bar">
@@ -8805,6 +8808,7 @@ function normalizeOrgTags(){
 // 하루하루 직접 고를 콜 리스트, 시도 이력, 관심도/상태, 예약대기 후 결제알림·결제완료 체크까지 트래킹.
 function getVisibleCallCustomers(){return visibleByOrg(S.callCustomers);}
 function cfToday(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function cfPriceNum(c){return parseInt(String(c.paymentPrice||'').replace(/[^0-9]/g,''),10)||0;}
 const CF_STATUS_LABELS={'미시도':'미시도','시도중':'시도중','상담완료':'상담완료','예약대기':'예약대기','결제알림완료':'결제알림완료','결제완료':'결제완료','포기':'연락포기'};
 const CF_RESULT_TO_STATUS={'부재중':'시도중','재통화예정':'시도중','통화연결':'시도중','상담완료':'상담완료','예약대기':'예약대기','결제완료':'결제완료','연락처오류':'포기'};
 
@@ -9566,6 +9570,9 @@ function renderCallDashboard(){
   }
 
   renderAssigneeBreakdown(all);
+  renderRevenueSection(all,mode);
+  renderReasonBreakdown(all);
+  renderDailyTrend(all);
 }
 // ── 담당자별 현황 (배정/시도/예약대기 이상/결제완료/결제전환율) ──
 function renderAssigneeBreakdown(all){
@@ -9599,6 +9606,108 @@ function renderAssigneeBreakdown(all){
     <td style="padding:6px 10px;text-align:right;font-weight:700;color:var(--gn)">${g.paid}</td>
     <td style="padding:6px 10px;text-align:right">${g.reserved?Math.round(g.paid/g.reserved*100)+'%':'-'}</td>
   </tr>`).join('')}</tbody></table>`;
+}
+
+// ── 매출 · ROAS 섹션 (확정 매출 / 예상 매출·파이프라인 / 인건비 대비 ROAS) ──
+function renderRevenueSection(all,mode){
+  const el=document.getElementById('cf-revenue-section');
+  if(!el)return;
+  if(!all.length){el.innerHTML='';return;}
+  const today=cfToday();
+  const confirmedAll=all.filter(c=>c.paymentDone).reduce((s,c)=>s+cfPriceNum(c),0);
+  const confirmedToday=all.filter(c=>c.paymentDone&&c.paymentDoneDate===today).reduce((s,c)=>s+cfPriceNum(c),0);
+  const confirmed=mode==='today'?confirmedToday:confirmedAll;
+  const pipeline=all.filter(c=>!c.paymentDone&&(c.status==='예약대기'||c.status==='결제알림완료')).reduce((s,c)=>s+cfPriceNum(c),0);
+  let laborDays;
+  if(mode==='today'){
+    laborDays=1;
+  }else{
+    const dates=new Set();
+    all.forEach(c=>(c.attempts||[]).forEach(a=>{if(a.date)dates.add(a.date);}));
+    laborDays=dates.size||1;
+  }
+  const laborCost=laborDays*75000;
+  const roas=laborCost?Math.round(confirmed/laborCost*100):0;
+  let roasLabel,roasColor;
+  if(roas<100){roasLabel='추가 운영 재검토';roasColor='#ef4444';}
+  else if(roas<200){roasLabel='관찰 필요';roasColor='var(--or)';}
+  else if(roas<300){roasLabel='추가 운영 긍정 검토';roasColor='var(--bl)';}
+  else{roasLabel='추가 운영 적극 진행';roasColor='var(--gn)';}
+  const fmt=n=>n.toLocaleString('ko-KR');
+  el.innerHTML=`<div style="font-size:11px;font-weight:700;color:var(--t2);margin:14px 0 6px">매출 · ROAS (${mode==='today'?'오늘':'전체'} 기준)</div>
+  <div class="cf-kpi-grid">
+    <div class="cf-kpi"><div class="cf-kpi-val" style="color:var(--gn)">${fmt(confirmed)}원</div><div class="cf-kpi-lbl">확정 매출 (결제완료)</div></div>
+    <div class="cf-kpi"><div class="cf-kpi-val" style="color:var(--or)">${fmt(pipeline)}원</div><div class="cf-kpi-lbl">예상 매출 (예약대기·알림완료, 누적)</div></div>
+    <div class="cf-kpi"><div class="cf-kpi-val">${fmt(laborCost)}원</div><div class="cf-kpi-lbl">인건비 (${laborDays}일×75,000원)</div></div>
+    <div class="cf-kpi"><div class="cf-kpi-val" style="color:${roasColor}">${roas}%</div><div class="cf-kpi-lbl">ROAS (확정 매출 기준)</div></div>
+  </div>
+  <div style="font-size:11px;font-weight:600;color:${roasColor};margin-top:4px">${roasLabel}${(confirmed===0&&pipeline===0)?' · 아직 결제/예약 매출 데이터가 없어요':''}</div>`;
+}
+// ── 상담완료 사유 분석 (관심없음 vs 기타, 기타 사유는 스크립트 개선 참고용으로 목록화) ──
+function renderReasonBreakdown(all){
+  const el=document.getElementById('cf-reason-breakdown');
+  if(!el)return;
+  const done=all.filter(c=>c.status==='상담완료');
+  if(!done.length){el.innerHTML='';return;}
+  const etc=done.filter(c=>c.consultReason==='기타');
+  const notInterested=done.length-etc.length;
+  const pct=n=>done.length?Math.round(n/done.length*100):0;
+  el.innerHTML=`<div style="font-size:11px;font-weight:700;color:var(--t2);margin:14px 0 6px">상담완료 사유 분석 (${done.length}명)</div>
+  <div style="display:flex;gap:16px;margin-bottom:8px;font-size:12px">
+    <span>😐 관심없음 ${notInterested}명 (${pct(notInterested)}%)</span>
+    <span>📝 기타 ${etc.length}명 (${pct(etc.length)}%)</span>
+  </div>
+  ${etc.length?`<div style="max-height:160px;overflow-y:auto;border:1px solid var(--b);border-radius:var(--rs)">
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead><tr style="background:var(--surf2)"><th style="padding:5px 8px;text-align:left;font-size:10px;color:var(--t3)">고객</th><th style="padding:5px 8px;text-align:left;font-size:10px;color:var(--t3)">기타 사유 내용</th></tr></thead>
+      <tbody>${etc.map(c=>`<tr style="border-bottom:1px solid var(--b)"><td style="padding:5px 8px;white-space:nowrap">${c.name}</td><td style="padding:5px 8px">${(c.consultReasonNote||'').replace(/</g,'&lt;')}</td></tr>`).join('')}</tbody>
+    </table>
+  </div><div style="font-size:10px;color:var(--t3);margin-top:4px">※ 스크립트 개선 참고용</div>`:''}`;
+}
+// ── 일자별 추이 (최근 14일: 시도/상담완료/예약전환/결제완료/매출) ──
+function renderDailyTrend(all){
+  const el=document.getElementById('cf-daily-trend');
+  if(!el)return;
+  const dates=new Set();
+  all.forEach(c=>{
+    (c.attempts||[]).forEach(a=>{if(a.date)dates.add(a.date);});
+    if(c.paymentDoneDate)dates.add(c.paymentDoneDate);
+  });
+  if(!dates.size){el.innerHTML='';return;}
+  const sorted=Array.from(dates).sort();
+  const recent=sorted.slice(-14);
+  const rows=recent.map(date=>{
+    let tried=0,doneCount=0,reserved=0,paidCount=0;
+    all.forEach(c=>{
+      const attemptsOnDate=(c.attempts||[]).filter(a=>a.date===date);
+      if(attemptsOnDate.length)tried++;
+      if(attemptsOnDate.some(a=>a.result==='상담완료'))doneCount++;
+      if(attemptsOnDate.some(a=>a.result==='예약대기'))reserved++;
+      if(c.paymentDoneDate===date)paidCount++;
+    });
+    const revenue=all.filter(c=>c.paymentDoneDate===date).reduce((s,c)=>s+cfPriceNum(c),0);
+    return {date,tried,doneCount,reserved,paidCount,revenue};
+  });
+  const fmt=n=>n.toLocaleString('ko-KR');
+  el.innerHTML=`<div style="font-size:11px;font-weight:700;color:var(--t2);margin:14px 0 6px">일자별 추이 (최근 ${rows.length}일)</div>
+  <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px;min-width:480px">
+    <thead><tr style="background:var(--surf2)">
+      <th style="padding:6px 10px;text-align:left;font-size:10px;color:var(--t3);border-bottom:1px solid var(--b)">날짜</th>
+      <th style="padding:6px 10px;text-align:right;font-size:10px;color:var(--t3);border-bottom:1px solid var(--b)">시도</th>
+      <th style="padding:6px 10px;text-align:right;font-size:10px;color:var(--t3);border-bottom:1px solid var(--b)">상담완료</th>
+      <th style="padding:6px 10px;text-align:right;font-size:10px;color:var(--t3);border-bottom:1px solid var(--b)">예약전환</th>
+      <th style="padding:6px 10px;text-align:right;font-size:10px;color:var(--t3);border-bottom:1px solid var(--b)">결제완료</th>
+      <th style="padding:6px 10px;text-align:right;font-size:10px;color:var(--t3);border-bottom:1px solid var(--b)">매출</th>
+    </tr></thead>
+    <tbody>${rows.map(r=>`<tr style="border-bottom:1px solid var(--b)">
+      <td style="padding:6px 10px;white-space:nowrap">${r.date}</td>
+      <td style="padding:6px 10px;text-align:right">${r.tried}</td>
+      <td style="padding:6px 10px;text-align:right">${r.doneCount}</td>
+      <td style="padding:6px 10px;text-align:right">${r.reserved}</td>
+      <td style="padding:6px 10px;text-align:right;font-weight:700;color:var(--gn)">${r.paidCount}</td>
+      <td style="padding:6px 10px;text-align:right">${r.revenue?fmt(r.revenue)+'원':'-'}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
 }
 
 function openNicknameModal(){

@@ -1429,7 +1429,7 @@ select:focus{border-color:var(--lm);outline:none}
           <th style="width:40px">내일<br><input type="checkbox" id="cf-select-all-tomorrow" onchange="toggleAllTomorrowQueue(this.checked)" title="현재 필터에 보이는 고객 전체를 내일 리스트에 추가/제거"></th>
           <th>이름</th><th>연락처</th><th style="min-width:70px">지역</th><th style="min-width:150px">시도현황</th><th>관심도</th><th>상태</th>
           <th>초기신청상품</th><th style="min-width:120px">1차 관심상품</th><th style="min-width:120px">현재 관심상품</th>
-          <th style="min-width:110px">여행날짜</th><th style="min-width:100px">티켓명</th><th style="min-width:90px">결제가격</th>
+          <th style="min-width:110px">여행날짜</th><th style="min-width:100px">티켓명</th><th style="min-width:60px">인원</th><th style="min-width:90px">결제가격</th>
           <th style="min-width:90px">담당자</th>
           <th>결제알림완료</th><th>결제완료</th><th></th>
         </tr></thead>
@@ -9090,7 +9090,7 @@ function saveCallCustomer(){
       currentInterestProducts:[],
       interestLevel,status:'미시도',attempts:[],
       queued:false,queuedDate:null,nextCallDate:null,nextCallTime:null,assignee:'',
-      travelDate:'',ticketName:'',paymentPrice:'',
+      travelDate:'',ticketName:'',headcount:'',paymentPrice:'',
       paymentNoticeSent:false,paymentNoticeDate:null,
       paymentDone:false,paymentDoneDate:null,
       createdAt:Date.now(),updatedAt:Date.now()
@@ -9492,7 +9492,7 @@ function handleCallExcelUpload(evt){
           currentInterestProducts:[],
           interestLevel:'',status:'미시도',attempts:[],
           queued:false,queuedDate:null,nextCallDate:null,nextCallTime:null,assignee:'',
-          travelDate:'',ticketName:'',paymentPrice:'',
+          travelDate:'',ticketName:'',headcount:'',paymentPrice:'',
           paymentNoticeSent:false,paymentNoticeDate:null,
           paymentDone:false,paymentDoneDate:null,
           createdAt:Date.now(),updatedAt:Date.now()
@@ -9727,7 +9727,7 @@ function downloadCallCSV(){
   };
   const rows=list.map(c=>{
     const cip=c.currentInterestProduct||{};
-    return [cip.product||'',c.travelDate||'',c.ticketName||'','','',c.paymentPrice||'','',c.phone||'',c.name||'',''].map(esc).join(',');
+    return [cip.product||'',c.travelDate||'',c.ticketName||'',c.headcount||'','',c.paymentPrice||'','',c.phone||'',c.name||'',''].map(esc).join(',');
   });
   const csv='\uFEFF'+header.join(',')+'\n'+rows.join('\n');
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
@@ -9767,7 +9767,7 @@ function renderCallFlow(){
   const queueTargetForFilter=S.callFilter==='queued_tomorrow'?'tomorrow':(S.callFilter==='queued'?'today':null);
   if(!list.length){
     const addBtnEmpty=queueTargetForFilter?`<div style="margin-top:10px"><button class="btn-ghost" onclick="openAddQueueModal('${queueTargetForFilter}')">+ ${queueTargetForFilter==='tomorrow'?'내일':'오늘'} 리스트에 추가하기</button></div>`:'';
-    tb.innerHTML=`<tr><td colspan="17" style="text-align:center;padding:32px;color:var(--t3)">표시할 고객이 없어요${addBtnEmpty}</td></tr>`;
+    tb.innerHTML=`<tr><td colspan="19" style="text-align:center;padding:32px;color:var(--t3)">표시할 고객이 없어요${addBtnEmpty}</td></tr>`;
     if(selAllEl0){selAllEl0.checked=false;selAllEl0.indeterminate=false;}
     if(selAllElTom0){selAllElTom0.checked=false;selAllElTom0.indeterminate=false;}
     return;
@@ -9824,6 +9824,7 @@ function renderCallFlow(){
       </td>
       <td><input type="date" value="${c.travelDate||''}" onchange="updateCallField('${c.id}','travelDate',this.value)" style="font-size:11px;padding:4px 6px;min-width:110px"></td>
       <td><input type="text" placeholder="티켓명" value="${(c.ticketName||'').replace(/"/g,'&quot;')}" onchange="updateCallField('${c.id}','ticketName',this.value)" style="font-size:11px;padding:4px 6px;min-width:90px"></td>
+      <td><input type="text" inputmode="numeric" placeholder="인원" value="${String(c.headcount||'').replace(/"/g,'&quot;')}" onchange="updateCallField('${c.id}','headcount',this.value)" style="font-size:11px;padding:4px 6px;min-width:44px;text-align:right"></td>
       <td><input type="text" placeholder="결제가격" value="${(c.paymentPrice||'').replace(/"/g,'&quot;')}" onchange="updateCallField('${c.id}','paymentPrice',this.value)" style="font-size:11px;padding:4px 6px;min-width:80px;text-align:right"></td>
       <td><button type="button" class="assignee-picker-trigger" onclick="openAssigneePicker(this,'${(c.assignee||'').replace(/'/g,"\\'")}',function(csv){updateCallField('${c.id}','assignee',csv);})" style="font-size:10px;padding:4px 8px;background:var(--surf2);border:1px solid var(--b2);border-radius:var(--rs);color:var(--t2);text-align:left;white-space:nowrap;max-width:100px;overflow:hidden;text-overflow:ellipsis;cursor:pointer">${c.assignee?('👤 '+assigneeDisplay(c.assignee)):'👤 미배정'}</button></td>
       <td style="text-align:center">${payable?`<input type="checkbox" ${c.paymentNoticeSent?'checked':''} onchange="togglePaymentNotice('${c.id}')">`:'<span style="color:var(--t3)">—</span>'}</td>
@@ -9832,7 +9833,7 @@ function renderCallFlow(){
     </tr>`;
   }).join('');
   if(queueTargetForFilter){
-    tb.innerHTML+=`<tr><td colspan="17" style="text-align:center;padding:14px"><button class="btn-ghost" onclick="openAddQueueModal('${queueTargetForFilter}')">+ ${queueTargetForFilter==='tomorrow'?'내일':'오늘'} 리스트에 추가하기</button></td></tr>`;
+    tb.innerHTML+=`<tr><td colspan="19" style="text-align:center;padding:14px"><button class="btn-ghost" onclick="openAddQueueModal('${queueTargetForFilter}')">+ ${queueTargetForFilter==='tomorrow'?'내일':'오늘'} 리스트에 추가하기</button></td></tr>`;
   }
   const selAllEl=document.getElementById('cf-select-all-today');
   if(selAllEl){

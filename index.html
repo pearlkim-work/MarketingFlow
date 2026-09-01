@@ -454,6 +454,14 @@ input::placeholder,textarea::placeholder{color:var(--t3)}
 .bt-table-sheet tr.total-row td:first-child{background:var(--surf2)}
 .bt-inp{background:transparent;border:none;outline:none;font-family:inherit;font-size:11px;color:var(--t);text-align:right;width:100%;min-width:50px;padding:2px 3px;border-radius:4px}
 .bt-inp:focus{background:var(--lmbg);color:var(--lm2)}
+/* 사용자 요청: 채널 하나로 여러 게시글을 돌릴 때 월별 칸에 메모를 남길 수 있으면 좋겠다고 해서 추가.
+   메모가 없을 땐 아이콘을 아주 흐리게(opacity .3) 해서 표가 복잡해 보이지 않게 하고,
+   메모가 있으면 아이콘이 진해지고 밑에 짧은 미리보기가 같이 보임(히스토리 훑어보기용) */
+.bt-memo-btn{border:none;background:transparent;cursor:pointer;font-size:10px;line-height:1;padding:1px 2px;opacity:.3;flex-shrink:0}
+.bt-memo-btn:hover{opacity:.8}
+.bt-memo-btn.has{opacity:1}
+.bt-memo-preview{font-size:9px;color:#8b5cf6;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:74px;margin-left:auto;text-align:right}
+.bt-memo-preview:hover{text-decoration:underline}
 .bt-bar-cell{min-width:100px}
 .bt-bar-wrap{display:flex;flex-direction:column;gap:3px}
 .bt-bar-row{display:flex;align-items:center;gap:5px}
@@ -2504,6 +2512,15 @@ select:focus{border-color:var(--lm);outline:none}
     </div>
     <div class="field-g"><label class="field-label">메모</label><input type="text" id="bam-memo" placeholder="예) 7~8월 집중 집행"></div>
     <div class="modal-btns"><button class="btn-cancel" onclick="btCloseAddRowModal()">취소</button><button class="btn-confirm" onclick="btSaveNewRow()">추가</button></div>
+  </div>
+</div>
+<!-- BUDGET MONTHLY CELL MEMO MODAL (사용자 요청: 채널×월 칸마다 자유 메모를 남길 수 있게) -->
+<div class="modal-bg" id="bt-memo-modal-bg" style="display:none" onclick="if(event.target===this)closeBtMemoModal()">
+  <div class="modal" style="width:360px">
+    <div class="modal-title">📝 메모 — <span id="bt-memo-modal-label"></span></div>
+    <div style="font-size:10px;color:var(--t3);margin-bottom:6px">여러 게시글을 같이 돌릴 때, 각각 얼마 썼는지 등을 자유롭게 적어두세요.</div>
+    <textarea id="bt-memo-modal-text" placeholder="예: 포스트A 300,000원 / 포스트B 200,000원" rows="4" style="width:100%;box-sizing:border-box"></textarea>
+    <div class="modal-btns"><button class="btn-cancel" onclick="closeBtMemoModal()">취소</button><button class="btn-confirm" onclick="saveBtMemoModal()">저장</button></div>
   </div>
 </div>
 <!-- EXP NEW MODAL -->
@@ -6727,10 +6744,17 @@ function renderBudgetTracker(proj){
               // "목표"로 같이 보여줌 — 할일 예산 합계 기준인 "계획"과는 별개 값이라 나란히 표시(하나가 다른
               // 하나를 대체하지 않음: 목표=이 달에 쓰기로 정한 한도, 계획=지금까지 등록된 할일 예산의 합)
               const manualPlan=parseFloat((r.planMonthly||{})[mk])||0;
+              const memoText=((r.monthlyMemo||{})[mk]||'').trim();
+              const memoTitle=memoText?cfEsc(memoText):'클릭해서 메모 추가';
+              const memoPreview=memoText.length>12?memoText.slice(0,12)+'…':memoText;
               return`<td style="text-align:right">
                 ${manualPlan?`<div style="font-size:9px;color:var(--bl);font-weight:600;min-height:12px;white-space:nowrap">목표 ${manualPlan.toLocaleString()}</div>`:''}
                 <div style="font-size:9px;color:var(--t3);min-height:12px;white-space:nowrap">${(planned&&!v&&!isPastBudgetMonth(mi))?'계획 '+planned.toLocaleString():''}</div>
-                <input class="bt-inp" type="text" inputmode="decimal" value="${fmtNum(v)}" placeholder="" oninput="fmtNumInput(this)" onchange="btUpdateActual('${proj.id}',${ri},'${mk}',numVal(this.value))">
+                <div style="display:flex;align-items:center;gap:2px;justify-content:flex-end">
+                  <input class="bt-inp" type="text" inputmode="decimal" value="${fmtNum(v)}" placeholder="" oninput="fmtNumInput(this)" onchange="btUpdateActual('${proj.id}',${ri},'${mk}',numVal(this.value))" style="min-width:34px">
+                  <button type="button" class="bt-memo-btn${memoText?' has':''}" title="${memoTitle}" onclick="openBtMemoModal('${proj.id}',${ri},'${mk}')">📝</button>
+                </div>
+                ${memoText?`<div class="bt-memo-preview" title="${cfEsc(memoText)}" onclick="openBtMemoModal('${proj.id}',${ri},'${mk}')">${cfEsc(memoPreview)}</div>`:''}
               </td>`;
             }).join('')}
             <td style="text-align:right;font-weight:600;color:var(--lm)">${totalActR.toLocaleString()}</td>
@@ -6767,6 +6791,32 @@ function renderBudgetTracker(proj){
 }
 function btSelectMonth(m){_btCurMonth=m;const projId=document.getElementById('bt-proj-sel')?.value;const proj=getProj(projId);if(proj)renderBudgetTracker(proj);}
 function btUpdateActual(projId,ri,month,val){const proj=getProj(projId);if(!proj||!proj.budgetRows[ri])return;if(!proj.budgetRows[ri].monthly)proj.budgetRows[ri].monthly={};proj.budgetRows[ri].monthly[month]=parseFloat(val)||0;save();renderBudgetTracker(proj);}
+// ── 사용자 요청: 예산탭 월별 칸(채널×월)마다 자유 메모를 남길 수 있게. 메타처럼 한 채널에
+//    여러 게시글을 같이 돌릴 때, 전체 합계 금액만 적히는 칸에 "포스트A/B 각각 얼마" 같은
+//    설명을 붙여둘 곳이 없어서 추가함. budgetRows[ri].monthlyMemo[월키] = 텍스트로 저장 ──
+let _btMemoCtx=null;
+function openBtMemoModal(projId,ri,month){
+  const proj=getProj(projId);if(!proj||!proj.budgetRows[ri])return;
+  const row=proj.budgetRows[ri];
+  _btMemoCtx={projId,ri,month};
+  const mi=parseInt(month,10)-1;
+  const amt=parseFloat((row.monthly||{})[month])||0;
+  document.getElementById('bt-memo-modal-label').textContent=`${row.channel} · ${MONTHS[mi]||month}${amt?` (집행 ${amt.toLocaleString()}원)`:''}`;
+  document.getElementById('bt-memo-modal-text').value=(row.monthlyMemo||{})[month]||'';
+  document.getElementById('bt-memo-modal-bg').style.display='flex';
+}
+function closeBtMemoModal(){document.getElementById('bt-memo-modal-bg').style.display='none';_btMemoCtx=null;}
+function saveBtMemoModal(){
+  if(!_btMemoCtx)return;
+  const {projId,ri,month}=_btMemoCtx;
+  const proj=getProj(projId);
+  if(!proj||!proj.budgetRows[ri]){closeBtMemoModal();return;}
+  const text=document.getElementById('bt-memo-modal-text').value.trim();
+  if(!proj.budgetRows[ri].monthlyMemo)proj.budgetRows[ri].monthlyMemo={};
+  if(text)proj.budgetRows[ri].monthlyMemo[month]=text;
+  else delete proj.budgetRows[ri].monthlyMemo[month];
+  save();closeBtMemoModal();renderBudgetTracker(proj);
+}
 function btUpdatePlanMonthly(projId,ri,month,val){
   const proj=getProj(projId);if(!proj||!proj.budgetRows[ri])return;
   if(!proj.budgetRows[ri].planMonthly)proj.budgetRows[ri].planMonthly={};

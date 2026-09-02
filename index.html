@@ -1085,23 +1085,8 @@ select:focus{border-color:var(--lm);outline:none}
 
 </main>
     <aside class="plan-cal-panel" id="plan-cal-panel">
-      <div class="plan-cal-header">
-        <button class="cal-nav" onclick="planCalMove(-1)">‹</button>
-        <div class="plan-cal-title" id="plan-cal-title"></div>
-        <button class="cal-nav" onclick="planCalMove(1)">›</button>
-      </div>
-      <div class="mini-cal-grid" id="mini-cal-grid"></div>
-      <div class="divider"></div>
-      <div class="panel-tabs">
-        <button class="panel-tab active" id="ptab-todo" onclick="switchPanelTab('todo')">✅ 할 일</button>
-        <button class="panel-tab" id="ptab-memo" onclick="switchPanelTab('memo')">📝 메모</button>
-      </div>
-      <div class="plan-cal-tasks" id="panel-todo">
-        <div class="plan-cal-sel-date" id="plan-sel-date-lbl">날짜를 선택하세요</div>
-        <div class="task-mini-list" id="plan-task-list"></div>
-        <div id="plan-cal-hint" style="font-size:11px;color:var(--t3)">프로젝트를 선택하면<br>일정을 볼 수 있어요</div>
-      </div>
-      <div class="memo-panel" id="panel-memo" style="display:none">
+      <div style="padding:14px 14px 10px;border-bottom:1px solid var(--b);font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.05em">📝 메모</div>
+      <div class="memo-panel" id="panel-memo">
         <div id="memo-proj-hint" class="memo-hint">프로젝트를 선택하면<br>메모를 작성할 수 있어요</div>
         <div id="memo-write-area" style="display:none">
           <div class="memo-write">
@@ -2724,7 +2709,7 @@ function switchProj(){
 if(proj&&proj.plan){S._pendingPlan=JSON.parse(JSON.stringify(proj.plan));renderPlanResult(proj.plan,false);}
   else{S._pendingPlan=null;resetPlanOutput();}renderQuickAddGroups();updatePlanButtons();
   updatePlanCalHint();renderMiniCal();
-  if(_curPanelTab==='memo'){updateMemoHint();renderMemos();}
+  updateMemoHint();renderMemos(); // 미니 캘린더를 없애면서 메모가 탭 없이 항상 보이는 유일한 패널이 됨 → 무조건 갱신
   // 버그 수정: 상단에서 프로젝트를 바꿔도 예산탭 선택값/표가 따로 놀던 문제 방지 (자가치유)
   if(typeof btRefreshProjSel==='function')btRefreshProjSel();
   // 사용자 요청: 상품관리도 다른 탭들처럼 상단에서 고른 프로젝트를 그대로 따라가도록 함
@@ -4494,11 +4479,13 @@ function savePlanToProj(){
 
 // ── PLAN MINI CALENDAR ──
 function updatePlanCalHint(){
+  const hint=document.getElementById('plan-cal-hint');if(!hint)return; // 위와 동일한 이유로 방어
   const hasProj=!!S.curProjId;
-  document.getElementById('plan-cal-hint').style.display=hasProj?'none':'block';
+  hint.style.display=hasProj?'none':'block';
 }
 function planCalMove(d){S.planCalM+=d;if(S.planCalM>11){S.planCalM=0;S.planCalY++;}if(S.planCalM<0){S.planCalM=11;S.planCalY--;}renderMiniCal();}
 function renderMiniCal(){
+  if(!document.getElementById('mini-cal-grid'))return; // 사용자 요청으로 미니 캘린더 UI를 없앰(위 설명 참고)
   const y=S.planCalY,m=S.planCalM;
   const months=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
   document.getElementById('plan-cal-title').textContent=`${y}년 ${months[m]}`;

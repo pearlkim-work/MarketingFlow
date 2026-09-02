@@ -447,11 +447,17 @@ input::placeholder,textarea::placeholder{color:var(--t3)}
 .bt-table tr:last-child td{border-bottom:none}
 .bt-table tr:hover td{background:rgba(0,0,0,.02)}
 .bt-table tr.total-row td{background:var(--surf2);font-weight:700;border-top:2px solid var(--b2)}
-.bt-table-sheet th:first-child,.bt-table-sheet td:first-child{position:sticky;left:0;z-index:2;box-shadow:2px 0 4px rgba(0,0,0,.05)}
+.bt-table-sheet th:first-child,.bt-table-sheet td:first-child{position:sticky;left:0;z-index:2;box-shadow:2px 0 4px rgba(0,0,0,.05);width:110px;min-width:110px;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bt-table-sheet th:first-child{background:var(--surf2);z-index:3}
 .bt-table-sheet td:first-child{background:var(--surf)}
-.bt-table-sheet tr:hover td:first-child{background:var(--surf2)}
-.bt-table-sheet tr.total-row td:first-child{background:var(--surf2)}
+.bt-table-sheet th:nth-child(2),.bt-table-sheet td:nth-child(2){position:sticky;left:110px;z-index:2;width:84px;min-width:84px;max-width:84px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;box-shadow:2px 0 4px rgba(0,0,0,.05)}
+.bt-table-sheet th:nth-child(2){background:var(--surf2);z-index:3}
+.bt-table-sheet td:nth-child(2){background:var(--surf)}
+.bt-table-sheet th:nth-child(3),.bt-table-sheet td:nth-child(3){position:sticky;left:194px;z-index:2;box-shadow:2px 0 4px rgba(0,0,0,.05)}
+.bt-table-sheet th:nth-child(3){background:var(--surf2);z-index:3}
+.bt-table-sheet td:nth-child(3){background:var(--surf)}
+.bt-table-sheet tr:hover td:first-child,.bt-table-sheet tr:hover td:nth-child(2),.bt-table-sheet tr:hover td:nth-child(3){background:var(--surf2)}
+.bt-table-sheet tr.total-row td:first-child,.bt-table-sheet tr.total-row td:nth-child(2),.bt-table-sheet tr.total-row td:nth-child(3){background:var(--surf2)}
 .bt-inp{background:transparent;border:none;outline:none;font-family:inherit;font-size:11px;color:var(--t);text-align:right;width:100%;min-width:50px;padding:2px 3px;border-radius:4px}
 .bt-inp:focus{background:var(--lmbg);color:var(--lm2)}
 /* 사용자 요청: 채널 하나로 여러 게시글을 돌릴 때 월별 칸에 메모를 남길 수 있으면 좋겠다고 해서 추가.
@@ -2764,6 +2770,7 @@ function autosavePlanInput(){
   _autosaveTimer=setTimeout(()=>{
     const proj=getCurProj();if(!proj)return;
     proj.name=document.getElementById('p-name').value||proj.name;
+    if(proj.plan)proj.plan.name=proj.name; // 플랜 헤더가 옛 이름으로 남는 문제 방지(위 설명 참고)
     proj.budget=numVal(document.getElementById('p-budget').value);
     proj.timeline=document.getElementById('p-timeline').value;
     proj.target=document.getElementById('p-target').value;
@@ -3203,6 +3210,7 @@ function deletePlanGoal(i){
 function savePlanInfo(){
   const p=getCurProj();if(!p)return;
   p.name=document.getElementById('p-name')?.value.trim()||p.name;
+  if(p.plan)p.plan.name=p.name; // 위 autosavePlanInput과 동일한 이유로 동기화
   p.start=document.getElementById('p-start')?.value||p.start;
   p.end=document.getElementById('p-end')?.value||p.end;
   p.budget=numVal(document.getElementById('p-budget')?.value.trim())||p.budget;
@@ -3403,9 +3411,17 @@ function renderPlanMonthlyBudget(proj){
   if(!proj){wrap.innerHTML='<div class="empty-plan"><div class="ei">📅</div><p style="font-weight:700;color:var(--t);margin-bottom:4px">월별예산플랜</p><p style="font-size:12px">프로젝트를 먼저 선택해봐요</p></div>';return;}
   const rows=proj.budgetRows||[];
   if(!rows.length){wrap.innerHTML='<div class="empty-plan"><div class="ei">📅</div><p style="font-weight:700;color:var(--t);margin-bottom:4px">월별예산플랜</p><p style="font-size:12px">왼쪽에서 항목을 선택하고 플랜을 생성하면<br>여기서 채널별 월별 예산을 짤 수 있어요</p></div>';return;}
+  // 사용자 요청(버그 수정): 칸 하나 입력하고 나면(onchange 시 아래에서 표를 통째로 다시 그리는데)
+  // 가로 스크롤이 매번 맨 앞으로 돌아가서 계속 다시 스크롤해야 했음 → 다시 그리기 전에 기존
+  // 스크롤 위치를 기억해뒀다가 새로 그린 뒤 그대로 복원함
+  const _prevWrap=wrap.querySelector('.bt-table-wrap');
+  const _savedScrollLeft=_prevWrap?_prevWrap.scrollLeft:0;
   const monthTotals=MONTHS.map((m,mi)=>{const mk=String(mi+1).padStart(2,'0');return rows.reduce((s,r)=>s+(parseFloat((r.planMonthly||{})[mk])||0),0);});
   const grandTotal=monthTotals.reduce((a,b)=>a+b,0);
-  wrap.innerHTML=`<div style="font-size:11px;color:var(--t2);margin-bottom:10px;line-height:1.5">채널별로 이번 캠페인 기간 중 <b>달마다 얼마를 쓸 계획인지</b> 목표치를 넣어두면, 예산 탭의 해당 칸에 "목표"로 같이 표시돼요. (할 일에 넣어둔 예산 합계인 "계획"과는 별개예요)</div>
+  wrap.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px">
+    <div style="font-size:11px;color:var(--t2);line-height:1.5;flex:1">채널별로 이번 캠페인 기간 중 <b>달마다 얼마를 쓸 계획인지</b> 목표치를 넣어두면, 예산 탭의 해당 칸에 "목표"로 같이 표시돼요. (할 일에 넣어둔 예산 합계인 "계획"과는 별개예요)</div>
+    <button type="button" onclick="btMonthlyExportPdf('${proj.id}')" style="flex-shrink:0;font-size:11px;padding:6px 12px;background:var(--surf2);border:1px solid var(--b2);border-radius:var(--rs);color:var(--t2);cursor:pointer;font-family:inherit;white-space:nowrap">🖨️ PDF로 저장</button>
+  </div>
   <div class="bt-table-wrap">
     <table class="bt-table bt-table-sheet">
       <thead>
@@ -3421,13 +3437,17 @@ function renderPlanMonthlyBudget(proj){
         ${rows.map((r,ri)=>{
           const rowTotal=MONTHS.reduce((s,m,mi)=>{const mk=String(mi+1).padStart(2,'0');return s+(parseFloat((r.planMonthly||{})[mk])||0);},0);
           return`<tr>
-            <td style="font-weight:500">${r.channel}</td>
+            <td style="font-weight:500" title="${(r.channel||'').replace(/"/g,'&quot;')}">${r.channel}</td>
             <td><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:var(--surf2);color:var(--t2);border:1px solid var(--b)">${r.cat||'기타'}</span></td>
             <td style="text-align:right;font-weight:500;color:var(--t3)">${(parseFloat(r.planTotal)||0).toLocaleString()}</td>
             ${MONTHS.map((m,mi)=>{
               const mk=String(mi+1).padStart(2,'0');
               const v=(r.planMonthly||{})[mk]||'';
-              return`<td style="text-align:right"><input class="bt-inp" type="text" inputmode="decimal" value="${fmtNum(v)}" placeholder="" oninput="fmtNumInput(this)" onchange="btUpdatePlanMonthly('${proj.id}',${ri},'${mk}',numVal(this.value))"></td>`;
+              // 사용자 요청: 칸을 벗어나야만(onchange) 저장되는 게 아니라, 타이핑 도중(잠깐 멈추면)
+              // 바로바로 저장되게 함. 다만 매 키입력마다 표 전체를 다시 그리면 커서/스크롤이 계속
+              // 튀므로, 조용히 값만 저장하고(재렌더 없음) 합계 갱신 등 화면 반영은 기존처럼
+              // onchange(칸을 벗어날 때) 시점에 함
+              return`<td style="text-align:right"><input class="bt-inp" type="text" inputmode="decimal" value="${fmtNum(v)}" placeholder="" oninput="fmtNumInput(this);btPlanMonthlyDebouncedSave('${proj.id}',${ri},'${mk}',this.value)" onchange="btUpdatePlanMonthly('${proj.id}',${ri},'${mk}',numVal(this.value))"></td>`;
             }).join('')}
             <td style="text-align:right;font-weight:600;color:var(--bl)">${rowTotal.toLocaleString()}</td>
           </tr>`;
@@ -3443,6 +3463,61 @@ function renderPlanMonthlyBudget(proj){
       </tfoot>
     </table>
   </div>`;
+  const _newWrap=wrap.querySelector('.bt-table-wrap');
+  if(_newWrap)_newWrap.scrollLeft=_savedScrollLeft;
+}
+// 사용자 요청: 위 월별예산플랜 입력칸에 타이핑하는 동안 잠깐(500ms) 멈추면 자동 저장 —
+// 매 키입력마다 저장하면 너무 잦으니 디바운스. 화면을 다시 그리진 않음(재렌더는 onchange 몫).
+let _btPlanMonthlySaveTimers={};
+function btPlanMonthlyDebouncedSave(projId,ri,month,rawVal){
+  const key=projId+'-'+ri+'-'+month;
+  clearTimeout(_btPlanMonthlySaveTimers[key]);
+  _btPlanMonthlySaveTimers[key]=setTimeout(()=>{
+    const proj=getProj(projId);if(!proj||!proj.budgetRows[ri])return;
+    if(!proj.budgetRows[ri].planMonthly)proj.budgetRows[ri].planMonthly={};
+    proj.budgetRows[ri].planMonthly[month]=parseFloat(numVal(rawVal))||0; // btUpdatePlanMonthly와 동일한 저장 형식(숫자)으로 맞춤
+    save();
+  },500);
+}
+// 사용자 요청: 월별예산플랜을 pdf로 예쁘게 저장하고 싶다 + 아무도 계획을 안 넣은 달(칸)은
+// 굳이 안 보여도 된다 → 입력칸 없이 값만 보이는 인쇄 전용 표를 새 창에 띄워서 브라우저의
+// 인쇄(PDF로 저장) 기능을 그대로 씀. 실제 데이터를 새로 만들거나 바꾸지 않고 화면만 별도로 그림.
+function btMonthlyExportPdf(projId){
+  const proj=getProj(projId);if(!proj)return;
+  const rows=proj.budgetRows||[];
+  if(!rows.length){toast('저장할 월별예산플랜 데이터가 없어요');return;}
+  const monthHasData=MONTHS.map((m,mi)=>{const mk=String(mi+1).padStart(2,'0');return rows.some(r=>(parseFloat((r.planMonthly||{})[mk])||0)>0);});
+  const visibleMi=MONTHS.map((_,mi)=>mi).filter(mi=>monthHasData[mi]);
+  const planTotalSum=rows.reduce((s,r)=>s+(parseFloat(r.planTotal)||0),0);
+  const monthTotals=visibleMi.map(mi=>{const mk=String(mi+1).padStart(2,'0');return rows.reduce((s,r)=>s+(parseFloat((r.planMonthly||{})[mk])||0),0);});
+  const grandTotal=monthTotals.reduce((a,b)=>a+b,0);
+  const rowsHtml=rows.map(r=>{
+    const rowTotal=MONTHS.reduce((s,m,mi)=>s+(parseFloat((r.planMonthly||{})[String(mi+1).padStart(2,'0')])||0),0);
+    return `<tr><td>${cfEsc(r.channel||'')}</td><td>${cfEsc(r.cat||'기타')}</td><td style="text-align:right">${(parseFloat(r.planTotal)||0).toLocaleString()}</td>${visibleMi.map(mi=>{const v=parseFloat((r.planMonthly||{})[String(mi+1).padStart(2,'0')])||0;return `<td style="text-align:right">${v?v.toLocaleString():'-'}</td>`;}).join('')}<td style="text-align:right;font-weight:700">${rowTotal.toLocaleString()}</td></tr>`;
+  }).join('');
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>${cfEsc(proj.name||'프로젝트')} 월별예산플랜</title>
+    <style>
+      body{font-family:-apple-system,'Pretendard',sans-serif;padding:32px;color:#1a1917}
+      h1{font-size:18px;margin:0 0 4px}
+      .sub{font-size:11px;color:#888;margin-bottom:20px}
+      table{border-collapse:collapse;width:100%;font-size:11px}
+      th,td{border:1px solid #ddd;padding:6px 9px;text-align:left;white-space:nowrap}
+      th{background:#f5f5f5;font-weight:700}
+      tfoot td{background:#f7f7f7;font-weight:700}
+      @media print{ body{padding:0} }
+    </style></head><body>
+    <h1>${cfEsc(proj.name||'프로젝트')} · 월별예산플랜</h1>
+    <div class="sub">생성일 ${new Date().toLocaleDateString('ko-KR')} · 전체 예산 합계 ${planTotalSum.toLocaleString()}원 · 월별 계획 합계 ${grandTotal.toLocaleString()}원</div>
+    <table><thead><tr><th>항목</th><th>카테고리</th><th style="text-align:right">전체 예산(원)</th>${visibleMi.map(mi=>`<th style="text-align:right">${MONTHS[mi]}</th>`).join('')}<th style="text-align:right">월계획 합계(원)</th></tr></thead>
+    <tbody>${rowsHtml}</tbody>
+    <tfoot><tr><td colspan="2">합계</td><td style="text-align:right">${planTotalSum.toLocaleString()}</td>${monthTotals.map(sum=>`<td style="text-align:right">${sum.toLocaleString()}</td>`).join('')}<td style="text-align:right">${grandTotal.toLocaleString()}</td></tr></tfoot>
+    </table>
+    </body></html>`;
+  const w=window.open('','_blank');
+  if(!w){toast('팝업이 차단됐어요. 팝업 허용 후 다시 시도해주세요');return;}
+  w.document.write(html);
+  w.document.close();
+  w.onload=()=>{w.focus();w.print();};
 }
 
 // ── PLAN GEN ──
@@ -6680,6 +6755,10 @@ function getProjectedSpendForMonth(proj,monthKey,channelName){
 }
 function renderBudgetTracker(proj){
   const rows=proj.budgetRows||[];
+  // 사용자 요청(버그 수정): 위 월별예산플랜과 같은 이유로, 칸 입력 후 표 전체를 다시 그리면
+  // 가로 스크롤이 맨 앞으로 돌아가던 문제 — 다시 그리기 전 스크롤 위치를 기억했다가 복원
+  const _btPrevWrap=document.getElementById('bt-content')?.querySelector('.bt-table-wrap');
+  const _btSavedScrollLeft=_btPrevWrap?_btPrevWrap.scrollLeft:0;
   const now=new Date();
   const curMonthKey=String(now.getMonth()+1).padStart(2,'0');
   const nextMonthKey=String((now.getMonth()+1)%12+1).padStart(2,'0');
@@ -6728,7 +6807,7 @@ function renderBudgetTracker(proj){
           const planTot=parseFloat(r.planTotal)||0;
           const rem=planTot-totalActR;
           return`<tr>
-            <td style="font-weight:500">${r.channel}</td>
+            <td style="font-weight:500" title="${(r.channel||'').replace(/"/g,'&quot;')}">${r.channel}</td>
             <td><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:var(--surf2);color:var(--t2);border:1px solid var(--b)">${r.cat||'기타'}</span></td>
             <td style="text-align:right;font-weight:500">${planTot.toLocaleString()}</td>
             <td class="bt-col-rem" style="text-align:right;background:#fff3b0;font-weight:600"><span class="${rem>=0?'bt-diff-pos':'bt-diff-neg'}">${rem>=0?'':'-'}${Math.abs(rem).toLocaleString()}</span></td>
@@ -6788,6 +6867,8 @@ function renderBudgetTracker(proj){
   </div>`;
 
   document.getElementById('bt-content').innerHTML=summaryHtml+tableHtml;
+  const _btNewWrap=document.getElementById('bt-content').querySelector('.bt-table-wrap');
+  if(_btNewWrap)_btNewWrap.scrollLeft=_btSavedScrollLeft;
 }
 function btSelectMonth(m){_btCurMonth=m;const projId=document.getElementById('bt-proj-sel')?.value;const proj=getProj(projId);if(proj)renderBudgetTracker(proj);}
 function btUpdateActual(projId,ri,month,val){const proj=getProj(projId);if(!proj||!proj.budgetRows[ri])return;if(!proj.budgetRows[ri].monthly)proj.budgetRows[ri].monthly={};proj.budgetRows[ri].monthly[month]=parseFloat(val)||0;save();renderBudgetTracker(proj);}
@@ -8477,6 +8558,7 @@ function renameProj(id, name){
   const p = S.projects.find(p=>p.id===id);
   if(!p||!name.trim()) return;
   p.name = name.trim();
+  if(p.plan)p.plan.name=p.name; // 위와 동일한 이유로 동기화
   save();
   refreshProjSelects();
   toast('프로젝트 이름 변경됐어요 ✓');
@@ -8907,6 +8989,12 @@ function normalizeOrgTags(){
   (S.callCustomers||[]).forEach(c=>{
     if(c.status==='상담완료'&&!c.consultReason)c.consultReason='관심없음';
   });
+  // 버그 수정: plan.name은 플랜 생성 당시 프로젝트 이름을 그대로 복사해둔 화면 표시 전용
+  // 값인데, 예전 코드는 프로젝트 이름을 바꿔도 plan.name을 갱신하지 않아 "할일추가" 화면
+  // 헤더에 옛 이름이 남아있던 문제가 있었음. 이제 이름이 바뀌는 지점(위 3곳)에서 즉시
+  // 동기화하고, 이미 어긋나 있는 기존 데이터도 로드 시 프로젝트 이름 기준으로 맞춤(표시
+  // 전용 값이라 안전 — 할일/그룹/예산 등 실제 내용은 전혀 건드리지 않음).
+  (S.projects||[]).forEach(p=>{if(p.plan&&p.plan.name!==p.name)p.plan.name=p.name;});
   // 오늘 부재중으로 기록됐지만 재통화 예정일이 비어있는 건 자동으로 "내일"로 채워서
   // 내일 리스트에 부재중으로 넘어가도록 보정 (재통화 예정일이 이미 있으면 그대로 둠)
   cfCarryMissedCallsToTomorrow();

@@ -466,6 +466,9 @@ input::placeholder,textarea::placeholder{color:var(--t3)}
 .bt-memo-btn{border:none;background:transparent;cursor:pointer;font-size:10px;line-height:1;padding:1px 2px;opacity:.3;flex-shrink:0}
 .bt-memo-btn:hover{opacity:.8}
 .bt-memo-btn.has{opacity:1}
+/* 사용자 요청: 메모가 있는 칸은 표를 훑어볼 때 색으로 바로 눈에 띄게 */
+.bt-table-sheet td.bt-cell-memo{background:rgba(139,92,246,.12)}
+.bt-table-sheet tr:hover td.bt-cell-memo{background:rgba(139,92,246,.2)}
 .bt-memo-preview{font-size:9px;color:#8b5cf6;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:74px;margin-left:auto;text-align:right}
 .bt-memo-preview:hover{text-decoration:underline}
 .bt-bar-cell{min-width:100px}
@@ -6882,7 +6885,7 @@ function renderBudgetTracker(proj){
               const memoText=((r.monthlyMemo||{})[mk]||'').trim();
               const memoTitle=memoText?cfEsc(memoText):'클릭해서 메모 추가';
               const memoPreview=memoText.length>12?memoText.slice(0,12)+'…':memoText;
-              return`<td style="text-align:right">
+              return`<td style="text-align:right"${memoText?' class="bt-cell-memo"':''}>
                 ${manualPlan?`<div style="font-size:9px;color:var(--bl);font-weight:600;min-height:12px;white-space:nowrap">목표 ${manualPlan.toLocaleString()}</div>`:''}
                 <div style="font-size:9px;color:var(--t3);min-height:12px;white-space:nowrap">${(planned&&!v&&!isPastBudgetMonth(mi))?'계획 '+planned.toLocaleString():''}</div>
                 <div style="display:flex;align-items:center;gap:2px;justify-content:flex-end">

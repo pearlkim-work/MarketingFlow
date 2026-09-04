@@ -9581,7 +9581,7 @@ function setCallDashMode(mode){
 // ── 엑셀 템플릿 다운로드 / 업로드 (SheetJS) ──
 function downloadCallTemplate(){
   if(typeof XLSX==='undefined'){alert('엑셀 기능을 불러오는 중이에요. 잠시 후 다시 시도해주세요.');return;}
-  const ws=XLSX.utils.aoa_to_sheet([['이름','연락처','지역','초기신청상품','초기관심상품'],['홍길동','010-1234-5678','부산','유럽 패키지 A','유럽패키지'],['김철수','010-2222-3333','','','']]);
+  const ws=XLSX.utils.aoa_to_sheet([['이름','연락처','지역','초기신청상품','초기관심상품','오늘리스트','1차메모'],['홍길동','010-1234-5678','부산','유럽 패키지 A','유럽패키지','예','7일전 안내 필요, 침대방 희망'],['김철수','010-2222-3333','','','','','']]);
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'고객DB');
   XLSX.writeFile(wb,'콜트래킹_고객DB_템플릿.xlsx');
@@ -9605,6 +9605,9 @@ function handleCallExcelUpload(evt){
         const region=String(r['지역']||r['region']||'').trim();
         const initialProduct=String(r['초기신청상품']||r['초기 신청상품']||'').trim();
         const initialInterestCategory=String(r['초기관심상품']||r['초기 관심상품']||r['1차관심상품']||'').trim();
+        const todayListRaw=String(r['오늘리스트']||r['오늘 리스트']||r['todayList']||'').trim();
+        const isTodayList=['예','y','yes','true','1','o','O'].includes(todayListRaw);
+        const firstCallMemo=String(r['1차메모']||r['1차 메모']||r['메모']||'').trim();
         if(!name&&!phone)return;
         const finalName=name||'<이름없음>';
         const phoneKey=phone.replace(/[^0-9]/g,'');
@@ -9630,15 +9633,16 @@ function handleCallExcelUpload(evt){
         }
         existingPhones.add(phoneKey);
         if(region)cfAddRegionSuggestion(region);
+        const newAttempts=firstCallMemo?[{seq:1,date:cfToday(),result:'재통화예정',memo:firstCallMemo}]:[];
         S.callCustomers.unshift({
           id:Date.now().toString()+Math.random().toString(36).slice(2,6)+i,
           org:_mfUser?.org||'바바그라운드',
           name:finalName,phone,region,initialProduct,
           firstInterestProduct:{category:initialInterestCategory,product:''},
-          currentInterestProduct:{category:'',product:''},
-          currentInterestProducts:[],
-          interestLevel:'',status:'미시도',attempts:[],
-          queued:false,queuedDate:null,nextCallDate:null,nextCallTime:null,assignee:'',
+          currentInterestProduct:{category:initialInterestCategory,product:''},
+          currentInterestProducts:initialInterestCategory?[{category:initialInterestCategory,product:''}]:[],
+          interestLevel:'',status:newAttempts.length?(CF_RESULT_TO_STATUS['재통화예정']||'미시도'):'미시도',attempts:newAttempts,
+          queued:isTodayList,queuedDate:isTodayList?cfToday():null,nextCallDate:null,nextCallTime:null,assignee:'',
           travelDate:'',ticketName:'',headcount:'',paymentPrice:'',
           paymentNoticeSent:false,paymentNoticeDate:null,
           paymentDone:false,paymentDoneDate:null,
@@ -9648,7 +9652,7 @@ function handleCallExcelUpload(evt){
         added++;
       });
       save();renderCallFlow();
-      alert(`${added}명 추가됐어요.${updated?` (${updated}명 정보 업데이트)`:''}${skipped?` (연락처 중복 ${skipped}명 건너뜀)`:''}`);
+      alert(`${added}명 추가됐어요.${updated?` (${updated}명 정보 업데이트)`:''}${skipped?` (연락처 중복 ${skipped}명 건너뜀)`:''}\n(엑셀에 '오늘리스트'를 '예'로 표시한 사람은 오늘 리스트에, '1차메모'를 적은 사람은 1차통화 기록에 자동으로 들어가요.)`);
     }catch(err){alert('엑셀 파일을 읽는 중 오류가 났어요: '+err.message);}
     evt.target.value='';
   };

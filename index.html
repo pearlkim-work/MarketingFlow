@@ -762,6 +762,13 @@ select:focus{border-color:var(--lm);outline:none}
 .cf-prod-cell{display:flex;flex-direction:column;gap:3px;min-width:110px}
 .cf-prod-cell input{padding:4px 6px;font-size:10px}
 .cf-mini-btn{padding:3px 8px;border-radius:var(--rs);border:1px solid var(--b2);background:var(--surf2);color:var(--t2);font-size:10px;cursor:pointer;white-space:nowrap}
+/* 사용자 요청: 우선순위로 지정한 고객은 표에서 색으로 바로 눈에 띄게 (콜전환 탭 한정) */
+#cf-table tr.cf-priority-row td{background:rgba(217,119,6,.10)}
+#cf-table tr.cf-priority-row:hover td{background:rgba(217,119,6,.18)}
+/* 사용자 요청: 콜전환 표의 각 칸(열)을 마우스로 드래그해서 자유롭게 넓히고 좁힐 수 있게 */
+#cf-table thead th{position:relative;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.cf-col-resize-handle{position:absolute;top:0;right:0;width:6px;height:100%;cursor:col-resize;user-select:none;z-index:2}
+.cf-col-resize-handle:hover,.cf-col-resize-handle.resizing{background:rgba(0,0,0,.15)}
 .cf-attempt-note{font-size:10px;color:var(--t3);margin-top:3px;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cf-conv-chip{font-size:10px;color:var(--t2);background:var(--surf2);border-radius:10px;padding:3px 9px;margin-right:6px;display:inline-block}
 </style>
@@ -1382,6 +1389,7 @@ select:focus{border-color:var(--lm);outline:none}
         <button class="btn-ghost" onclick="clearTodayQueue()">🔄 오늘 리스트 초기화</button>
         <button class="btn-ghost" onclick="clearTomorrowQueue()">🔄 내일 리스트 초기화</button>
         <button class="btn-ghost" onclick="openScriptModal()">📋 멘트/스크립트</button>
+        <button class="btn-ghost" onclick="openCfDiaryModal()">📝 일지</button>
         <button class="btn-ghost" onclick="openCallCustModal()">+ 고객 추가</button>
       </div>
     </div>
@@ -1418,12 +1426,14 @@ select:focus{border-color:var(--lm);outline:none}
     <div class="cf-filter-bar" id="cf-queue-subfilter-bar" style="display:none"></div>
 
     <div class="data-table-wrap" style="overflow-x:auto">
-      <table class="data-table" id="cf-table" style="min-width:1930px">
+      <table class="data-table" id="cf-table" style="min-width:2100px;table-layout:fixed">
         <thead><tr>
           <th style="width:40px">오늘<br><input type="checkbox" id="cf-select-all-today" onchange="toggleAllTodayQueue(this.checked)" title="현재 필터에 보이는 고객 전체를 오늘 리스트에 추가/제거"></th>
           <th style="width:40px">내일<br><input type="checkbox" id="cf-select-all-tomorrow" onchange="toggleAllTomorrowQueue(this.checked)" title="현재 필터에 보이는 고객 전체를 내일 리스트에 추가/제거"></th>
+          <th style="width:36px" title="우선순위 — 별을 누르면 오늘/내일 리스트 맨 위로 올라오고, 표에서도 색으로 표시돼요">⭐</th>
           <th>이름</th><th>연락처</th><th style="min-width:70px">지역</th><th style="min-width:150px">시도현황</th><th>관심도</th><th>상태</th>
           <th>초기신청상품</th><th style="min-width:120px">1차 관심상품</th><th style="min-width:120px">현재 관심상품</th>
+          <th style="min-width:120px">추천상품</th>
           <th style="min-width:110px">여행날짜</th><th style="min-width:100px">티켓명</th><th style="min-width:60px">인원</th><th style="min-width:90px">결제가격</th>
           <th style="min-width:90px">담당자</th>
           <th>결제알림완료</th><th>결제완료</th><th></th>
@@ -1448,6 +1458,8 @@ select:focus{border-color:var(--lm);outline:none}
       <option value="중">중</option>
       <option value="하">하</option>
     </select>
+    <input type="text" id="cf-cust-recprod" placeholder="추천상품 (선택)">
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);margin-top:4px"><input type="checkbox" id="cf-cust-priority" style="width:auto">⭐ 우선순위로 등록 (오늘/내일 리스트 맨 위로)</label>
     <div class="modal-btns"><button class="btn-cancel" onclick="closeCallCustModal()">취소</button><button class="btn-confirm" onclick="saveCallCustomer()">저장</button></div>
   </div>
 </div>
@@ -1468,12 +1480,13 @@ select:focus{border-color:var(--lm);outline:none}
     </select>
     <textarea id="cf-log-memo" placeholder="통화 메모" rows="3"></textarea>
     <div id="cf-log-reason-wrap" style="display:none">
-      <div style="font-size:10px;color:var(--t3);margin-bottom:3px">상담완료 사유</div>
-      <select id="cf-log-reason" onchange="cfToggleReasonNote('cf-log')">
-        <option value="관심없음">관심없음</option>
-        <option value="기타">기타(직접 입력)</option>
-      </select>
-      <input type="text" id="cf-log-reason-note" placeholder="기타 사유를 적어주세요" style="display:none;margin-top:6px;width:100%;box-sizing:border-box">
+      <div style="font-size:10px;color:var(--t3);margin-bottom:3px">상담완료 사유 (해당하는 것 모두 선택)</div>
+      <div style="display:flex;flex-direction:column;gap:5px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px"><input type="checkbox" class="cf-log-reason-chk" value="관심없음" style="width:auto">관심없음</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px"><input type="checkbox" class="cf-log-reason-chk" value="올해계획없음" style="width:auto">올해계획없음</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px"><input type="checkbox" class="cf-log-reason-chk" value="강성거부" style="width:auto">강성거부</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px"><input type="checkbox" class="cf-log-reason-chk" value="온라인활용가능" style="width:auto">온라인활용가능</label>
+      </div>
     </div>
     <div>
       <div style="font-size:10px;color:var(--t3);margin-bottom:3px">다음 재통화 예정일시 (선택)</div>
@@ -1532,6 +1545,57 @@ select:focus{border-color:var(--lm);outline:none}
     <div style="font-size:10px;color:var(--t3);margin:10px 0 4px">입력된 날짜</div>
     <div id="cf-labor-list" style="max-height:180px;overflow-y:auto"></div>
     <div class="modal-btns"><div style="flex:1"></div><button class="btn-cancel" onclick="closeLaborCostModal()">닫기</button></div>
+  </div>
+</div>
+
+<!-- 콜 트래킹: 하루 업무 일지 (날짜/이름·전화번호/출근·퇴근시간/오늘 리뷰) -->
+<div class="modal-bg" id="cf-diary-modal-bg" style="display:none" onclick="if(event.target===this)closeCfDiaryModal()">
+  <div class="modal" style="width:660px;max-height:84vh;display:flex;flex-direction:column">
+    <div class="modal-title">📝 하루 업무 일지</div>
+    <div style="display:flex;gap:14px;flex:1;min-height:0">
+      <div style="width:190px;flex-shrink:0;display:flex;flex-direction:column">
+        <button class="btn-ghost" onclick="newCfDiaryForm()" style="margin-bottom:8px">+ 새 일지</button>
+        <div id="cf-diary-list" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:4px"></div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:8px;overflow-y:auto;min-width:0">
+        <div style="display:flex;gap:8px">
+          <div style="flex:1">
+            <div style="font-size:10px;color:var(--t3);margin-bottom:3px">날짜</div>
+            <input type="date" id="cf-diary-date" style="width:100%;box-sizing:border-box">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <div style="flex:1">
+            <div style="font-size:10px;color:var(--t3);margin-bottom:3px">이름</div>
+            <input type="text" id="cf-diary-name" placeholder="이름" style="width:100%;box-sizing:border-box">
+          </div>
+          <div style="flex:1">
+            <div style="font-size:10px;color:var(--t3);margin-bottom:3px">전화번호</div>
+            <input type="text" id="cf-diary-phone" placeholder="전화번호" style="width:100%;box-sizing:border-box">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <div style="flex:1">
+            <div style="font-size:10px;color:var(--t3);margin-bottom:3px">출근시간</div>
+            <input type="time" id="cf-diary-checkin" style="width:100%;box-sizing:border-box">
+          </div>
+          <div style="flex:1">
+            <div style="font-size:10px;color:var(--t3);margin-bottom:3px">퇴근시간</div>
+            <input type="time" id="cf-diary-checkout" style="width:100%;box-sizing:border-box">
+          </div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;min-height:200px">
+          <div style="font-size:10px;color:var(--t3);margin-bottom:3px">오늘 리뷰</div>
+          <textarea id="cf-diary-review" placeholder="오늘 하루 리뷰를 적어주세요" style="flex:1;min-height:200px;resize:vertical;box-sizing:border-box"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="cf-mini-btn" id="cf-diary-del-btn" onclick="delCfDiary()" style="display:none;color:var(--rd)">삭제</button>
+      <div style="flex:1"></div>
+      <button class="btn-cancel" onclick="closeCfDiaryModal()">닫기</button>
+      <button class="btn-confirm" onclick="saveCfDiary()">저장</button>
+    </div>
   </div>
 </div>
 
@@ -2560,7 +2624,7 @@ let S={
   fullCalY:new Date().getFullYear(),fullCalM:new Date().getMonth(),
   selDate:null,planSelDate:null,editAdId:null,editProdId:null,
   prodTypeFilter:'all',calFilter:'all',infFilter:'all',callFilter:'all',callDashMode:'today',callSort:'recent',callCategoryFilter:'',callQueueSubFilter:'all',callRegionFilter:'',callRegionMigV2:false,
-  callCustomers:[],callProdCategories:[],callProdNames:[],callScripts:[],callLaborCostByDate:{},callRegions:[]
+  callCustomers:[],callProdCategories:[],callProdNames:[],callScripts:[],callLaborCostByDate:{},callRegions:[],callDailyLogs:[]
 };
 
 // ── STORAGE ──
@@ -9048,6 +9112,14 @@ function normalizeOrgTags(){
   (S.callCustomers||[]).forEach(c=>{
     if(c.status==='상담완료'&&!c.consultReason)c.consultReason='관심없음';
   });
+  // 사용자 요청: 우선순위 고정 표시, 관리자 추천상품, 상담완료 복수사유(체크박스) 필드 추가.
+  // 전부 새 필드라서 기존 값은 없고 기본값만 채움(기존 consultReason/consultReasonNote 등은 그대로 보존).
+  (S.callCustomers||[]).forEach(c=>{
+    if(typeof c.priority!=='boolean')c.priority=false;
+    if(typeof c.recommendedProduct!=='string')c.recommendedProduct='';
+    if(!Array.isArray(c.consultReasons))c.consultReasons=[];
+  });
+  if(!Array.isArray(S.callDailyLogs))S.callDailyLogs=[];
   // 버그 수정: plan.name은 플랜 생성 당시 프로젝트 이름을 그대로 복사해둔 화면 표시 전용
   // 값인데, 예전 코드는 프로젝트 이름을 바꿔도 plan.name을 갱신하지 않아 "할일추가" 화면
   // 헤더에 옛 이름이 남아있던 문제가 있었음. 이제 이름이 바뀌는 지점(위 3곳)에서 즉시
@@ -9078,6 +9150,14 @@ function cfPriceNum(c){return parseInt(String(c.paymentPrice||'').replace(/[^0-9
 function cfTomorrow(){const d=new Date();d.setDate(d.getDate()+1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 const CF_STATUS_LABELS={'미시도':'미시도','시도중':'시도중','상담완료':'상담완료','예약대기':'예약대기','결제알림완료':'결제알림완료','결제완료':'결제완료','포기':'연락포기'};
 const CF_RESULT_TO_STATUS={'부재중':'시도중','재통화예정':'시도중','통화연결':'시도중','상담완료':'상담완료','예약대기':'예약대기','결제완료':'결제완료','연락처오류':'포기'};
+// 사용자 요청: 상담완료 사유를 여러 개 중복 선택 가능하게(체크박스). 새 필드는 c.consultReasons(배열).
+const CF_CONSULT_REASONS=['관심없음','올해계획없음','강성거부','온라인활용가능'];
+// 예전 데이터(단일 선택, c.consultReason)와의 호환: consultReasons가 있으면 그걸로, 없으면
+// 예전에 '관심없음'으로 기록된 것만 새 '관심없음' 항목과 동일하게 인정(그 외 사유는 예전엔 없었으므로 매칭 안 함).
+function cfHasConsultReason(c,r){
+  if(Array.isArray(c.consultReasons)&&c.consultReasons.length)return c.consultReasons.includes(r);
+  return r==='관심없음'&&c.consultReason==='관심없음';
+}
 
 function cfAddSuggestion(category,product){
   if(!S.callProdCategories)S.callProdCategories=[];
@@ -9212,6 +9292,8 @@ function openCallCustModal(id){
   document.getElementById('cf-cust-region').value=c?(c.region||''):'';
   document.getElementById('cf-cust-initprod').value=c?(c.initialProduct||''):'';
   document.getElementById('cf-cust-interest').value=c?(c.interestLevel||''):'';
+  document.getElementById('cf-cust-recprod').value=c?(c.recommendedProduct||''):'';
+  document.getElementById('cf-cust-priority').checked=c?!!c.priority:false;
   document.getElementById('cf-cust-modal-bg').style.display='flex';
 }
 function closeCallCustModal(){document.getElementById('cf-cust-modal-bg').style.display='none';_cfEditId=null;}
@@ -9223,10 +9305,12 @@ function saveCallCustomer(){
   const region=document.getElementById('cf-cust-region').value.trim();
   const initialProduct=document.getElementById('cf-cust-initprod').value.trim();
   const interestLevel=document.getElementById('cf-cust-interest').value;
+  const recommendedProduct=document.getElementById('cf-cust-recprod').value.trim();
+  const priority=document.getElementById('cf-cust-priority').checked;
   if(region)cfAddRegionSuggestion(region);
   if(_cfEditId){
     const c=S.callCustomers.find(x=>x.id===_cfEditId);
-    if(c){c.name=name;c.phone=phone;c.region=region;c.initialProduct=initialProduct;c.interestLevel=interestLevel;c.updatedAt=Date.now();}
+    if(c){c.name=name;c.phone=phone;c.region=region;c.initialProduct=initialProduct;c.interestLevel=interestLevel;c.recommendedProduct=recommendedProduct;c.priority=priority;c.updatedAt=Date.now();}
   }else{
     S.callCustomers.unshift({
       id:Date.now().toString()+Math.random().toString(36).slice(2,6),
@@ -9240,6 +9324,7 @@ function saveCallCustomer(){
       travelDate:'',ticketName:'',headcount:'',paymentPrice:'',
       paymentNoticeSent:false,paymentNoticeDate:null,
       paymentDone:false,paymentDoneDate:null,
+      priority,recommendedProduct,consultReasons:[],
       createdAt:Date.now(),updatedAt:Date.now()
     });
   }
@@ -9251,6 +9336,12 @@ function delCallCustomer(id){
   save();renderCallFlow();
 }
 
+// ── 우선순위 토글: 켜두면 오늘/내일 리스트에서 맨 위로 올라오고 표에 색으로 표시됨 ──
+function toggleCallPriority(id){
+  const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c)return;
+  c.priority=!c.priority;c.updatedAt=Date.now();
+  save();renderCallFlow();
+}
 // ── 오늘 콜 리스트 토글 ──
 function toggleCallQueue(id){
   const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c)return;
@@ -9436,11 +9527,10 @@ function renderCallHistoryList(c){
         ${CF_RESULT_OPTS.map(r=>`<option value="${r}" ${a.result===r?'selected':''}>${CF_RESULT_OPT_LABELS[r]}</option>`).join('')}
       </select>
       <div id="cf-hist-reason-wrap-${idx}" style="display:${a.result==='상담완료'?'block':'none'};margin-bottom:6px">
-        <select id="cf-hist-reason-${idx}" onchange="updateCallHistoryField('${c.id}',${idx},'reason',this.value);cfToggleHistReasonNote('${c.id}',${idx})" style="font-size:11px;padding:4px 6px">
-          <option value="관심없음" ${(a.reason||'관심없음')==='관심없음'?'selected':''}>관심없음</option>
-          <option value="기타" ${a.reason==='기타'?'selected':''}>기타(직접 입력)</option>
-        </select>
-        <input type="text" id="cf-hist-reason-note-${idx}" value="${(a.reasonNote||'').replace(/"/g,'&quot;')}" onchange="updateCallHistoryField('${c.id}',${idx},'reasonNote',this.value)" placeholder="기타 사유를 적어주세요" style="display:${a.reason==='기타'?'inline-block':'none'};margin-top:6px;width:100%;box-sizing:border-box;font-size:11px;padding:4px 6px">
+        <div style="font-size:10px;color:var(--t3);margin-bottom:3px">상담완료 사유 (해당하는 것 모두 선택)</div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          ${CF_CONSULT_REASONS.map(r=>`<label style="font-size:11px"><input type="checkbox" class="cf-hist-reason-chk" ${cfHasConsultReason({consultReasons:a.reasons,consultReason:a.reason},r)?'checked':''} onchange="toggleCallHistoryReason('${c.id}',${idx},'${r}',this.checked)">${r}</label>`).join('')}
+        </div>
       </div>
       <textarea onchange="updateCallHistoryField('${c.id}',${idx},'memo',this.value)" rows="2" style="width:100%;font-size:11px;box-sizing:border-box" placeholder="통화 메모">${(a.memo||'').replace(/</g,'&lt;')}</textarea>
     </div>
@@ -9451,11 +9541,6 @@ function cfToggleHistReasonWrap(id,idx){
   const wrap=document.getElementById(`cf-hist-reason-wrap-${idx}`);
   if(wrap)wrap.style.display=c.attempts[idx].result==='상담완료'?'block':'none';
 }
-function cfToggleHistReasonNote(id,idx){
-  const sel=document.getElementById(`cf-hist-reason-${idx}`);
-  const note=document.getElementById(`cf-hist-reason-note-${idx}`);
-  if(sel&&note)note.style.display=sel.value==='기타'?'inline-block':'none';
-}
 function updateCallHistoryField(id,idx,field,value){
   const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c||!c.attempts||!c.attempts[idx])return;
   c.attempts[idx][field]=(field==='memo'||field==='reasonNote')?value:value.trim();
@@ -9463,10 +9548,16 @@ function updateCallHistoryField(id,idx,field,value){
     c.status=CF_RESULT_TO_STATUS[value]||c.status;
     if(c.status==='결제완료'){c.paymentDone=true;c.paymentDoneDate=c.paymentDoneDate||cfToday();}
   }
-  if((field==='reason'||field==='reasonNote')&&idx===c.attempts.length-1){
-    c.consultReason=c.attempts[idx].reason||'관심없음';
-    c.consultReasonNote=c.consultReason==='기타'?(c.attempts[idx].reasonNote||''):'';
-  }
+  c.updatedAt=Date.now();save();renderCallFlow();renderCallHistoryList(c);
+}
+// 통화이력 모달에서 상담완료 사유 체크박스를 여러 개 선택할 수 있게 토글하는 함수
+function toggleCallHistoryReason(id,idx,reason,checked){
+  const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c||!c.attempts||!c.attempts[idx])return;
+  const a=c.attempts[idx];
+  if(!Array.isArray(a.reasons))a.reasons=[];
+  if(checked){if(!a.reasons.includes(reason))a.reasons.push(reason);}
+  else{a.reasons=a.reasons.filter(x=>x!==reason);}
+  if(idx===c.attempts.length-1)c.consultReasons=a.reasons.slice();
   c.updatedAt=Date.now();save();renderCallFlow();renderCallHistoryList(c);
 }
 function deleteCallHistoryItem(id,idx){
@@ -9486,6 +9577,80 @@ function saveCallHistoryDates(){
   c.nextCallDate=nextCallDate;
   c.nextCallTime=document.getElementById('cf-history-nexttime').value||null;
   c.updatedAt=Date.now();save();renderCallFlow();closeCallHistoryModal();
+}
+
+// ── 하루 업무 일지: 날짜/이름·전화번호/출근·퇴근시간/오늘 리뷰를 기록하는 CRUD ──
+let _cfDiaryEditId=null;
+function getVisibleCfDiaries(){
+  return visibleByOrg(S.callDailyLogs||[]).slice().sort((a,b)=>{
+    if((a.date||'')!==(b.date||''))return (b.date||'').localeCompare(a.date||'');
+    return (b.createdAt||0)-(a.createdAt||0);
+  });
+}
+function openCfDiaryModal(){
+  const list=getVisibleCfDiaries();
+  if(list.length)editCfDiary(list[0].id);else newCfDiaryForm();
+  document.getElementById('cf-diary-modal-bg').style.display='flex';
+}
+function closeCfDiaryModal(){document.getElementById('cf-diary-modal-bg').style.display='none';_cfDiaryEditId=null;}
+function newCfDiaryForm(){
+  _cfDiaryEditId=null;
+  document.getElementById('cf-diary-date').value=cfToday();
+  document.getElementById('cf-diary-name').value='';
+  document.getElementById('cf-diary-phone').value='';
+  document.getElementById('cf-diary-checkin').value='';
+  document.getElementById('cf-diary-checkout').value='';
+  document.getElementById('cf-diary-review').value='';
+  document.getElementById('cf-diary-del-btn').style.display='none';
+  renderCfDiaryList();
+}
+function renderCfDiaryList(){
+  const wrap=document.getElementById('cf-diary-list');if(!wrap)return;
+  const list=getVisibleCfDiaries();
+  if(!list.length){wrap.innerHTML=`<div style="color:var(--t3);font-size:11px;text-align:center;padding:12px">일지가 없어요</div>`;return;}
+  wrap.innerHTML=list.map(d=>`<div class="cf-mini-btn" style="text-align:left;cursor:pointer;${d.id===_cfDiaryEditId?'border-color:var(--acc);color:var(--acc)':''}" onclick="editCfDiary('${d.id}')">${(d.date||'').replace(/</g,'&lt;')} · ${(d.name||'이름없음').replace(/</g,'&lt;')}</div>`).join('');
+}
+function editCfDiary(id){
+  const d=(S.callDailyLogs||[]).find(x=>x.id===id);if(!d)return;
+  _cfDiaryEditId=id;
+  document.getElementById('cf-diary-date').value=d.date||'';
+  document.getElementById('cf-diary-name').value=d.name||'';
+  document.getElementById('cf-diary-phone').value=d.phone||'';
+  document.getElementById('cf-diary-checkin').value=d.checkIn||'';
+  document.getElementById('cf-diary-checkout').value=d.checkOut||'';
+  document.getElementById('cf-diary-review').value=d.review||'';
+  document.getElementById('cf-diary-del-btn').style.display='inline-block';
+  renderCfDiaryList();
+}
+function saveCfDiary(){
+  const date=document.getElementById('cf-diary-date').value||cfToday();
+  const name=document.getElementById('cf-diary-name').value.trim();
+  const phone=document.getElementById('cf-diary-phone').value.trim();
+  const checkIn=document.getElementById('cf-diary-checkin').value;
+  const checkOut=document.getElementById('cf-diary-checkout').value;
+  const review=document.getElementById('cf-diary-review').value;
+  if(!S.callDailyLogs)S.callDailyLogs=[];
+  if(_cfDiaryEditId&&(S.callDailyLogs||[]).some(x=>x.id===_cfDiaryEditId)){
+    const d=S.callDailyLogs.find(x=>x.id===_cfDiaryEditId);
+    d.date=date;d.name=name;d.phone=phone;d.checkIn=checkIn;d.checkOut=checkOut;d.review=review;d.updatedAt=Date.now();
+  }else{
+    const newId=Date.now().toString()+Math.random().toString(36).slice(2,6);
+    S.callDailyLogs.unshift({
+      id:newId,org:_mfUser?.org||'바바그라운드',date,name,phone,checkIn,checkOut,review,
+      createdBy:_mfUser?.name||'',createdAt:Date.now(),updatedAt:Date.now()
+    });
+    _cfDiaryEditId=newId;
+  }
+  save();renderCfDiaryList();
+  alert('일지가 저장됐어요.');
+}
+function delCfDiary(){
+  if(!_cfDiaryEditId)return;
+  if(!confirm('이 일지를 삭제할까요? (되돌릴 수 없어요)'))return;
+  S.callDailyLogs=(S.callDailyLogs||[]).filter(x=>x.id!==_cfDiaryEditId);
+  save();
+  const list=getVisibleCfDiaries();
+  if(list.length)editCfDiary(list[0].id);else newCfDiaryForm();
 }
 
 // ── 결제알림/결제완료 체크 (예약대기·결제완료 상태에서만 표시) ──
@@ -9519,9 +9684,8 @@ function openCallLogModal(id){
   document.getElementById('cf-log-seq-lbl').textContent=`${(c.attempts||[]).length+1}차 시도 기록`;
   document.getElementById('cf-log-result').value='부재중';
   document.getElementById('cf-log-memo').value='';
-  document.getElementById('cf-log-reason').value='관심없음';
-  document.getElementById('cf-log-reason-note').value='';
-  cfToggleReasonWrap('cf-log');cfToggleReasonNote('cf-log');
+  document.querySelectorAll('#cf-log-reason-wrap .cf-log-reason-chk').forEach(chk=>{chk.checked=false;});
+  cfToggleReasonWrap('cf-log');
   document.getElementById('cf-log-nextdate').value=c.nextCallDate||'';
   document.getElementById('cf-log-nexttime').value=c.nextCallTime||'';
   const _cip0=(c.currentInterestProducts&&c.currentInterestProducts[0])||c.currentInterestProduct||{};
@@ -9542,12 +9706,9 @@ function saveCallLog(){
   if(!c.attempts)c.attempts=[];
   const newAttempt={seq:c.attempts.length+1,date:cfToday(),result,memo};
   if(result==='상담완료'){
-    const reason=document.getElementById('cf-log-reason').value;
-    const reasonNote=document.getElementById('cf-log-reason-note').value.trim();
-    newAttempt.reason=reason;
-    newAttempt.reasonNote=reason==='기타'?reasonNote:'';
-    c.consultReason=reason;
-    c.consultReasonNote=reason==='기타'?reasonNote:'';
+    const reasons=[...document.querySelectorAll('#cf-log-reason-wrap .cf-log-reason-chk:checked')].map(chk=>chk.value);
+    newAttempt.reasons=reasons;
+    c.consultReasons=reasons;
   }
   c.attempts.push(newAttempt);
   c.nextCallDate=nextCallDate;
@@ -9581,7 +9742,7 @@ function setCallDashMode(mode){
 // ── 엑셀 템플릿 다운로드 / 업로드 (SheetJS) ──
 function downloadCallTemplate(){
   if(typeof XLSX==='undefined'){alert('엑셀 기능을 불러오는 중이에요. 잠시 후 다시 시도해주세요.');return;}
-  const ws=XLSX.utils.aoa_to_sheet([['이름','연락처','지역','초기신청상품','초기관심상품','오늘리스트','1차메모'],['홍길동','010-1234-5678','부산','유럽 패키지 A','유럽패키지','예','7일전 안내 필요, 침대방 희망'],['김철수','010-2222-3333','','','','','']]);
+  const ws=XLSX.utils.aoa_to_sheet([['이름','연락처','지역','초기신청상품','초기관심상품','오늘리스트','1차메모','우선순위','추천상품'],['홍길동','010-1234-5678','부산','유럽 패키지 A','유럽패키지','예','7일전 안내 필요, 침대방 희망','예','유럽 패키지 프리미엄'],['김철수','010-2222-3333','','','','','','','']]);
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'고객DB');
   XLSX.writeFile(wb,'콜트래킹_고객DB_템플릿.xlsx');
@@ -9608,6 +9769,9 @@ function handleCallExcelUpload(evt){
         const todayListRaw=String(r['오늘리스트']||r['오늘 리스트']||r['todayList']||'').trim();
         const isTodayList=['예','y','yes','true','1','o','O'].includes(todayListRaw);
         const firstCallMemo=String(r['1차메모']||r['1차 메모']||r['메모']||'').trim();
+        const priorityRaw=String(r['우선순위']||r['priority']||'').trim();
+        const isPriority=['예','y','yes','true','1','o','O'].includes(priorityRaw);
+        const recommendedProduct=String(r['추천상품']||r['recommendedProduct']||'').trim();
         if(!name&&!phone)return;
         const finalName=name||'<이름없음>';
         const phoneKey=phone.replace(/[^0-9]/g,'');
@@ -9623,6 +9787,8 @@ function handleCallExcelUpload(evt){
                 existing.firstInterestProduct.category=initialInterestCategory;
                 cfAddSuggestion(initialInterestCategory,'');
               }
+              if(recommendedProduct)existing.recommendedProduct=recommendedProduct;
+              if(priorityRaw)existing.priority=isPriority;
               existing.updatedAt=Date.now();
               updated++;
             }
@@ -9646,13 +9812,14 @@ function handleCallExcelUpload(evt){
           travelDate:'',ticketName:'',headcount:'',paymentPrice:'',
           paymentNoticeSent:false,paymentNoticeDate:null,
           paymentDone:false,paymentDoneDate:null,
+          priority:isPriority,recommendedProduct,consultReasons:[],
           createdAt:Date.now(),updatedAt:Date.now()
         });
         if(initialInterestCategory)cfAddSuggestion(initialInterestCategory,'');
         added++;
       });
       save();renderCallFlow();
-      alert(`${added}명 추가됐어요.${updated?` (${updated}명 정보 업데이트)`:''}${skipped?` (연락처 중복 ${skipped}명 건너뜀)`:''}\n(엑셀에 '오늘리스트'를 '예'로 표시한 사람은 오늘 리스트에, '1차메모'를 적은 사람은 1차통화 기록에 자동으로 들어가요.)`);
+      alert(`${added}명 추가됐어요.${updated?` (${updated}명 정보 업데이트)`:''}${skipped?` (연락처 중복 ${skipped}명 건너뜀)`:''}\n(엑셀에 '오늘리스트'를 '예'로 표시한 사람은 오늘 리스트에, '1차메모'를 적은 사람은 1차통화 기록에, '우선순위'를 '예'로 표시한 사람은 우선순위로, '추천상품'을 적은 사람은 추천상품 칸에 자동으로 들어가요.)`);
     }catch(err){alert('엑셀 파일을 읽는 중 오류가 났어요: '+err.message);}
     evt.target.value='';
   };
@@ -9666,8 +9833,10 @@ function cfStatusPredicate(c,sub){
   if(!sub||sub==='all')return true;
   if(sub==='called')return (c.attempts||[]).length>0;
   if(sub==='부재중_last'){const a=c.attempts||[];return !!(a.length&&a[a.length-1].result==='부재중');}
-  if(sub==='상담완료_관심없음')return c.status==='상담완료'&&(c.consultReason||'관심없음')!=='기타';
-  if(sub==='상담완료_기타')return c.status==='상담완료'&&c.consultReason==='기타';
+  if(sub==='상담완료_관심없음')return c.status==='상담완료'&&cfHasConsultReason(c,'관심없음');
+  if(sub==='상담완료_올해계획없음')return c.status==='상담완료'&&cfHasConsultReason(c,'올해계획없음');
+  if(sub==='상담완료_강성거부')return c.status==='상담완료'&&cfHasConsultReason(c,'강성거부');
+  if(sub==='상담완료_온라인활용가능')return c.status==='상담완료'&&cfHasConsultReason(c,'온라인활용가능');
   return c.status===sub;
 }
 function cfApplyStatusFilter(list,sub){
@@ -9706,7 +9875,9 @@ const CF_TOP_FILTERS=[
   {key:'미시도',label:'미시도'},
   {key:'시도중',label:'시도중'},
   {key:'상담완료_관심없음',label:'상담완료(관심없음)'},
-  {key:'상담완료_기타',label:'상담완료(기타사유)'},
+  {key:'상담완료_올해계획없음',label:'상담완료(올해계획없음)'},
+  {key:'상담완료_강성거부',label:'상담완료(강성거부)'},
+  {key:'상담완료_온라인활용가능',label:'상담완료(온라인활용가능)'},
   {key:'예약대기',label:'예약대기'},
   {key:'결제알림완료',label:'결제알림완료'},
   {key:'결제완료',label:'결제완료'},
@@ -9738,7 +9909,9 @@ const CF_QUEUE_SUBFILTERS=[
   {key:'미시도',label:'미시도'},
   {key:'시도중',label:'시도중'},
   {key:'상담완료_관심없음',label:'상담완료(관심없음)'},
-  {key:'상담완료_기타',label:'상담완료(기타사유)'},
+  {key:'상담완료_올해계획없음',label:'상담완료(올해계획없음)'},
+  {key:'상담완료_강성거부',label:'상담완료(강성거부)'},
+  {key:'상담완료_온라인활용가능',label:'상담완료(온라인활용가능)'},
   {key:'예약대기',label:'예약대기'},
   {key:'결제알림완료',label:'결제알림완료'},
   {key:'결제완료',label:'결제완료'},
@@ -9804,7 +9977,11 @@ function cfPrioritizeScheduled(list,targetDate){
   const scheduled=list.filter(c=>c.nextCallDate===targetDate&&c.nextCallTime);
   scheduled.sort((a,b)=>(a.nextCallTime||'').localeCompare(b.nextCallTime||''));
   const rest=list.filter(c=>!(c.nextCallDate===targetDate&&c.nextCallTime));
-  return [...scheduled,...rest];
+  const merged=[...scheduled,...rest];
+  // 사용자 요청: 우선순위로 지정한 사람은 예약된 재통화 시간이 있어도 항상 맨 위에 오도록
+  const pri=merged.filter(c=>c.priority);
+  const nonPri=merged.filter(c=>!c.priority);
+  return [...pri,...nonPri];
 }
 function setCfCategoryFilter(value){
   S.callCategoryFilter=value;save();renderCallFlow();
@@ -9890,6 +10067,44 @@ function downloadCallCSV(){
 }
 
 // ── 렌더: 목록 테이블 ──
+// 사용자 요청: 콜전환 표의 각 칸(열)을 마우스로 드래그해서 자유롭게 넓히고 좁힐 수 있게.
+// thead는 정적 HTML이라 한 번만 실행하면 되고(테이블 재생성 안 됨), tbody만 매 렌더마다 바뀌므로
+// renderCallFlow() 안에서 매번 호출해도 안전하도록 table._cfResizeInit 플래그로 중복 바인딩을 막음.
+function initCfColResize(){
+  const table=document.getElementById('cf-table');
+  if(!table||table._cfResizeInit)return;
+  table._cfResizeInit=true;
+  const ths=[...table.querySelectorAll('thead th')];
+  let saved={};
+  try{saved=JSON.parse(localStorage.getItem('cf-col-widths')||'{}');}catch(e){saved={};}
+  ths.forEach((th,i)=>{
+    if(saved[i])th.style.width=saved[i]+'px';
+    const handle=document.createElement('span');
+    handle.className='cf-col-resize-handle';
+    th.appendChild(handle);
+    let startX=0,startW=0;
+    function cfColOnMove(e){
+      const dx=e.clientX-startX;
+      th.style.width=Math.max(30,startW+dx)+'px';
+    }
+    function cfColOnUp(){
+      handle.classList.remove('resizing');
+      document.removeEventListener('mousemove',cfColOnMove);
+      document.removeEventListener('mouseup',cfColOnUp);
+      let widths={};
+      try{widths=JSON.parse(localStorage.getItem('cf-col-widths')||'{}');}catch(e){widths={};}
+      widths[i]=th.getBoundingClientRect().width;
+      try{localStorage.setItem('cf-col-widths',JSON.stringify(widths));}catch(e){}
+    }
+    handle.addEventListener('mousedown',function(e){
+      e.preventDefault();e.stopPropagation();
+      startX=e.clientX;startW=th.getBoundingClientRect().width;
+      handle.classList.add('resizing');
+      document.addEventListener('mousemove',cfColOnMove);
+      document.addEventListener('mouseup',cfColOnUp);
+    });
+  });
+}
 function renderCallFlow(){
   cfRenderDatalists();
   renderCallDashboard();
@@ -9918,9 +10133,10 @@ function renderCallFlow(){
   const queueTargetForFilter=S.callFilter==='queued_tomorrow'?'tomorrow':(S.callFilter==='queued'?'today':null);
   if(!list.length){
     const addBtnEmpty=queueTargetForFilter?`<div style="margin-top:10px"><button class="btn-ghost" onclick="openAddQueueModal('${queueTargetForFilter}')">+ ${queueTargetForFilter==='tomorrow'?'내일':'오늘'} 리스트에 추가하기</button></div>`:'';
-    tb.innerHTML=`<tr><td colspan="19" style="text-align:center;padding:32px;color:var(--t3)">표시할 고객이 없어요${addBtnEmpty}</td></tr>`;
+    tb.innerHTML=`<tr><td colspan="21" style="text-align:center;padding:32px;color:var(--t3)">표시할 고객이 없어요${addBtnEmpty}</td></tr>`;
     if(selAllEl0){selAllEl0.checked=false;selAllEl0.indeterminate=false;}
     if(selAllElTom0){selAllElTom0.checked=false;selAllElTom0.indeterminate=false;}
+    initCfColResize();
     return;
   }
   tb.innerHTML=list.map(c=>{
@@ -9929,9 +10145,10 @@ function renderCallFlow(){
     const fip=c.firstInterestProduct||{};
     const cips=Array.isArray(c.currentInterestProducts)?c.currentInterestProducts:(c.currentInterestProduct&&(c.currentInterestProduct.category||c.currentInterestProduct.product)?[c.currentInterestProduct]:[]);
     const payable=(c.status==='예약대기'||c.status==='결제알림완료'||c.status==='결제완료');
-    return `<tr>
+    return `<tr class="${c.priority?'cf-priority-row':''}">
       <td style="text-align:center"><input type="checkbox" ${c.queued&&c.queuedDate===today?'checked':''} onchange="toggleCallQueue('${c.id}')"></td>
       <td style="text-align:center"><input type="checkbox" ${c.queued&&c.queuedDate===tomorrow?'checked':''} onchange="toggleCallQueueTomorrow('${c.id}')" title="내일 리스트에 넣기 (미리 준비해두면 내일 담당자가 바로 볼 수 있어요)"></td>
+      <td style="text-align:center"><button type="button" class="cf-mini-btn" style="padding:2px 6px;font-size:13px" onclick="toggleCallPriority('${c.id}')" title="${c.priority?'우선순위 해제':'우선순위로 지정 (오늘/내일 리스트 맨 위로)'}">${c.priority?'⭐':'☆'}</button></td>
       <td style="font-weight:600;white-space:nowrap;cursor:pointer;text-decoration:underline" onclick="openCallHistoryModal('${c.id}')" title="클릭하면 1차부터의 전체 통화이력을 보고 바로 수정할 수 있어요">${c.name}</td>
       <td style="white-space:nowrap">${c.phone}</td>
       <td><input type="text" list="cf-region-list" value="${cfEsc(c.region||'')}" placeholder="지역" onchange="updateCallField('${c.id}','region',this.value);cfAddRegionSuggestion(this.value)" style="width:64px;font-size:11px"></td>
@@ -9955,7 +10172,7 @@ function renderCallFlow(){
         <select onchange="updateCallField('${c.id}','status',this.value)" class="cf-badge ${c.status}" style="font-size:10px;padding:3px 6px;border-radius:10px">
           ${Object.keys(CF_STATUS_LABELS).map(k=>`<option value="${k}" ${c.status===k?'selected':''}>${CF_STATUS_LABELS[k]}</option>`).join('')}
         </select>
-        ${c.status==='상담완료'?`<div style="font-size:9px;color:var(--t3);margin-top:2px">${c.consultReason==='기타'?('기타: '+((c.consultReasonNote||'').slice(0,20))):'관심없음'}</div>`:''}
+        ${c.status==='상담완료'?`<div style="font-size:9px;color:var(--t3);margin-top:2px">${(Array.isArray(c.consultReasons)&&c.consultReasons.length)?cfEsc(c.consultReasons.join(', ')):(c.consultReason==='기타'?('기타: '+((c.consultReasonNote||'').slice(0,20))):(c.consultReason||'관심없음'))}</div>`:''}
       </td>
       <td><input type="text" value="${(c.initialProduct||'').replace(/"/g,'&quot;')}" onchange="updateCallInitProduct('${c.id}',this.value)" style="font-size:11px;padding:4px 6px;min-width:100px"></td>
       <td>
@@ -9973,6 +10190,7 @@ function renderCallFlow(){
         </div>`).join('')}
         <button type="button" class="cf-mini-btn" onclick="addCurrentInterestProduct('${c.id}')" style="font-size:10px">+ 관심상품 추가</button>
       </td>
+      <td><input type="text" placeholder="추천상품" value="${cfEsc(c.recommendedProduct||'')}" onchange="updateCallField('${c.id}','recommendedProduct',this.value)" style="font-size:11px;padding:4px 6px;min-width:110px"></td>
       <td><input type="date" value="${c.travelDate||''}" onchange="updateCallField('${c.id}','travelDate',this.value)" style="font-size:11px;padding:4px 6px;min-width:110px"></td>
       <td><input type="text" placeholder="티켓명" value="${(c.ticketName||'').replace(/"/g,'&quot;')}" onchange="updateCallField('${c.id}','ticketName',this.value)" style="font-size:11px;padding:4px 6px;min-width:90px"></td>
       <td><input type="text" inputmode="numeric" placeholder="인원" value="${String(c.headcount||'').replace(/"/g,'&quot;')}" onchange="updateCallField('${c.id}','headcount',this.value)" style="font-size:11px;padding:4px 6px;min-width:44px;text-align:right"></td>
@@ -9984,7 +10202,7 @@ function renderCallFlow(){
     </tr>`;
   }).join('');
   if(queueTargetForFilter){
-    tb.innerHTML+=`<tr><td colspan="19" style="text-align:center;padding:14px"><button class="btn-ghost" onclick="openAddQueueModal('${queueTargetForFilter}')">+ ${queueTargetForFilter==='tomorrow'?'내일':'오늘'} 리스트에 추가하기</button></td></tr>`;
+    tb.innerHTML+=`<tr><td colspan="21" style="text-align:center;padding:14px"><button class="btn-ghost" onclick="openAddQueueModal('${queueTargetForFilter}')">+ ${queueTargetForFilter==='tomorrow'?'내일':'오늘'} 리스트에 추가하기</button></td></tr>`;
   }
   const selAllEl=document.getElementById('cf-select-all-today');
   if(selAllEl){
@@ -9998,6 +10216,7 @@ function renderCallFlow(){
     selAllElTom.checked=queuedTomCount===list.length;
     selAllElTom.indeterminate=queuedTomCount>0&&queuedTomCount<list.length;
   }
+  initCfColResize();
 }
 
 // ── 렌더: 상단 대시보드(오늘/전체) + 퍼널 ──
@@ -10246,20 +10465,21 @@ function renderReasonBreakdown(all){
   if(!el)return;
   const done=all.filter(c=>c.status==='상담완료');
   if(!done.length){el.innerHTML='';return;}
-  const etc=done.filter(c=>c.consultReason==='기타');
-  const notInterested=done.length-etc.length;
   const pct=n=>done.length?Math.round(n/done.length*100):0;
+  const counts=CF_CONSULT_REASONS.map(r=>({r,n:done.filter(c=>cfHasConsultReason(c,r)).length}));
+  // 구버전(마이그레이션 전) 데이터: consultReasons 배열이 없고 '기타' 자유입력으로만 기록된 경우 — 4가지 고정사유 어디에도 안 잡히므로 참고용으로 별도 표시
+  const legacyEtc=done.filter(c=>!(Array.isArray(c.consultReasons)&&c.consultReasons.length)&&c.consultReason==='기타');
   el.innerHTML=`<div style="font-size:11px;font-weight:700;color:var(--t2);margin:14px 0 6px">상담완료 사유 분석 (${done.length}명)</div>
-  <div style="display:flex;gap:16px;margin-bottom:8px;font-size:12px">
-    <span>😐 관심없음 ${notInterested}명 (${pct(notInterested)}%)</span>
-    <span>📝 기타 ${etc.length}명 (${pct(etc.length)}%)</span>
+  <div style="display:flex;gap:16px;margin-bottom:8px;font-size:12px;flex-wrap:wrap">
+    ${counts.map(x=>`<span>${x.r} ${x.n}명 (${pct(x.n)}%)</span>`).join('')}
+    ${legacyEtc.length?`<span>📝 기타(구버전) ${legacyEtc.length}명 (${pct(legacyEtc.length)}%)</span>`:''}
   </div>
-  ${etc.length?`<div style="max-height:160px;overflow-y:auto;border:1px solid var(--b);border-radius:var(--rs)">
+  ${legacyEtc.length?`<div style="max-height:160px;overflow-y:auto;border:1px solid var(--b);border-radius:var(--rs)">
     <table style="width:100%;border-collapse:collapse;font-size:11px">
-      <thead><tr style="background:var(--surf2)"><th style="padding:5px 8px;text-align:left;font-size:10px;color:var(--t3)">고객</th><th style="padding:5px 8px;text-align:left;font-size:10px;color:var(--t3)">기타 사유 내용</th></tr></thead>
-      <tbody>${etc.map(c=>`<tr style="border-bottom:1px solid var(--b)"><td style="padding:5px 8px;white-space:nowrap">${c.name}</td><td style="padding:5px 8px">${(c.consultReasonNote||'').replace(/</g,'&lt;')}</td></tr>`).join('')}</tbody>
+      <thead><tr style="background:var(--surf2)"><th style="padding:5px 8px;text-align:left;font-size:10px;color:var(--t3)">고객</th><th style="padding:5px 8px;text-align:left;font-size:10px;color:var(--t3)">기타 사유 내용(구버전)</th></tr></thead>
+      <tbody>${legacyEtc.map(c=>`<tr style="border-bottom:1px solid var(--b)"><td style="padding:5px 8px;white-space:nowrap">${c.name}</td><td style="padding:5px 8px">${(c.consultReasonNote||'').replace(/</g,'&lt;')}</td></tr>`).join('')}</tbody>
     </table>
-  </div><div style="font-size:10px;color:var(--t3);margin-top:4px">※ 스크립트 개선 참고용</div>`:''}`;
+  </div><div style="font-size:10px;color:var(--t3);margin-top:4px">※ 구버전 데이터(마이그레이션 전 '기타' 자유입력) — 참고용</div>`:''}`;
 }
 // ── 일자별 추이 (최근 14일: 시도/상담완료/예약전환/결제완료/매출) ──
 // 계속 쌓이면 대시보드가 길어지므로 기본은 접어두고, 제목을 클릭하면 펼쳐서 보여줌
@@ -10513,7 +10733,8 @@ async function supaLoad(){
         utmEntries: d.utmEntries||[],
         personalNotes: d.personalNotes||{},
         mtgFolders: d.mtgFolders||[],
-        callLaborCostByDate: d.callLaborCostByDate||{}
+        callLaborCostByDate: d.callLaborCostByDate||{},
+        callDailyLogs: d.callDailyLogs||[]
       });
       normalizeProjectsData();normalizePersonalNotes();normalizeOrgTags();
       console.log('☁️ Supabase 로드 완료');
@@ -10553,7 +10774,9 @@ async function supaSyncInner(){
         revEntries: S.revEntries||[],
         utmEntries: S.utmEntries||[],
         personalNotes: S.personalNotes||{},
-        mtgFolders: S.mtgFolders||[]
+        mtgFolders: S.mtgFolders||[],
+        callLaborCostByDate: S.callLaborCostByDate||{},
+        callDailyLogs: S.callDailyLogs||[]
       },
       updated_at: new Date().toISOString()
     };

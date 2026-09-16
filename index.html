@@ -1473,7 +1473,10 @@ select:focus{border-color:var(--lm);outline:none}
       <option value="부재중">부재중</option>
       <option value="재통화예정">재통화예정</option>
       <option value="통화연결">통화연결(상담중)</option>
-      <option value="상담완료">상담완료</option>
+      <option value="상담완료|관심없음">상담완료(관심없음)</option>
+      <option value="상담완료|올해계획없음">상담완료(올해계획없음)</option>
+      <option value="상담완료|강성거부">상담완료(강성거부)</option>
+      <option value="상담완료|온라인활용가능">상담완료(온라인활용가능)</option>
       <option value="예약대기">예약대기 전환</option>
       <option value="결제완료">결제완료</option>
       <option value="연락처오류">연락처 오류/연락두절(포기)</option>
@@ -9158,6 +9161,8 @@ function cfHasConsultReason(c,r){
   if(Array.isArray(c.consultReasons)&&c.consultReasons.length)return c.consultReasons.includes(r);
   return r==='관심없음'&&c.consultReason==='관심없음';
 }
+// 사용자 요청: 상담완료뿐 아니라 연락포기처럼 "더 이상 통화 안 해도 되는" 상태도 오늘/내일 기본 리스트에서 자동으로 빠지게
+const CF_TERMINAL_STATUSES=['상담완료','포기'];
 
 function cfAddSuggestion(category,product){
   if(!S.callProdCategories)S.callProdCategories=[];
@@ -9397,13 +9402,34 @@ function updateCallField(id,field,value){
     if(value==='결제알림완료'){c.paymentNoticeSent=true;c.paymentNoticeDate=c.paymentNoticeDate||cfToday();}
     else if(value==='결제완료'){c.paymentNoticeSent=true;c.paymentNoticeDate=c.paymentNoticeDate||cfToday();c.paymentDone=true;c.paymentDoneDate=c.paymentDoneDate||cfToday();}
     else if(value==='예약대기'){c.paymentNoticeSent=false;c.paymentNoticeDate=null;c.paymentDone=false;c.paymentDoneDate=null;}
-    // 사용자 요청: 상담완료로 표시하면 재통화 예정은 더 이상 필요 없으므로 정리.
-    // (c.queued/queuedDate는 남겨둠 — 그래야 오늘/내일 리스트의 '상담완료(사유별)' 하위칩으로
-    //  그날 완료 처리한 사람을 계속 조회할 수 있고, 기본 목록에서 숨기는 건 상태값 필터링으로 처리함)
-    else if(value==='상담완료'){c.nextCallDate=null;c.nextCallTime=null;}
+    // 사용자 요청: 상담완료/연락포기처럼 더 이상 통화가 필요 없는 상태로 바뀌면 재통화 예정을 정리.
+    // (c.queued/queuedDate는 남겨둠 — 그래야 오늘/내일 리스트의 하위칩으로 그날 처리한 사람을
+    //  계속 조회할 수 있고, 기본 목록에서 숨기는 건 상태값 필터링으로 처리함)
+    else if(CF_TERMINAL_STATUSES.includes(value)){c.nextCallDate=null;c.nextCallTime=null;}
   }
   save();
   if(field==='status')renderCallFlow();
+}
+// 사용자 요청: 표의 상태 드롭다운에서 "상담완료(관심없음)" 처럼 사유가 붙은 옵션을 바로 클릭하면
+// 한 번에 상담완료 처리 + 그 사유 추가가 되도록. 그 외 일반 상태값은 기존과 동일하게 처리.
+function cfSetStatusReason(id,val){
+  const sep=val.indexOf('|');
+  if(sep>=0){
+    const reason=val.slice(sep+1);
+    updateCallField(id,'status','상담완료');
+    cfAddConsultReason(id,reason);
+  }else{
+    updateCallField(id,'status',val);
+  }
+}
+// 상담완료 사유를 하나 추가(이미 있으면 무시) — 드롭다운에서 바로 클릭했을 때 사용, 마지막 통화기록에도 동기화
+function cfAddConsultReason(id,reason){
+  const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c)return;
+  if(!Array.isArray(c.consultReasons))c.consultReasons=[];
+  if(!c.consultReasons.includes(reason))c.consultReasons.push(reason);
+  const attempts=c.attempts||[];
+  if(attempts.length&&attempts[attempts.length-1].result==='상담완료')attempts[attempts.length-1].reasons=c.consultReasons.slice();
+  c.updatedAt=Date.now();save();renderCallFlow();
 }
 // 표에서 바로 상담완료 사유를 체크/해제 — 마지막 통화기록에도 함께 반영해서 통화이력 모달과 일관되게 유지
 function toggleCallRowReason(id,reason,checked){
@@ -9434,7 +9460,15 @@ function cfToggleReasonWrap(prefix){
   const resultEl=document.getElementById(prefix+'-result');
   const wrap=document.getElementById(prefix+'-reason-wrap');
   if(!resultEl||!wrap)return;
-  wrap.style.display=resultEl.value==='상담완료'?'block':'none';
+  const raw=resultEl.value;
+  const sep=raw.indexOf('|');
+  const isDone=raw==='상담완료'||sep>=0;
+  wrap.style.display=isDone?'block':'none';
+  if(sep>=0){
+    const reason=raw.slice(sep+1);
+    const chk=wrap.querySelector(`.${prefix}-reason-chk[value="${reason}"]`);
+    if(chk)chk.checked=true;
+  }
 }
 function cfToggleReasonNote(prefix){
   const reasonEl=document.getElementById(prefix+'-reason');
@@ -9713,7 +9747,10 @@ function openCallLogModal(id){
 function closeCallLogModal(){document.getElementById('cf-log-modal-bg').style.display='none';_cfLogId=null;}
 function saveCallLog(){
   const c=(S.callCustomers||[]).find(x=>x.id===_cfLogId);if(!c)return;
-  const result=document.getElementById('cf-log-result').value;
+  const rawResult=document.getElementById('cf-log-result').value;
+  const resultSep=rawResult.indexOf('|');
+  const quickReason=resultSep>=0?rawResult.slice(resultSep+1):null;
+  const result=resultSep>=0?'상담완료':rawResult;
   const memo=document.getElementById('cf-log-memo').value.trim();
   const category=document.getElementById('cf-log-category').value.trim();
   const product=document.getElementById('cf-log-product').value.trim();
@@ -9723,6 +9760,7 @@ function saveCallLog(){
   const newAttempt={seq:c.attempts.length+1,date:cfToday(),result,memo};
   if(result==='상담완료'){
     const reasons=[...document.querySelectorAll('#cf-log-reason-wrap .cf-log-reason-chk:checked')].map(chk=>chk.value);
+    if(quickReason&&!reasons.includes(quickReason))reasons.push(quickReason);
     newAttempt.reasons=reasons;
     c.consultReasons=reasons;
   }
@@ -9738,8 +9776,8 @@ function saveCallLog(){
   }
   c.status=CF_RESULT_TO_STATUS[result]||c.status;
   if(c.status==='결제완료'){c.paymentDone=true;c.paymentDoneDate=cfToday();}
-  // 사용자 요청: 상담완료로 기록하면 재통화 예정은 더 이상 필요 없으므로 정리 (큐 소속 자체는 유지 — 위 설명 참고)
-  if(c.status==='상담완료'){c.nextCallDate=null;c.nextCallTime=null;}
+  // 사용자 요청: 상담완료/연락포기로 기록하면 재통화 예정은 더 이상 필요 없으므로 정리 (큐 소속 자체는 유지 — 위 설명 참고)
+  if(CF_TERMINAL_STATUSES.includes(c.status)){c.nextCallDate=null;c.nextCallTime=null;}
   c.updatedAt=Date.now();
   save();closeCallLogModal();renderCallFlow();
 }
@@ -9902,10 +9940,10 @@ const CF_TOP_FILTERS=[
   {key:'포기',label:'연락포기'}
 ];
 function cfCountForTopFilter(key,all,today,tomorrow){
-  if(key==='all')return all.filter(c=>c.status!=='상담완료').length;
-  if(key==='queued')return all.filter(c=>cfInQueueForDate(c,today)&&c.status!=='상담완료').length;
-  if(key==='queued_tomorrow')return all.filter(c=>cfInQueueForDate(c,tomorrow)&&c.status!=='상담완료').length;
-  if(key==='unassigned')return all.filter(c=>!(cfInQueueForDate(c,today)||cfInQueueForDate(c,tomorrow))&&c.status!=='상담완료').length;
+  if(key==='all')return all.filter(c=>!CF_TERMINAL_STATUSES.includes(c.status)).length;
+  if(key==='queued')return all.filter(c=>cfInQueueForDate(c,today)&&!CF_TERMINAL_STATUSES.includes(c.status)).length;
+  if(key==='queued_tomorrow')return all.filter(c=>cfInQueueForDate(c,tomorrow)&&!CF_TERMINAL_STATUSES.includes(c.status)).length;
+  if(key==='unassigned')return all.filter(c=>!(cfInQueueForDate(c,today)||cfInQueueForDate(c,tomorrow))&&!CF_TERMINAL_STATUSES.includes(c.status)).length;
   return cfApplyStatusFilter(all,key).length;
 }
 // ── 상단 필터 칩들을 인원수와 함께 매번 다시 그림 ──
@@ -9945,7 +9983,7 @@ function renderQueueSubFilterBar(){
   const base=cfGetQueueBaseList(S.callFilter);
   const sel=cfSubFilterArr();
   el.innerHTML=CF_QUEUE_SUBFILTERS.map(o=>{
-    const n=o.key==='all'?base.filter(c=>c.status!=='상담완료').length:cfApplyStatusFilter(base,o.key).length;
+    const n=o.key==='all'?base.filter(c=>!CF_TERMINAL_STATUSES.includes(c.status)).length:cfApplyStatusFilter(base,o.key).length;
     if(o.key==='all'){
       return `<button type="button" class="cal-ftag cf-subtag ${sel.length===0?'on on-all':''}" onclick="setCallQueueSubFilter('all')">${o.label}(${n}명)</button>`;
     }
@@ -9972,17 +10010,18 @@ function cfGetFilteredList(){
   if(f==='queued'){
     list=list.filter(c=>cfInQueueForDate(c,today));
     const subArr0=cfSubFilterArr();
-    list=subArr0.length?cfApplyStatusFilter(list,subArr0):list.filter(c=>c.status!=='상담완료');
+    list=subArr0.length?cfApplyStatusFilter(list,subArr0):list.filter(c=>!CF_TERMINAL_STATUSES.includes(c.status));
   }else if(f==='queued_tomorrow'){
     list=list.filter(c=>cfInQueueForDate(c,cfTomorrow()));
     const subArr1=cfSubFilterArr();
-    list=subArr1.length?cfApplyStatusFilter(list,subArr1):list.filter(c=>c.status!=='상담완료');
+    list=subArr1.length?cfApplyStatusFilter(list,subArr1):list.filter(c=>!CF_TERMINAL_STATUSES.includes(c.status));
   }else if(f==='unassigned'){
     list=list.filter(c=>!(cfInQueueForDate(c,today)||cfInQueueForDate(c,cfTomorrow())));
-    list=list.filter(c=>c.status!=='상담완료');
+    list=list.filter(c=>!CF_TERMINAL_STATUSES.includes(c.status));
   }else if(f==='all'){
-    // 사용자 요청: 상담완료 처리된 사람은 기본 전체 목록에서는 빠지고, 상단의 '상담완료(사유별)' 탭에서만 보이게
-    list=list.filter(c=>c.status!=='상담완료');
+    // 사용자 요청: 상담완료/연락포기처럼 더 이상 통화 안 해도 되는 사람은 기본 전체 목록에서는 빠지고,
+    // 상단의 '상담완료(사유별)'/'연락포기' 탭에서만 보이게
+    list=list.filter(c=>!CF_TERMINAL_STATUSES.includes(c.status));
   }else{
     list=cfApplyStatusFilter(list,f);
   }
@@ -10193,8 +10232,14 @@ function renderCallFlow(){
         </select>
       </td>
       <td>
-        <select onchange="updateCallField('${c.id}','status',this.value)" class="cf-badge ${c.status}" style="font-size:10px;padding:3px 6px;border-radius:10px">
-          ${Object.keys(CF_STATUS_LABELS).map(k=>`<option value="${k}" ${c.status===k?'selected':''}>${CF_STATUS_LABELS[k]}</option>`).join('')}
+        <select onchange="cfSetStatusReason('${c.id}',this.value)" class="cf-badge ${c.status}" style="font-size:10px;padding:3px 6px;border-radius:10px">
+          <option value="미시도" ${c.status==='미시도'?'selected':''}>미시도</option>
+          <option value="시도중" ${c.status==='시도중'?'selected':''}>시도중</option>
+          ${CF_CONSULT_REASONS.map((r,ri)=>`<option value="상담완료|${r}" ${(c.status==='상담완료'&&(cfHasConsultReason(c,r)||(ri===0&&!(Array.isArray(c.consultReasons)&&c.consultReasons.length))))?'selected':''}>상담완료(${r})</option>`).join('')}
+          <option value="예약대기" ${c.status==='예약대기'?'selected':''}>예약대기</option>
+          <option value="결제알림완료" ${c.status==='결제알림완료'?'selected':''}>결제알림완료</option>
+          <option value="결제완료" ${c.status==='결제완료'?'selected':''}>결제완료</option>
+          <option value="포기" ${c.status==='포기'?'selected':''}>연락포기</option>
         </select>
         ${c.status==='상담완료'?`<div style="display:flex;flex-direction:column;gap:2px;margin-top:3px">${CF_CONSULT_REASONS.map(r=>`<label style="font-size:9px;color:var(--t2);display:flex;align-items:center;gap:3px;white-space:nowrap;cursor:pointer"><input type="checkbox" class="cf-row-reason-chk" style="width:auto;margin:0" ${cfHasConsultReason(c,r)?'checked':''} onchange="toggleCallRowReason('${c.id}','${r}',this.checked)">${r}</label>`).join('')}</div>`:''}
       </td>

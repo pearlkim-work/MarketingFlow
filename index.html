@@ -9397,9 +9397,25 @@ function updateCallField(id,field,value){
     if(value==='결제알림완료'){c.paymentNoticeSent=true;c.paymentNoticeDate=c.paymentNoticeDate||cfToday();}
     else if(value==='결제완료'){c.paymentNoticeSent=true;c.paymentNoticeDate=c.paymentNoticeDate||cfToday();c.paymentDone=true;c.paymentDoneDate=c.paymentDoneDate||cfToday();}
     else if(value==='예약대기'){c.paymentNoticeSent=false;c.paymentNoticeDate=null;c.paymentDone=false;c.paymentDoneDate=null;}
+    // 사용자 요청: 상담완료로 표시하면 재통화 예정은 더 이상 필요 없으므로 정리.
+    // (c.queued/queuedDate는 남겨둠 — 그래야 오늘/내일 리스트의 '상담완료(사유별)' 하위칩으로
+    //  그날 완료 처리한 사람을 계속 조회할 수 있고, 기본 목록에서 숨기는 건 상태값 필터링으로 처리함)
+    else if(value==='상담완료'){c.nextCallDate=null;c.nextCallTime=null;}
   }
   save();
   if(field==='status')renderCallFlow();
+}
+// 표에서 바로 상담완료 사유를 체크/해제 — 마지막 통화기록에도 함께 반영해서 통화이력 모달과 일관되게 유지
+function toggleCallRowReason(id,reason,checked){
+  const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c)return;
+  if(!Array.isArray(c.consultReasons))c.consultReasons=[];
+  if(checked){if(!c.consultReasons.includes(reason))c.consultReasons.push(reason);}
+  else{c.consultReasons=c.consultReasons.filter(r=>r!==reason);}
+  const attempts=c.attempts||[];
+  if(attempts.length&&attempts[attempts.length-1].result==='상담완료'){
+    attempts[attempts.length-1].reasons=c.consultReasons.slice();
+  }
+  c.updatedAt=Date.now();save();renderCallFlow();
 }
 function updateCallProduct(id,field,sub,value){
   const c=(S.callCustomers||[]).find(x=>x.id===id);if(!c)return;
@@ -9722,6 +9738,8 @@ function saveCallLog(){
   }
   c.status=CF_RESULT_TO_STATUS[result]||c.status;
   if(c.status==='결제완료'){c.paymentDone=true;c.paymentDoneDate=cfToday();}
+  // 사용자 요청: 상담완료로 기록하면 재통화 예정은 더 이상 필요 없으므로 정리 (큐 소속 자체는 유지 — 위 설명 참고)
+  if(c.status==='상담완료'){c.nextCallDate=null;c.nextCallTime=null;}
   c.updatedAt=Date.now();
   save();closeCallLogModal();renderCallFlow();
 }
@@ -9884,10 +9902,10 @@ const CF_TOP_FILTERS=[
   {key:'포기',label:'연락포기'}
 ];
 function cfCountForTopFilter(key,all,today,tomorrow){
-  if(key==='all')return all.length;
-  if(key==='queued')return all.filter(c=>cfInQueueForDate(c,today)).length;
-  if(key==='queued_tomorrow')return all.filter(c=>cfInQueueForDate(c,tomorrow)).length;
-  if(key==='unassigned')return all.filter(c=>!(cfInQueueForDate(c,today)||cfInQueueForDate(c,tomorrow))).length;
+  if(key==='all')return all.filter(c=>c.status!=='상담완료').length;
+  if(key==='queued')return all.filter(c=>cfInQueueForDate(c,today)&&c.status!=='상담완료').length;
+  if(key==='queued_tomorrow')return all.filter(c=>cfInQueueForDate(c,tomorrow)&&c.status!=='상담완료').length;
+  if(key==='unassigned')return all.filter(c=>!(cfInQueueForDate(c,today)||cfInQueueForDate(c,tomorrow))&&c.status!=='상담완료').length;
   return cfApplyStatusFilter(all,key).length;
 }
 // ── 상단 필터 칩들을 인원수와 함께 매번 다시 그림 ──
@@ -9927,7 +9945,7 @@ function renderQueueSubFilterBar(){
   const base=cfGetQueueBaseList(S.callFilter);
   const sel=cfSubFilterArr();
   el.innerHTML=CF_QUEUE_SUBFILTERS.map(o=>{
-    const n=o.key==='all'?base.length:cfApplyStatusFilter(base,o.key).length;
+    const n=o.key==='all'?base.filter(c=>c.status!=='상담완료').length:cfApplyStatusFilter(base,o.key).length;
     if(o.key==='all'){
       return `<button type="button" class="cal-ftag cf-subtag ${sel.length===0?'on on-all':''}" onclick="setCallQueueSubFilter('all')">${o.label}(${n}명)</button>`;
     }
@@ -9953,13 +9971,19 @@ function cfGetFilteredList(){
   const today=cfToday();
   if(f==='queued'){
     list=list.filter(c=>cfInQueueForDate(c,today));
-    list=cfApplyStatusFilter(list,cfSubFilterArr());
+    const subArr0=cfSubFilterArr();
+    list=subArr0.length?cfApplyStatusFilter(list,subArr0):list.filter(c=>c.status!=='상담완료');
   }else if(f==='queued_tomorrow'){
     list=list.filter(c=>cfInQueueForDate(c,cfTomorrow()));
-    list=cfApplyStatusFilter(list,cfSubFilterArr());
+    const subArr1=cfSubFilterArr();
+    list=subArr1.length?cfApplyStatusFilter(list,subArr1):list.filter(c=>c.status!=='상담완료');
   }else if(f==='unassigned'){
     list=list.filter(c=>!(cfInQueueForDate(c,today)||cfInQueueForDate(c,cfTomorrow())));
-  }else if(f!=='all'){
+    list=list.filter(c=>c.status!=='상담완료');
+  }else if(f==='all'){
+    // 사용자 요청: 상담완료 처리된 사람은 기본 전체 목록에서는 빠지고, 상단의 '상담완료(사유별)' 탭에서만 보이게
+    list=list.filter(c=>c.status!=='상담완료');
+  }else{
     list=cfApplyStatusFilter(list,f);
   }
   if(search)list=list.filter(c=>(c.name||'').toLowerCase().includes(search)||(c.phone||'').replace(/[^0-9]/g,'').includes(search.replace(/[^0-9]/g,'')));
@@ -10172,7 +10196,7 @@ function renderCallFlow(){
         <select onchange="updateCallField('${c.id}','status',this.value)" class="cf-badge ${c.status}" style="font-size:10px;padding:3px 6px;border-radius:10px">
           ${Object.keys(CF_STATUS_LABELS).map(k=>`<option value="${k}" ${c.status===k?'selected':''}>${CF_STATUS_LABELS[k]}</option>`).join('')}
         </select>
-        ${c.status==='상담완료'?`<div style="font-size:9px;color:var(--t3);margin-top:2px">${(Array.isArray(c.consultReasons)&&c.consultReasons.length)?cfEsc(c.consultReasons.join(', ')):(c.consultReason==='기타'?('기타: '+((c.consultReasonNote||'').slice(0,20))):(c.consultReason||'관심없음'))}</div>`:''}
+        ${c.status==='상담완료'?`<div style="display:flex;flex-direction:column;gap:2px;margin-top:3px">${CF_CONSULT_REASONS.map(r=>`<label style="font-size:9px;color:var(--t2);display:flex;align-items:center;gap:3px;white-space:nowrap;cursor:pointer"><input type="checkbox" class="cf-row-reason-chk" style="width:auto;margin:0" ${cfHasConsultReason(c,r)?'checked':''} onchange="toggleCallRowReason('${c.id}','${r}',this.checked)">${r}</label>`).join('')}</div>`:''}
       </td>
       <td><input type="text" value="${(c.initialProduct||'').replace(/"/g,'&quot;')}" onchange="updateCallInitProduct('${c.id}',this.value)" style="font-size:11px;padding:4px 6px;min-width:100px"></td>
       <td>

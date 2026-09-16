@@ -1477,6 +1477,7 @@ select:focus{border-color:var(--lm);outline:none}
       <option value="상담완료|올해계획없음">상담완료(올해계획없음)</option>
       <option value="상담완료|강성거부">상담완료(강성거부)</option>
       <option value="상담완료|온라인활용가능">상담완료(온라인활용가능)</option>
+      <option value="상담완료|다음DB활용가능">상담완료(다음DB활용가능)</option>
       <option value="예약대기">예약대기 전환</option>
       <option value="결제완료">결제완료</option>
       <option value="연락처오류">연락처 오류/연락두절(포기)</option>
@@ -1489,6 +1490,7 @@ select:focus{border-color:var(--lm);outline:none}
         <label style="display:flex;align-items:center;gap:6px;font-size:12px"><input type="checkbox" class="cf-log-reason-chk" value="올해계획없음" style="width:auto">올해계획없음</label>
         <label style="display:flex;align-items:center;gap:6px;font-size:12px"><input type="checkbox" class="cf-log-reason-chk" value="강성거부" style="width:auto">강성거부</label>
         <label style="display:flex;align-items:center;gap:6px;font-size:12px"><input type="checkbox" class="cf-log-reason-chk" value="온라인활용가능" style="width:auto">온라인활용가능</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px"><input type="checkbox" class="cf-log-reason-chk" value="다음DB활용가능" style="width:auto">다음DB활용가능 (오늘 리스트에선 빠지고 다음 리스트에 다시 활용)</label>
       </div>
     </div>
     <div>
@@ -9154,7 +9156,7 @@ function cfTomorrow(){const d=new Date();d.setDate(d.getDate()+1);return d.getFu
 const CF_STATUS_LABELS={'미시도':'미시도','시도중':'시도중','상담완료':'상담완료','예약대기':'예약대기','결제알림완료':'결제알림완료','결제완료':'결제완료','포기':'연락포기'};
 const CF_RESULT_TO_STATUS={'부재중':'시도중','재통화예정':'시도중','통화연결':'시도중','상담완료':'상담완료','예약대기':'예약대기','결제완료':'결제완료','연락처오류':'포기'};
 // 사용자 요청: 상담완료 사유를 여러 개 중복 선택 가능하게(체크박스). 새 필드는 c.consultReasons(배열).
-const CF_CONSULT_REASONS=['관심없음','올해계획없음','강성거부','온라인활용가능'];
+const CF_CONSULT_REASONS=['관심없음','올해계획없음','강성거부','온라인활용가능','다음DB활용가능'];
 // 예전 데이터(단일 선택, c.consultReason)와의 호환: consultReasons가 있으면 그걸로, 없으면
 // 예전에 '관심없음'으로 기록된 것만 새 '관심없음' 항목과 동일하게 인정(그 외 사유는 예전엔 없었으므로 매칭 안 함).
 function cfHasConsultReason(c,r){
@@ -9893,6 +9895,7 @@ function cfStatusPredicate(c,sub){
   if(sub==='상담완료_올해계획없음')return c.status==='상담완료'&&cfHasConsultReason(c,'올해계획없음');
   if(sub==='상담완료_강성거부')return c.status==='상담완료'&&cfHasConsultReason(c,'강성거부');
   if(sub==='상담완료_온라인활용가능')return c.status==='상담완료'&&cfHasConsultReason(c,'온라인활용가능');
+  if(sub==='상담완료_다음DB활용가능')return c.status==='상담완료'&&cfHasConsultReason(c,'다음DB활용가능');
   return c.status===sub;
 }
 function cfApplyStatusFilter(list,sub){
@@ -9934,6 +9937,7 @@ const CF_TOP_FILTERS=[
   {key:'상담완료_올해계획없음',label:'상담완료(올해계획없음)'},
   {key:'상담완료_강성거부',label:'상담완료(강성거부)'},
   {key:'상담완료_온라인활용가능',label:'상담완료(온라인활용가능)'},
+  {key:'상담완료_다음DB활용가능',label:'상담완료(다음DB활용가능)'},
   {key:'예약대기',label:'예약대기'},
   {key:'결제알림완료',label:'결제알림완료'},
   {key:'결제완료',label:'결제완료'},
@@ -9968,6 +9972,7 @@ const CF_QUEUE_SUBFILTERS=[
   {key:'상담완료_올해계획없음',label:'상담완료(올해계획없음)'},
   {key:'상담완료_강성거부',label:'상담완료(강성거부)'},
   {key:'상담완료_온라인활용가능',label:'상담완료(온라인활용가능)'},
+  {key:'상담완료_다음DB활용가능',label:'상담완료(다음DB활용가능)'},
   {key:'예약대기',label:'예약대기'},
   {key:'결제알림완료',label:'결제알림완료'},
   {key:'결제완료',label:'결제완료'},

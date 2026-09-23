@@ -7882,6 +7882,7 @@ function doStaleRefresh(){
 
 async function init(){
   await load();await seedSummerEvent();
+  _mfSetSyncedBaseline(); // 로컬스토리지에서 막 불러온 상태를 임시 기준점으로 잡아둠(첫 서버 동기화 전 안전장치)
   const n=new Date();
   S.planCalY=n.getFullYear();S.planCalM=n.getMonth();S.fullCalY=n.getFullYear();S.fullCalM=n.getMonth();
   S.selDate=`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
@@ -10782,6 +10783,83 @@ async function getSupaAuthBearer(){
 let _syncTimer = null;
 let _syncRetryTimer = null;
 let _lastSyncAt = 0;
+// 마지막으로 로컬과 서버가 일치했던 시점의 스냅샷(동시 편집 3-way 병합의 기준점) — 없으면(null) 병합 없이 기존 방식대로 동작
+let _mfLastSyncedSnapshot = null;
+
+function _mfSnapshotOf(){
+  return {
+    projects: S.projects||[], meetings: S.meetings||[], products: S.products||[], influencers: S.influencers||[],
+    callCustomers: S.callCustomers||[], callScripts: S.callScripts||[], revEntries: S.revEntries||[], utmEntries: S.utmEntries||[],
+    mtgFolders: S.mtgFolders||[], callDailyLogs: S.callDailyLogs||[],
+    callProdCategories: S.callProdCategories||[], callProdNames: S.callProdNames||[], callRegions: S.callRegions||[],
+    callLaborCostByDate: S.callLaborCostByDate||{}, personalNotes: S.personalNotes||{}
+  };
+}
+function _mfSetSyncedBaseline(){
+  try{ _mfLastSyncedSnapshot = JSON.parse(JSON.stringify(_mfSnapshotOf())); }catch(e){}
+}
+// id가 있는 배열(프로젝트/고객/UTM 등)을 baseline(마지막 동기화 시점) 대비 local(내 화면)·remote(서버 최신)
+// 3-way 비교로 병합: 한쪽에서만 새로 생긴 건 살리고, 어느 쪽에서든 지워진 건 그대로 지워지게 함.
+function _mf3WayMergeById(baseline, local, remote){
+  const idless = (local||[]).filter(x=>!x||x.id==null); // id 없는 예외 항목은 무조건 보존
+  const baseMap = new Map((baseline||[]).filter(x=>x&&x.id!=null).map(x=>[x.id,x]));
+  const localMap = new Map((local||[]).filter(x=>x&&x.id!=null).map(x=>[x.id,x]));
+  const remoteMap = new Map((remote||[]).filter(x=>x&&x.id!=null).map(x=>[x.id,x]));
+  const allIds = new Set([...baseMap.keys(), ...localMap.keys(), ...remoteMap.keys()]);
+  const result = [];
+  allIds.forEach(id=>{
+    const inBase=baseMap.has(id), inLocal=localMap.has(id), inRemote=remoteMap.has(id);
+    if(inLocal && !inBase && !inRemote){ result.push(localMap.get(id)); return; } // 나만 새로 추가
+    if(!inLocal && inBase && !inRemote){ return; } // 양쪽에서 지워짐
+    if(!inLocal && inBase && inRemote){ return; } // 내가 방금 지움 -> 반영
+    if(inLocal && inBase && !inRemote){ return; } // 다른 세션이 이미 지움 -> 반영
+    if(!inLocal && !inBase && inRemote){ result.push(remoteMap.get(id)); return; } // 다른 세션이 새로 추가
+    if(inLocal){ result.push(localMap.get(id)); return; } // 그 외(양쪽 다 있음/수정됨) -> 지금 저장하는 로컬 우선
+    if(inRemote){ result.push(remoteMap.get(id)); }
+  });
+  return result.concat(idless);
+}
+function _mf3WayMergeUniqueStrings(baseline, local, remote){
+  return _mf3WayMergeById(
+    (baseline||[]).map(v=>({id:v})),
+    (local||[]).map(v=>({id:v})),
+    (remote||[]).map(v=>({id:v}))
+  ).map(x=>x.id);
+}
+function _mf3WayMergeDict(baseline, local, remote){
+  baseline=baseline||{}; local=local||{}; remote=remote||{};
+  const allKeys = new Set([...Object.keys(baseline), ...Object.keys(local), ...Object.keys(remote)]);
+  const result = {};
+  allKeys.forEach(k=>{
+    const inBase=Object.prototype.hasOwnProperty.call(baseline,k);
+    const inLocal=Object.prototype.hasOwnProperty.call(local,k);
+    const inRemote=Object.prototype.hasOwnProperty.call(remote,k);
+    if(inLocal && !inBase && !inRemote){ result[k]=local[k]; return; }
+    if(!inLocal && inBase && !inRemote){ return; }
+    if(!inLocal && inBase && inRemote){ return; }
+    if(inLocal && inBase && !inRemote){ return; }
+    if(!inLocal && !inBase && inRemote){ result[k]=remote[k]; return; }
+    if(inLocal){ result[k]=local[k]; return; }
+    if(inRemote){ result[k]=remote[k]; }
+  });
+  return result;
+}
+function _mf3WayMergePersonalNotes(baseline, local, remote){
+  baseline=baseline||{}; local=local||{}; remote=remote||{};
+  const allUsers = new Set([...Object.keys(baseline), ...Object.keys(local), ...Object.keys(remote)]);
+  const result = {};
+  allUsers.forEach(uid=>{
+    result[uid] = _mf3WayMergeById(baseline[uid]||[], local[uid]||[], remote[uid]||[]);
+  });
+  return result;
+}
+// scheduleSupa()를 다시 트리거하지 않고(무한 루프 방지) 지금 S 상태만 로컬에 저장
+async function _mfPersistLocalOnly(){
+  try{
+    if(window.storage){ await window.storage.set('nnb-v8', JSON.stringify(S)); }
+    else{ localStorage.setItem('nnb-v8', JSON.stringify(S)); }
+  }catch(e){ try{ localStorage.setItem('nnb-v8', JSON.stringify(S)); }catch(e2){} }
+}
 
 async function supaLoad(){
   // 버그 수정: 방금 만든/수정한 데이터가 아직 서버에 업로드되지 않았다면(supaSync 대기 중)
@@ -10823,6 +10901,7 @@ async function supaLoad(){
         callDailyLogs: d.callDailyLogs||[]
       });
       normalizeProjectsData();normalizePersonalNotes();normalizeOrgTags();
+      _mfSetSyncedBaseline(); // 지금 이 시점엔 로컬과 서버가 완전히 일치하므로 병합 기준점을 갱신
       console.log('☁️ Supabase 로드 완료');
       return true;
     }
@@ -10847,6 +10926,44 @@ async function supaSync(){
 }
 async function supaSyncInner(){
   try{
+    const bearer = await getSupaAuthBearer();
+    // 버그 수정: 업로드 전에 서버의 "지금" 데이터를 먼저 받아와서, 마지막 동기화 시점(baseline) 대비
+    // 3-way 병합을 해줌 -> 그 사이에 다른 사람/다른 탭이 추가한 내용이 이번 업로드로 사라지지 않게 보호.
+    // (서버 조회가 실패하면 병합 없이 기존 방식대로 지금 내 화면 상태를 그대로 올림 — 완전히 오프라인일 때의 안전장치)
+    let serverData = null;
+    try{
+      const getRes = await fetch(`${SUPA_URL}/rest/v1/mf_data?id=eq.${encodeURIComponent(getSupaId())}&select=data`, {
+        method:'GET', mode:'cors',
+        headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+bearer,'Accept':'application/json'}
+      });
+      if(getRes.ok){
+        const rows = await getRes.json();
+        if(rows.length>0 && rows[0].data) serverData = rows[0].data;
+      }
+    }catch(e){ console.warn('업로드 전 서버 데이터 조회 실패(병합 없이 진행):', e.message); }
+
+    if(serverData){
+      const base = _mfLastSyncedSnapshot || {};
+      S.projects = _mf3WayMergeById(base.projects, S.projects, serverData.projects);
+      S.meetings = _mf3WayMergeById(base.meetings, S.meetings, serverData.meetings);
+      S.products = _mf3WayMergeById(base.products, S.products, serverData.products);
+      S.influencers = _mf3WayMergeById(base.influencers, S.influencers, serverData.influencers);
+      S.callCustomers = _mf3WayMergeById(base.callCustomers, S.callCustomers, serverData.callCustomers);
+      S.callScripts = _mf3WayMergeById(base.callScripts, S.callScripts, serverData.callScripts);
+      S.revEntries = _mf3WayMergeById(base.revEntries, S.revEntries, serverData.revEntries);
+      S.utmEntries = _mf3WayMergeById(base.utmEntries, S.utmEntries, serverData.utmEntries);
+      S.mtgFolders = _mf3WayMergeById(base.mtgFolders, S.mtgFolders, serverData.mtgFolders);
+      S.callDailyLogs = _mf3WayMergeById(base.callDailyLogs, S.callDailyLogs, serverData.callDailyLogs);
+      S.callProdCategories = _mf3WayMergeUniqueStrings(base.callProdCategories, S.callProdCategories, serverData.callProdCategories);
+      S.callProdNames = _mf3WayMergeUniqueStrings(base.callProdNames, S.callProdNames, serverData.callProdNames);
+      S.callRegions = _mf3WayMergeUniqueStrings(base.callRegions, S.callRegions, serverData.callRegions);
+      S.callLaborCostByDate = _mf3WayMergeDict(base.callLaborCostByDate, S.callLaborCostByDate, serverData.callLaborCostByDate);
+      S.personalNotes = _mf3WayMergePersonalNotes(base.personalNotes, S.personalNotes, serverData.personalNotes);
+      S.callRegionMigV2 = !!(S.callRegionMigV2 || serverData.callRegionMigV2);
+      // 병합 결과를 화면(다음 렌더)과 로컬 저장에도 반영 — scheduleSupa()는 다시 부르지 않음(무한 루프 방지)
+      await _mfPersistLocalOnly();
+    }
+
     const payload = {
       id: getSupaId(),
       org: getSupaOrg(),
@@ -10871,7 +10988,6 @@ async function supaSyncInner(){
       },
       updated_at: new Date().toISOString()
     };
-    const bearer = await getSupaAuthBearer();
     const res = await fetch(`${SUPA_URL}/rest/v1/mf_data`, {
       method: 'POST',
       mode: 'cors',
@@ -10886,6 +11002,7 @@ async function supaSyncInner(){
     });
     if(!res.ok) throw new Error('sync fail ' + res.status);
     _lastSyncAt = Date.now();
+    _mfSetSyncedBaseline(); // 방금 올린(병합된) 데이터가 이제 서버와 로컬 양쪽의 새 기준점
     // 싱크 인디케이터 업데이트
     const ind = document.getElementById('sync-indicator');
     if(ind){ ind.textContent='☁️ 동기화됨'; ind.style.color='var(--gn)'; setTimeout(()=>{ if(ind)ind.textContent='☁️'; }, 2000); }

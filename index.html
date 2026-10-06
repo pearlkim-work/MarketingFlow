@@ -9176,7 +9176,7 @@ function cfHasConsultReason(c,r){
   return r==='관심없음'&&c.consultReason==='관심없음';
 }
 // 사용자 요청: 상담완료뿐 아니라 연락포기처럼 "더 이상 통화 안 해도 되는" 상태도 오늘/내일 기본 리스트에서 자동으로 빠지게
-const CF_TERMINAL_STATUSES=['상담완료','포기'];
+const CF_TERMINAL_STATUSES=['상담완료','포기','예약대기','결제알림완료','결제완료'];
 
 function cfAddSuggestion(category,product){
   if(!S.callProdCategories)S.callProdCategories=[];
@@ -9652,8 +9652,10 @@ function getVisibleCfDiaries(){
   });
 }
 function openCfDiaryModal(){
-  const list=getVisibleCfDiaries();
-  if(list.length)editCfDiary(list[0].id);else newCfDiaryForm();
+  // 버그 수정: 예전엔 최근 일지를 수정모드로 띄워서, 그 상태에서 그냥 저장하면
+  // 새 일지가 아니라 기존 최근 일지가 덮어써지는 문제가 있었음 (그래서 일지가 항상 1개로만 유지됨).
+  // 이제는 항상 새 일지 빈 폼으로 열고, 기존 일지는 목록에서 클릭해서 수정 가능.
+  newCfDiaryForm();
   document.getElementById('cf-diary-modal-bg').style.display='flex';
 }
 function closeCfDiaryModal(){document.getElementById('cf-diary-modal-bg').style.display='none';_cfDiaryEditId=null;}

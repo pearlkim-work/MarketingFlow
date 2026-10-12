@@ -3179,13 +3179,41 @@ document.addEventListener('click',function(e){
   if(e.target.closest('.type-picker-pop')||e.target.closest('.type-picker-trigger'))return;
   document.querySelectorAll('.type-picker-pop').forEach(m=>m.remove());
 });
+// ── 옛 이름 통합: '규리'→'김규리', '진주'→'김진주' (정확히 일치하는 이름에만 적용 — '정진주'나 '진주시' 같은 건 절대 건드리지 않음) ──
+// 데이터를 지우는 게 아니라 이름 글자만 바꿔서 합치는 작업이라, 담당자/참석자 등 다른 값은 그대로 보존됨.
+const _MF_LEGACY_NAME_ALIASES={'규리':'김규리','진주':'김진주'};
+function _mfAlias(n){return(typeof n==='string'&&Object.prototype.hasOwnProperty.call(_MF_LEGACY_NAME_ALIASES,n))?_MF_LEGACY_NAME_ALIASES[n]:n;}
+function _mfNormAssigneeCsv(str){
+  if(typeof str!=='string'||!str)return str;
+  const toks=str.split(',').map(t=>t.trim());
+  if(!toks.some(t=>_mfAlias(t)!==t))return str; // 옛 이름이 없으면 원본 문자열 그대로 둠
+  const out=[];
+  toks.forEach(t=>{if(!t)return;const n=_mfAlias(t);if(!out.includes(n))out.push(n);});
+  return out.join(',');
+}
+function mfMigrateLegacyNames(){
+  let changed=0;
+  const fixCsv=(o,k)=>{const v=o[k];const nv=_mfNormAssigneeCsv(v);if(nv!==v){o[k]=nv;changed++;}};
+  (S.projects||[]).forEach(p=>{
+    ((p.plan&&p.plan.groups)||[]).forEach(g=>(g.tasks||[]).forEach(t=>{if(t&&typeof t==='object')fixCsv(t,'assignee');}));
+    Object.values(p.tasks||{}).forEach(ts=>{if(Array.isArray(ts))ts.forEach(t=>{if(t&&typeof t==='object')fixCsv(t,'assignee');});});
+  });
+  (S.meetings||[]).forEach(m=>{
+    if(Array.isArray(m.members)&&m.members.some(x=>_mfAlias(x)!==x)){
+      const out=[];m.members.forEach(x=>{const n=_mfAlias(x);if(!out.includes(n))out.push(n);});
+      m.members=out;changed++;
+    }
+    (m.actions||[]).forEach(a=>{if(a&&typeof a==='object')fixCsv(a,'who');});
+  });
+  return changed;
+}
 function assigneeList(str){return(str||'').split(',').map(s=>s.trim()).filter(Boolean);}
 function assigneeDisplay(str){return assigneeList(str).join(', ');}
 function assigneeMatches(str,filterName){
   if(!filterName)return true;
-  const list=assigneeList(str);
+  const list=assigneeList(str).map(_mfAlias);
   if(list.includes('전체'))return true;
-  return list.includes(filterName);
+  return list.includes(_mfAlias(filterName));
 }
 // 담당자 여러 명 선택용 공용 팝오버(체크박스 방식). trigger 버튼을 누르면 열리고,
 // 체크할 때마다 onChange(csv)가 바로 호출되어 저장됨. 팝오버 밖을 클릭하면 닫힘.
@@ -8300,7 +8328,9 @@ function restoreMfSession(){
     const savedUser=JSON.parse(saved);
     if(_MF_ID_RENAME_MAP[savedUser.id])savedUser.id=_MF_ID_RENAME_MAP[savedUser.id];
     const freshUser=MF_USERS.find(u=>u.id===savedUser.id);
-    _mfUser=freshUser?{...freshUser,name:savedUser.name||freshUser.name}:savedUser;
+    // 옛 이름('규리'/'진주')이 로그인 정보에 그대로 남아있던 경우만 새 이름으로 교체 (직접 바꾼 닉네임은 보존)
+    const _savedName=((savedUser.id==='cucu'||savedUser.id==='jj')?_mfAlias(savedUser.name):savedUser.name);
+    _mfUser=freshUser?{...freshUser,name:_savedName||freshUser.name}:savedUser;
     try{localStorage.setItem('mf_user',JSON.stringify(_mfUser));}catch(e2){}
     document.getElementById('login-screen').style.display='none';
     document.getElementById('dashboard-body').style.display='block';
@@ -10802,6 +10832,12 @@ function _mfSetSyncedBaseline(){
 }
 // id가 있는 배열(프로젝트/고객/UTM 등)을 baseline(마지막 동기화 시점) 대비 local(내 화면)·remote(서버 최신)
 // 3-way 비교로 병합: 한쪽에서만 새로 생긴 건 살리고, 어느 쪽에서든 지워진 건 그대로 지워지게 함.
+// 키 순서와 상관없이 같은 내용인지 비교(서버 jsonb는 키 순서가 바뀌어 돌아오기 때문)
+function _mfCanon(v){
+  if(Array.isArray(v))return '['+v.map(_mfCanon).join(',')+']';
+  if(v&&typeof v==='object')return '{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+_mfCanon(v[k])).join(',')+'}';
+  return JSON.stringify(v===undefined?null:v);
+}
 function _mf3WayMergeById(baseline, local, remote){
   const idless = (local||[]).filter(x=>!x||x.id==null); // id 없는 예외 항목은 무조건 보존
   const baseMap = new Map((baseline||[]).filter(x=>x&&x.id!=null).map(x=>[x.id,x]));
@@ -10816,7 +10852,10 @@ function _mf3WayMergeById(baseline, local, remote){
     if(!inLocal && inBase && inRemote){ return; } // 내가 방금 지움 -> 반영
     if(inLocal && inBase && !inRemote){ return; } // 다른 세션이 이미 지움 -> 반영
     if(!inLocal && !inBase && inRemote){ result.push(remoteMap.get(id)); return; } // 다른 세션이 새로 추가
-    if(inLocal){ result.push(localMap.get(id)); return; } // 그 외(양쪽 다 있음/수정됨) -> 지금 저장하는 로컬 우선
+    // 버그 수정: 양쪽에 다 있을 때 무조건 '내 것'을 쓰면, 내가 건드리지도 않은 항목(예: 같은 프로젝트)에 다른 팀원이 방금 추가/수정한 내용이
+    // 내 옛날 복사본으로 덮어써져 사라졌음. 이제 내가 마지막 동기화 이후 그 항목을 안 바꿨다면 서버(다른 팀원) 버전을 그대로 받아들임.
+    if(inLocal && inBase && inRemote && _mfCanon(localMap.get(id))===_mfCanon(baseMap.get(id))){ result.push(remoteMap.get(id)); return; }
+    if(inLocal){ result.push(localMap.get(id)); return; } // 둘 다 수정된 진짜 충돌 -> 지금 저장하는 로컬 우선
     if(inRemote){ result.push(remoteMap.get(id)); }
   });
   return result.concat(idless);
@@ -10841,6 +10880,7 @@ function _mf3WayMergeDict(baseline, local, remote){
     if(!inLocal && inBase && inRemote){ return; }
     if(inLocal && inBase && !inRemote){ return; }
     if(!inLocal && !inBase && inRemote){ result[k]=remote[k]; return; }
+    if(inLocal && inBase && inRemote && _mfCanon(local[k])===_mfCanon(baseline[k])){ result[k]=remote[k]; return; } // 내가 안 바꾼 값은 서버(다른 팀원) 최신값 사용
     if(inLocal){ result[k]=local[k]; return; }
     if(inRemote){ result[k]=remote[k]; }
   });
@@ -10904,6 +10944,7 @@ async function supaLoad(){
       });
       normalizeProjectsData();normalizePersonalNotes();normalizeOrgTags();
       _mfSetSyncedBaseline(); // 지금 이 시점엔 로컬과 서버가 완전히 일치하므로 병합 기준점을 갱신
+      try{ if(mfMigrateLegacyNames()>0) save(); }catch(e){ console.warn('옛 이름 통합 건너뜀:', e); }
       console.log('☁️ Supabase 로드 완료');
       return true;
     }
@@ -10963,6 +11004,7 @@ async function supaSyncInner(){
       S.personalNotes = _mf3WayMergePersonalNotes(base.personalNotes, S.personalNotes, serverData.personalNotes);
       S.callRegionMigV2 = !!(S.callRegionMigV2 || serverData.callRegionMigV2);
       // 병합 결과를 화면(다음 렌더)과 로컬 저장에도 반영 — scheduleSupa()는 다시 부르지 않음(무한 루프 방지)
+      try{ mfMigrateLegacyNames(); }catch(e){} // 옛 버전 화면에서 다시 올라온 '규리/진주'도 업로드 직전에 통합
       await _mfPersistLocalOnly();
     }
 

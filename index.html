@@ -9909,7 +9909,7 @@ function handleCallExcelUpload(evt){
           firstInterestProduct:{category:initialInterestCategory,product:''},
           currentInterestProduct:{category:initialInterestCategory,product:''},
           currentInterestProducts:initialInterestCategory?[{category:initialInterestCategory,product:''}]:[],
-          interestLevel:'',status:newAttempts.length?(CF_RESULT_TO_STATUS['재통화예정']||'미시도'):'미시도',attempts:newAttempts,
+          interestLevel:'',status:'미시도',attempts:newAttempts, // 사용자 요청: 엑셀 1차메모는 과거 이력일 뿐 우리가 실제로 건 통화가 아니므로, 메모가 있어도 상태는 항상 '미시도'로 시작(메모는 1차 통화 기록에 그대로 보존)
           queued:isTodayList,queuedDate:isTodayList?cfToday():null,nextCallDate:null,nextCallTime:null,assignee:'',
           travelDate:'',ticketName:'',headcount:'',paymentPrice:'',
           paymentNoticeSent:false,paymentNoticeDate:null,
@@ -9921,7 +9921,7 @@ function handleCallExcelUpload(evt){
         added++;
       });
       save();renderCallFlow();
-      alert(`${added}명 추가됐어요.${updated?` (${updated}명 정보 업데이트)`:''}${skipped?` (연락처 중복 ${skipped}명 건너뜀)`:''}\n(엑셀에 '오늘리스트'를 '예'로 표시한 사람은 오늘 리스트에, '1차메모'를 적은 사람은 1차통화 기록에, '우선순위'를 '예'로 표시한 사람은 우선순위로, '추천상품'을 적은 사람은 추천상품 칸에 자동으로 들어가요.)`);
+      alert(`${added}명 추가됐어요.${updated?` (${updated}명 정보 업데이트)`:''}${skipped?` (연락처 중복 ${skipped}명 건너뜀)`:''}\n(엑셀에 '오늘리스트'를 '예'로 표시한 사람은 오늘 리스트에, '1차메모'를 적은 사람은 1차통화 기록에(상태는 미시도로 시작), '우선순위'를 '예'로 표시한 사람은 우선순위로, '추천상품'을 적은 사람은 추천상품 칸에 자동으로 들어가요.)`);
     }catch(err){alert('엑셀 파일을 읽는 중 오류가 났어요: '+err.message);}
     evt.target.value='';
   };
